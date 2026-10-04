@@ -112,3 +112,27 @@
 4. **第五节的文件整理**：不涉及代码，可与第一、二阶段并行。仅问答旧提示词归档就能腾出约 0.8 GB。
 5. **第三阶段**：每一项决定之后单独实施，其中 Chroma 一项预计可再腾出约 1.5 GB 并简化索引流程。
 6. **第四阶段**：在前面各阶段稳定之后再做。
+
+## 7. 执行记录（2026-10-04，分支 `cleanup-20261004`）
+
+已完成：第 0 步、第一阶段、第二阶段，以及第三阶段的第 1 项（演示项目）和第 4 项（Chroma）。每个阶段单独提交，全部验证通过（Python 全量测试、Rust 测试、前端构建、相关集成脚本，16 个页面截图与清理前逐像素一致）。
+
+与规划的差异：
+
+- `review_service` 中已被忽略的 `vid` 参数保留：涉及约 40 个调用点，删除没有行为收益。
+- 只在本文件内使用的 export 保留：纯外观改动。
+- `scripts/visual-check.mjs` 保留，只删除了测试已删演示页的 `smoke-test.mjs`。
+- `research.rs` 中为缺少筛选设置的检索式补默认值的语句保留：它不只是迁移，`xml.import` 或 Zotero 来源可能依赖它。
+- `vector.report` 保留：任务中心通过 `kind + '.report'` 动态调用它，调研时误判为无调用方。
+- 删除了 `scripts/test-project-storage.py`：它依赖已归档的迁移备份，在清理前就已无法运行。打包和移动工作目录因此暂时没有集成脚本覆盖。
+- 原本就失败的 `test_pipeline` 用例测的是已退役的慢速补救功能，已改为验证退役后的行为。
+
+数据整理：
+
+- `gut/review/test1/versions/` 已打包到 `backups/gut-review-test1-versions-20261004.tar.gz` 后删除。
+- 各项目内容为默认空草稿的 `reviews/`、空的 `summaries/`，以及空的 `vectors/chunks/redundant/` 已删除。
+
+未完成，需要用户自行处理：
+
+- 各项目的 `vectors/chroma/`（共约 1.2 GB）已不再被代码使用，删除操作被自动权限检查拦下，留给用户执行。
+- `runtimes/marker` 中的 `chromadb` 包仍已安装，未卸载。
