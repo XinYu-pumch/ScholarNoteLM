@@ -1,4 +1,4 @@
-"""Real Chroma and subprocess worker; deterministic localhost embedding fixture only."""
+"""Real index worker subprocess and SQLite vector cache; deterministic localhost embedding fixture only."""
 import hashlib,json,os,sys,tempfile,threading,time,subprocess
 from http.server import BaseHTTPRequestHandler,ThreadingHTTPServer
 from pathlib import Path
@@ -34,7 +34,7 @@ with tempfile.TemporaryDirectory(prefix='vector-integration-',dir=ROOT/'tmp') as
    time.sleep(.15)
   raise AssertionError('worker timeout')
  def search(query,method):
-  # Production RPCs isolate Chroma clients per process, avoiding stale HNSW caches.
+  # Run the production RPC in its own process and runtime, as the app does.
   result=subprocess.run([str(ROOT/'runtimes/marker/bin/python'),str(ROOT/'services/downloader/engine.py')],input=json.dumps({'action':'vector.search','args':{'project':'test','query':query,'method':method}}),text=True,capture_output=True,env={**os.environ,'SCHOLARNOTELM_ROOT':str(e.ROOT)})
   data=json.loads(result.stdout);assert data['ok'],data
   return data['data']['results']
@@ -45,14 +45,9 @@ with tempfile.TemporaryDirectory(prefix='vector-integration-',dir=ROOT/'tmp') as
  n=len(requests);job=index();assert job['skipped']==2 and len(requests)==n,job
  hits=search('immune','semantic');assert hits and all(h['metadata']['pmid'] in ('123','456') for h in hits)
  xml({'123':'Updated cytokine evidence. '*30});c.sync(e)
- deadline=time.monotonic()+20
- while v.cleanup_count(e) and time.monotonic()<deadline:time.sleep(.1)
- assert v.cleanup_count(e)==0,'physical cleanup did not drain'
- code="import sys,json;sys.path.insert(0,'services/downloader');import engine as e,vector_service as v;e.PROJECT='test';print(json.dumps(v.collection(e,v.profile(v.config(e))).get(include=['metadatas'])['metadatas']))"
- checked=subprocess.run([str(ROOT/'runtimes/marker/bin/python'),'-c',code],cwd=ROOT,text=True,capture_output=True,env={**os.environ,'SCHOLARNOTELM_ROOT':str(e.ROOT)},check=True)
- assert all(m['pmid']!='456' for m in json.loads(checked.stdout)),checked.stdout
  with c.connect(e) as db:
   assert db.execute("SELECT COUNT(*) FROM embedding_owners WHERE pmid='456'").fetchone()[0]==0
+  assert db.execute("SELECT COUNT(*) FROM indexed WHERE pmid='456'").fetchone()[0]==0
 
  assert not search('immune','semantic')
  job=index();assert job['completed']==1,job
@@ -87,5 +82,5 @@ with tempfile.TemporaryDirectory(prefix='vector-integration-',dir=ROOT/'tmp') as
   time.sleep(.1)
  assert job['state']=='done' and job['completed']==2 and not job['failed'],job
  for path in (f.base(e)/'logs').rglob('*.json'):assert 'isolated-secret-do-not-export' not in path.read_text()
- print(json.dumps({'success':True,'checks':['actual Chroma persistence','real worker subprocess','response index reordering','incremental reuse','removed and stale evidence excluded','physical Chroma deletion and cache ownership cleanup','removed article regenerates embeddings; retained article reuses cache','partial batch retry','dimension mismatch','redacted logs','document published before all embeddings finish','independent live progress'],'embeddingRequests':len(requests)},ensure_ascii=False))
+ print(json.dumps({'success':True,'checks':['SQLite vector cache recall','real worker subprocess','response index reordering','incremental reuse','removed and stale evidence excluded','removed article index registration and cache ownership cleanup','removed article regenerates embeddings; retained article reuses cache','partial batch retry','dimension mismatch','redacted logs','document published before all embeddings finish','independent live progress'],'embeddingRequests':len(requests)},ensure_ascii=False))
 server.shutdown()

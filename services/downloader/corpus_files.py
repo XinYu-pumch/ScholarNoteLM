@@ -145,7 +145,6 @@ def reconcile_locked(e):
             info.setdefault('source','冗余目录恢复')
             e.execute('INSERT OR REPLACE INTO assets VALUES(?,?,?)',(e.PROJECT,p,json.dumps(info,ensure_ascii=False)))
     result={'restored':restored,'archived':archived,'redundant':len(list(folder(e,'pdf/redundant').glob('*.pdf'))),'errors':errors,'deletedDerived':len(deleted)}
-    vector_chunks.launch_cleanup(e)
     if events or deleted:e.write_json(base(e)/'logs'/f'corpus-files-{time.time_ns()}.json',{'time':time.time(),**result,'moves':events,'deleted':deleted})
     return result
 

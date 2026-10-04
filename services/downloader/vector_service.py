@@ -1,5 +1,5 @@
 """Local evidence store, explicit embedding API, resumable per-document indexing."""
-import concurrent.futures,importlib.util,json,math,os,re,sqlite3,struct,subprocess,sys,time,uuid
+import concurrent.futures,json,math,os,re,sqlite3,struct,subprocess,sys,time,uuid
 from pathlib import Path
 from contextlib import contextmanager
 from urllib.parse import urlparse
@@ -19,7 +19,7 @@ def settings(e):
     import retrieval_settings,embedding_profiles
     data=embedding_profiles.store(e)
     return {'profiles':[{**public({**DEFAULTS,**p}),'verified':retrieval_settings.verified(e.ROOT,{**DEFAULTS,**p})} for p in data['profiles']],
-            'activeProfile':data['activeProfile'],'apiVerified':retrieval_settings.verified(e.ROOT,cfg),'config':public(cfg),'configured':bool(cfg['baseUrl'] and cfg['model']),'runtimeReady':importlib.util.find_spec('chromadb') is not None,'splitter':{'version':chunks.SPLITTER,'maxChars':8192,'minChars':1,'method':'period-balanced'}}
+            'activeProfile':data['activeProfile'],'apiVerified':retrieval_settings.verified(e.ROOT,cfg),'config':public(cfg),'configured':bool(cfg['baseUrl'] and cfg['model']),'runtimeReady':(e.ROOT/('runtimes/marker/Scripts/python.exe' if os.name=='nt' else 'runtimes/marker/bin/python')).is_file(),'splitter':{'version':chunks.SPLITTER,'maxChars':8192,'minChars':1,'method':'period-balanced'}}
 def validated(e,a):
     import embedding_profiles
     cfg=embedding_profiles.form(e,a)
@@ -124,7 +124,6 @@ def start(e,a):
         if receipt and receipt.exists():return json.loads(receipt.read_text())
         cfg=config(e)
         if not cfg['baseUrl']:raise ValueError('请先配置 Embedding 服务；文本块浏览无需配置')
-        if importlib.util.find_spec('chromadb') is None:raise ValueError('本地运行时缺少 Chroma')
         if a.get('tokenBudget','auto') not in ('auto','conservative','verified'):raise ValueError('无效的 token 预算模式')
         mode=a.get('mode','incremental')
         if mode not in ('incremental','rebuild','recompute'):raise ValueError('索引更新模式无效')
@@ -150,53 +149,26 @@ def start(e,a):
         if receipt:e.write_json(receipt,result)
         return result
 
-def collection(e,pid):
-    os.environ.update(ANONYMIZED_TELEMETRY='False',HF_HOME=str(e.ROOT/'cache/huggingface'),XDG_CACHE_HOME=str(e.ROOT/'cache'),TOKENIZERS_PARALLELISM='false')
-    import chromadb
-    from chromadb.config import Settings
-    client=chromadb.PersistentClient(path=str(files.folder(e,'vectors/chroma')),settings=Settings(anonymized_telemetry=False))
-    return client.get_or_create_collection('emb-'+pid,embedding_function=None,metadata={'hnsw:space':'cosine'})
-
 @contextmanager
-def chroma_lock(e):
+def index_lock(e):
+    # Serializes the index worker with index clearing; searches read SQLite and need no lock.
     deadline=time.monotonic()+10
     while True:
-        guard=storage.file_lock(files.base(e)/'metadata/vector-chroma.lock')
+        guard=storage.file_lock(files.base(e)/'metadata/vector-index.lock')
         try:guard.__enter__();break
         except ValueError:
-            if time.monotonic()>=deadline:raise ValueError('向量库正在建立索引或清理，请稍后重试；文本块浏览和关键词检索仍可使用') from None
+            if time.monotonic()>=deadline:raise ValueError('索引正在建立或清空，请稍后重试；文本块浏览和关键词检索仍可使用') from None
             time.sleep(.05)
     try:yield
     finally:guard.__exit__(None,None,None)
 
-def purge_pending_locked(e):
-    """Caller holds vector-chroma.lock; remove every model's obsolete rows."""
-    with files.lock(e),chunks.connect(e) as c:
-        pending=[r[0] for r in c.execute('SELECT version FROM pending_vector_deletes')]
-    if not pending:return
-    path=files.base(e)/'vectors/chroma'
-    if path.exists():
-        os.environ.update(ANONYMIZED_TELEMETRY='False',HF_HOME=str(e.ROOT/'cache/huggingface'),XDG_CACHE_HOME=str(e.ROOT/'cache'))
-        import chromadb
-        from chromadb.config import Settings
-        client=chromadb.PersistentClient(path=str(path),settings=Settings(anonymized_telemetry=False))
-        for item in client.list_collections():
-            coll=client.get_collection(item.name if hasattr(item,'name') else str(item),embedding_function=None)
-            for at in range(0,len(pending),100):coll.delete(where={'version':{'$in':pending[at:at+100]}})
-    with files.lock(e),chunks.connect(e) as c:
-        c.executemany('DELETE FROM pending_vector_deletes WHERE version=?',[(v,) for v in pending])
-
-def publish_document(e,cfg,pid,coll,doc,check):
+def publish_document(e,cfg,pid,doc,check):
+    """Mark a document indexed once every chunk has a cached vector; recall reads that cache directly."""
     p=doc['pmid'];check()
     with chunks.connect(e) as c:
         records=chunks.records_for(c,doc['version'],doc['metadata']);input_hash=chunks.input_signature(records)
-        cached={r['input_hash']:list(struct.unpack('<'+'f'*r['dimension'],r['vector'])) for r in c.execute('SELECT e.* FROM embeddings e JOIN embedding_owners o ON o.profile=e.profile AND o.input_hash=e.input_hash WHERE e.profile=? AND o.pmid=?',(pid,p))}
+        cached={r[0] for r in c.execute('SELECT e.input_hash FROM embeddings e JOIN embedding_owners o ON o.profile=e.profile AND o.input_hash=e.input_hash WHERE e.profile=? AND o.pmid=?',(pid,p))}
     if any(chunks.digest(chunks.embedding_text(r)) not in cached for r in records):raise ValueError('文献向量尚未齐全')
-    vectors=[cached[chunks.digest(chunks.embedding_text(r))] for r in records]
-    # Immutable IDs include current embedding input, so interrupted updates cannot overwrite live records.
-    ids=[r['id']+'-'+chunks.digest(chunks.embedding_text(r))[:20] for r in records]
-    metas=[chunks.chroma_metadata(r,doc['version'],input_hash) for r in records]
-    for at in range(0,len(records),128):coll.upsert(ids=ids[at:at+128],embeddings=vectors[at:at+128],metadatas=metas[at:at+128],documents=[r['text'] for r in records[at:at+128]])
     chunks.sync(e,[p],reconcile=False)
     current=next(iter(chunks.documents(e,pid,pmid=p)),None)
     if not current or current['version']!=doc['version']:raise ValueError('转换期间文献版本或纳入集合已改变，请重新索引')
@@ -207,7 +179,6 @@ def publish_document(e,cfg,pid,coll,doc,check):
         if chunks.input_signature(now)!=input_hash or chunks.metadata_signature(current['metadata'])!=chunks.metadata_signature(doc['metadata']):raise ValueError('文献信息已改变，请重新索引')
         c.execute('INSERT OR REPLACE INTO indexed VALUES(?,?,?,?)',(pid,p,doc['version'],input_hash))
         c.execute('INSERT OR REPLACE INTO indexed_metadata VALUES(?,?,?)',(pid,p,chunks.metadata_signature(current['metadata'])))
-    coll.delete(where={'$and':[{'pmid':p},{'$or':[{'version':{'$ne':doc['version']}},{'documentInputHash':{'$ne':input_hash}}]}]})
     check()
     return {'pmid':p,'state':'success','chunks':len(records)}
 
@@ -220,16 +191,13 @@ def run(e,job_id):
     def stopped():return (files.base(e)/'metadata'/('vector-stop-'+job_id)).exists() or (job.get('owner') and not e.process_alive(job['owner']))
     job.update(state='running',pid=os.getpid());save()
     try:
-        with storage.file_lock(files.base(e)/'metadata/vector-worker.lock'),chroma_lock(e),storage.file_lock(e.ROOT/'config/storage.lock',shared=True):
+        with storage.file_lock(files.base(e)/'metadata/vector-worker.lock'),index_lock(e),storage.file_lock(e.ROOT/'config/storage.lock',shared=True):
             if profile(cfg)!=pid:raise ValueError('Embedding 配置已改变，请重新启动索引')
-            purge_pending_locked(e);coll=collection(e,pid)
             if job.get('mode') in ('rebuild','recompute'):
                 with chunks.connect(e) as c:
                     c.execute('DELETE FROM indexed WHERE profile=?',(pid,));c.execute('DELETE FROM indexed_metadata WHERE profile=?',(pid,))
                     if job['mode']=='recompute':
                         c.execute('DELETE FROM embeddings WHERE profile=?',(pid,));c.execute('DELETE FROM embedding_owners WHERE profile=?',(pid,))
-                # Delete records, not the collection, so the live Chroma client remains valid.
-                for p in job['pmids']:coll.delete(where={'pmid':p})
             chunks.sync(e)
             initial={d['pmid']:d for d in chunks.documents(e,pid) if d['pmid'] in job['pmids']}
             with chunks.connect(e) as db:
@@ -260,7 +228,7 @@ def run(e,job_id):
                             job['skipped']+=1;job['items'].append({'pmid':p,'state':'skipped'});handled.add(p);return
                         while len(pending_writes)>=8:check_job();collect_writes(True)
                         def write():
-                            began=time.monotonic();result=publish_document(e,cfg,pid,coll,doc,check_job)
+                            began=time.monotonic();result=publish_document(e,cfg,pid,doc,check_job)
                             return {**result,'seconds':round(time.monotonic()-began,2)}
                         pending_writes[writer.submit(write)]=p
                     def adaptive_progress(value):
@@ -308,11 +276,11 @@ def run(e,job_id):
                                 job['embeddedChunks']=len(cached);job['totalChunks']=len(wanted);save()
                             if errors:raise errors[0]
                     if stopped():job['state']='stopped';break
-                    publish_document(e,cfg,pid,coll,doc,lambda:None)
+                    publish_document(e,cfg,pid,doc,lambda:None)
                     job['completed']+=1;job['items'].append({'pmid':p,'state':'success','chunks':len(records),'newEmbeddings':len(pending),'seconds':round(time.monotonic()-began,2)})
                 except Exception as ex:
                     job['failed']+=1;job['items'].append({'pmid':p,'state':'failed','error':str(ex)[:800]})
-                finally:save();purge_pending_locked(e)
+                finally:save()
             else:job['state']='done'
             e.write_json(chunks.base(e)/'manifest.json',{'profile':pid,'config':public(cfg),'splitter':chunks.SPLITTER,'updated':time.time()})
     except InterruptedError:job.update(state='stopped')
@@ -338,17 +306,22 @@ def search(e,a):
         if method!='keyword':
             q=embed([query],cfg)[0];saved=c.execute('SELECT dimension FROM profiles WHERE id=?',(pid,)).fetchone()
             if not saved or saved['dimension']!=len(q):raise ValueError('查询向量维度与索引不一致')
-            clauses=[{'$and':[{'version':d['version']},{'documentInputHash':chunks.input_signature(chunks.records_for(c,d['version'],d['metadata']))}]} for d in docs]
-            candidates=[];coll=collection(e,pid)
-            for at in range(0,len(clauses),40):
-                group=clauses[at:at+40];where=group[0] if len(group)==1 else {'$or':group}
-                versions={d['version'] for d in docs[at:at+40]}
-                ids=[cid for cid in records if cid in eligible and records[cid]['metadata']['documentVersion'] in versions]
-                if not ids:continue
-                where={'$and':[where,{'chunkId':{'$in':ids}}]}
-                res=coll.query(query_embeddings=[q],n_results=min(60,len(ids),max(1,coll.count())),where=where,include=['metadatas','distances'])
-                candidates.extend((m['chunkId'],d) for m,d in zip(res['metadatas'][0],res['distances'][0]) if m['chunkId'] in eligible)
-            for rank,(cid,d) in enumerate(sorted(dict(candidates).items(),key=lambda x:x[1])):scores[cid]=1/(60+rank+1);distances[cid]=d
+            # Cosine ranking over the SQLite vector cache, the same store review and QA recall read.
+            # Pure Python keeps this debug search runnable in every runtime; ~10k chunks take well under a second.
+            from array import array
+            from heapq import nlargest
+            from operator import mul
+            wanted={cid:chunks.digest(chunks.embedding_text(records[cid])) for cid in records if cid in eligible}
+            hashes=sorted(set(wanted.values()));vectors={}
+            for at in range(0,len(hashes),500):
+                part=hashes[at:at+500]
+                vectors.update((r['input_hash'],r['vector']) for r in c.execute(f"SELECT input_hash,vector FROM embeddings WHERE profile=? AND input_hash IN ({','.join('?'*len(part))})",(pid,*part)))
+            qnorm=math.sqrt(sum(x*x for x in q));similarity={}
+            for cid,h in wanted.items():
+                if h not in vectors or not qnorm:continue
+                v=array('f',vectors[h]);norm=math.sqrt(sum(map(mul,v,v)))
+                if norm:similarity[cid]=sum(map(mul,v,q))/(norm*qnorm)
+            for rank,cid in enumerate(nlargest(60,similarity,key=similarity.get)):scores[cid]=1/(60+rank+1);distances[cid]=1-similarity[cid]
         if method=='keyword':
             # Literal text lookup: no ranking model and no remote request.
             needle=query.casefold().strip()
@@ -363,14 +336,6 @@ def search(e,a):
     results=[r for r in results if r['metadata']['pmid'] in current and current[r['metadata']['pmid']]['version']==r['metadata']['documentVersion'] and (method=='keyword' or current[r['metadata']['pmid']]['indexed'])]
     report={'query':query,'profile':pid,'method':method,'created':time.time(),'results':results,'note':'查找原文在本地匹配文字；语义检索使用当前 Embedding 服务。'}
     e.write_json(files.folder(e,'logs/retrieval')/(uuid.uuid4().hex+'.json'),report);return report
-
-def cleanup_count(e):
-    from contextlib import closing
-    path=files.base(e)/'vectors/chunks.sqlite3'
-    if not path.is_file():return 0
-    with closing(sqlite3.connect(path.as_uri()+'?mode=ro',uri=True)) as c:
-        if not c.execute("SELECT 1 FROM sqlite_master WHERE name='pending_vector_deletes'").fetchone():return 0
-        return c.execute('SELECT COUNT(*) FROM pending_vector_deletes').fetchone()[0]
 
 def rpc(e,action,a):
     if action=='resource':
@@ -414,17 +379,10 @@ def rpc(e,action,a):
         if a.get('open'):return e.open_local(path)
         return {'path':str(path),'text':json.dumps(job,ensure_ascii=False,indent=2)}
     if action=='search':
-        if a.get('method')=='keyword':return search(e,a)
-        with chroma_lock(e):return search(e,a)
+        return search(e,a)
     if action=='auto':
         cfg=config(e)
         if not cfg['autoIndex'] or not cfg['baseUrl']:return {'state':'not_configured' if not cfg['baseUrl'] else 'disabled'}
-        if importlib.util.find_spec('chromadb') is None:
-            python=e.ROOT/('runtimes/marker/Scripts/python.exe' if os.name=='nt' else 'runtimes/marker/bin/python')
-            result=subprocess.run([str(python),str(e.ROOT/'services/downloader/engine.py')],input=json.dumps({'action':'vector.start','args':{**a,'project':e.PROJECT}}),text=True,encoding='utf-8',capture_output=True,timeout=60,env={**os.environ,'SCHOLARNOTELM_ROOT':str(e.ROOT),'PYTHONUTF8':'1','PYTHONDONTWRITEBYTECODE':'1'})
-            value=json.loads(result.stdout)
-            if not value.get('ok'):raise ValueError(value.get('error','自动索引启动失败'))
-            return {'state':'started',**value['data']}
         return {'state':'started',**start(e,a)}
     if action=='folder':return e.open_local(chunks.base(e))
     if action in ('status','documents','chunks','export') and chunks.cleared(e):
@@ -435,7 +393,7 @@ def rpc(e,action,a):
         for p in articles:
             state=artifact_state.markdown_state(e,p,cfg)
             items.append({'pmid':p,'pdfState':state['pdfState'],'markdownState':state['markdownState'],'vectorState':'missing','sourceKind':'pending_fulltext' if state['pdf'] else 'pubmed_abstract'})
-        return {**settings(e),'cleared':True,'metadataPending':0,'job':read_job(e),'documents':len(items),'readyDocuments':0,'chunks':0,'readyChunks':0,'eligibleDocuments':len(items),'items':items,'xmlFingerprint':'','cleanupPending':0}
+        return {**settings(e),'cleared':True,'metadataPending':0,'job':read_job(e),'documents':len(items),'readyDocuments':0,'chunks':0,'readyChunks':0,'eligibleDocuments':len(items),'items':items,'xmlFingerprint':''}
     if action in ('status','documents','chunks','export'):
         cfg=config(e)
         if action=='status':
@@ -443,7 +401,7 @@ def rpc(e,action,a):
             docs=status_cache.documents(e,profile(cfg))
         else:
             chunks.sync(e);docs=chunks.documents(e,profile(cfg))
-        if action=='status':return {**settings(e),'refreshing':any(d.get('refreshing') for d in docs),'metadataPending':sum(d['indexed'] and not d.get('metadataReady') for d in docs),'job':read_job(e),'documents':len(docs),'readyDocuments':sum(d['indexed'] for d in docs),'chunks':sum(d['chunks'] for d in docs),'readyChunks':sum(d['chunks'] for d in docs if d['indexed']),'eligibleDocuments':sum(bool(d['chunks']) for d in docs),'items':[{'pmid':d['pmid'],'pdfState':d['metadata'].get('pdfState','missing'),'markdownState':d['metadata'].get('markdownState','missing'),'vectorState':d['state'],'sourceKind':d['sourceKind']} for d in docs],'xmlFingerprint':chunks.digest((files.base(e)/'pubmed/current.xml').read_text()) if (files.base(e)/'pubmed/current.xml').exists() else '', 'cleanupPending':cleanup_count(e)}
+        if action=='status':return {**settings(e),'refreshing':any(d.get('refreshing') for d in docs),'metadataPending':sum(d['indexed'] and not d.get('metadataReady') for d in docs),'job':read_job(e),'documents':len(docs),'readyDocuments':sum(d['indexed'] for d in docs),'chunks':sum(d['chunks'] for d in docs),'readyChunks':sum(d['chunks'] for d in docs if d['indexed']),'eligibleDocuments':sum(bool(d['chunks']) for d in docs),'items':[{'pmid':d['pmid'],'pdfState':d['metadata'].get('pdfState','missing'),'markdownState':d['metadata'].get('markdownState','missing'),'vectorState':d['state'],'sourceKind':d['sourceKind']} for d in docs],'xmlFingerprint':chunks.digest((files.base(e)/'pubmed/current.xml').read_text()) if (files.base(e)/'pubmed/current.xml').exists() else ''}
         if action=='documents':return docs
         p=e.pmid(a['pmid']);doc=next((d for d in docs if d['pmid']==p),None)
         if not doc:raise ValueError('文献已不在当前 XML 中')

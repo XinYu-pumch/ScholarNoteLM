@@ -41,7 +41,6 @@ class ArtifactStateTests(unittest.TestCase):
   with c.connect(e) as db:
    for table in ('documents','chunks','indexed','embedding_owners'):self.assertEqual(db.execute(f'SELECT COUNT(*) FROM {table} WHERE pmid=?',('1',)).fetchone()[0],0)
    self.assertEqual(db.execute('SELECT COUNT(*) FROM embeddings').fetchone()[0],0)
-   self.assertTrue(db.execute('SELECT 1 FROM pending_vector_deletes WHERE version=?',(version,)).fetchone())
   self.xml(['1','2']);f.reconcile(e);self.assertTrue((self.base/'pdf/1.pdf').exists());self.assertFalse((self.base/'markdown/1.md').exists());self.assertGreater(a.epoch(e,'1'),generation)
   c.sync(e);d=c.documents(e)[0];self.assertEqual(d['state'],'blocked');self.assertFalse(d['indexed'])
  def test_removal_preserves_shared_cache_owned_by_remaining_article(self):

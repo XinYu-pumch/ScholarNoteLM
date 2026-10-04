@@ -40,7 +40,7 @@ tar -xzf backups/history-20261002.tar.gz -C tmp/restore-history-20261002
 | --- | --- |
 | `models/marker/` | 当前本地 PDF 转换模型 |
 | `runtimes/python/` | 各 Python 虚拟环境共用的解释器，虚拟环境中的 python 是指向它的链接 |
-| `runtimes/marker/` | Marker/Surya/PyTorch、Chroma 与共享基础依赖 |
+| `runtimes/marker/` | Marker/Surya/PyTorch、索引进程与共享基础依赖（仍装有已不使用的 chromadb 包） |
 | `runtimes/retrieval/` | 问答及综述 worker 的入口；通过 `scholarnotelm-shared.pth` 共享 Marker 环境 |
 | `runtimes/downloader/` | 下载、项目 RPC 等服务 |
 | `runtimes/node/` | 前端开发及后台下载浏览器服务 |

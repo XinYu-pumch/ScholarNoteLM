@@ -44,17 +44,17 @@
 
 ## 索引与更新
 
-- 本地 Chroma 持久化、余弦距离；复用 app 内 `runtimes/marker` 已有依赖。不启用 Chroma 默认 Embedding 模型下载。
+- 向量只保存在 `vectors/chunks.sqlite3` 的向量缓存中，召回时直接做余弦排序；综述、问答和文本块调试检索读取同一份数据。2026-10-04 起不再使用 Chroma，旧的 `vectors/chroma/` 已删除。
 - 默认每批 64 块、并发 2、超时 60 秒。针对网络错误、429、临时 5xx 有限重试；无效向量、索引顺序错误、数量/维度变化拒绝入库。
 - 成功批次及时缓存。单篇全部向量写入且再次核对文献版本后，才标记该篇已索引；失败不发布半成品。
 - 相同模型/输入复用成功向量；修改 chunk 原文会改变对应向量输入，单独修改标题或章节 metadata 不改变向量输入。模型、服务地址、模型版本标识或 Embedding 输入模板变化使用独立索引。`chunk-body-only-v2` 与旧的 `title-section-body-v1` 隔离，升级后须重新建立正文向量索引。
 - 文献移出当前 XML 时，只归档 PDF。删除该 PMID 的 Markdown、图片、JSONL、源文本快照、所有历史版本与模型的块记录和索引登记；删除无人再使用的向量缓存。共享缓存仍被其他文献使用时保留，但不允许被已移除后重新纳入的文献直接复用。
-- Chroma 删除通过持久队列完成；索引写入期间等待锁，界面显示待清理数量。SQL 检索范围立即移除该文献，物理清理失败可重试。旧 XML 快照与运行日志保留，不作为可恢复的 Markdown 或向量备份。
+- 移出文献的块记录、索引登记和无人使用的向量缓存在同一事务中直接删除，没有额外的物理清理队列。旧 XML 快照与运行日志保留，不作为可恢复的 Markdown 或向量备份。
 - 重新纳入时只恢复通过校验的 PDF，需重新转换 Markdown、分块和生成该文献的向量。生命周期编号防止移出前尚在运行的任务写回旧结果。
 - 已配置服务后，默认在 Markdown 批次完成时接续索引；可关闭自动选项。所有下载失败、没有 PDF 可转换时可直接接续摘要索引。停止转换不会自动接续。
 - 停止索引会等待当前并发请求返回；退出桌面应用后不再继续下一轮。下一次“建立 / 更新”复用已完成部分。
 
-索引进程与语义查询串行使用 Chroma，各 RPC 用独立进程，避免多进程长期缓存与 HNSW 写入交错。索引中仍可浏览拆分结果和进行本地关键词检索。
+索引任务与“清空索引”通过 `metadata/vector-index.lock` 互斥；语义检索只读 SQLite，索引进行中也可使用，但只返回已登记为最新的文献。
 
 ## 检索调试
 
@@ -71,7 +71,6 @@ ScholarNoteLM/config/embedding.json       # 系统配置，含密钥；不写入
     chunks.sqlite3                       # 文献版本、块、FTS、向量缓存、索引状态
     chunks/PMID.jsonl                    # 当前文献的正文块与完整 metadata
     sources/文献版本.md                  # 拆分对应的不可变文本快照
-    chroma/                              # Chroma 向量索引
     manifest.json                        # 当前模型签名与拆分版本，无密钥
   metadata/vector-job.json               # 最近索引任务
   metadata/corpus-membership.json        # 当前 PMID、生命周期及待清理记录
@@ -85,7 +84,7 @@ JSONL 一行一个 `{id, text, metadata}`，便于在编辑器中检查或后续
 ## 验证
 
 - `runtimes/downloader/bin/python -m unittest discover -s services/downloader/tests`：95 项通过，含句号二分、Unicode 定位、内容失效、仅恢复 PDF、并发转换作废、密钥隔离、离线关键词检索。
-- `runtimes/marker/bin/python scripts/test-vectors-integration.py`：真实 Chroma + 独立 worker + 本机模拟 Embedding 服务，覆盖增量复用、返回顺序重排、部分批次失败重试、旧版本/移出文献排除和维度变化。隔离临时项目自动清理，不发送真实文献。
+- `runtimes/marker/bin/python scripts/test-vectors-integration.py`：SQLite 向量缓存 + 独立 worker + 本机模拟 Embedding 服务，覆盖增量复用、返回顺序重排、部分批次失败重试、旧版本/移出文献排除和维度变化。隔离临时项目自动清理，不发送真实文献。
 - 本次增量与清理测试使用本机模拟 Embedding 服务，不发送项目文献；尚未进行 Windows 实机验证。
 
 完整阶段状态规则见 [文件生命周期与最新状态](ARTIFACT_LIFECYCLE.md)。

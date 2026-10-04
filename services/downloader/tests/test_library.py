@@ -42,8 +42,7 @@ class LibraryTests(unittest.TestCase):
  def test_long_metadata_full_unicode_and_date_precision(self):
   title='非常长的完整篇名'*400;self.xml(title);c.sync(e);d=c.documents(e)[0]
   self.assertEqual(d['metadata']['title'],title);self.assertEqual(d['metadata']['publicationDate'],'2026 Sep');self.assertEqual(d['metadata']['publicationDates']['journal']['precision'],'month')
-  with c.connect(e) as db:record=c.records_for(db,d['version'],d['metadata'])[0]
-  self.assertEqual(c.chroma_metadata(record,d['version'],'hash')['title'],title)
+  with c.connect(e) as db:self.assertEqual(c.records_for(db,d['version'],d['metadata'])[0]['metadata']['title'],title)
  def test_csv_creation_is_validated_before_directory_and_preserves_source(self):
   with self.assertRaises(ValueError):r.rpc(e,'create',{'name':'Bad','outlineSource':'file','csv':'1.1,Missing parent','fileName':'bad.csv'})
   self.assertFalse((self.base/'review/Bad').exists())

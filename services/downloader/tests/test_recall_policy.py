@@ -47,20 +47,19 @@ class RecallPolicyTests(unittest.TestCase):
   first=next(r for r in result if r['text']=='immune finding.')
   self.assertIn('# immune 129',[n['text'] for n in first['neighbors']])
   self.assertEqual(len(records),132)
- def test_semantic_filter_reaches_vector_database_before_limit(self):
+ def test_semantic_filter_applies_before_limit(self):
   doc,records=self.make_corpus();doc['indexed']=True
-  allowed=[r for r in records if chunks.recall_allowed(r)]
-  cfg=vectors.config(e)
-  with chunks.connect(e) as db:db.execute('INSERT INTO profiles VALUES(?,?,?)',(vectors.profile(cfg),2,'{}'))
-  coll=MagicMock();coll.count.return_value=len(records)
-  def query(**kw):
-   ids=kw['where']['$and'][-1]['chunkId']['$in']
-   self.assertEqual(set(ids),{r['id'] for r in allowed})
-   return {'metadatas':[[{'chunkId':r['id']} for r in allowed]],'distances':[[.1,.2]]}
-  coll.query.side_effect=query
-  with patch.object(chunks,'sync'),patch.object(chunks,'documents',return_value=[doc]),patch.object(vectors,'embed',return_value=[[1.,0.]]),patch.object(vectors,'collection',return_value=coll):
-   result=vectors.search(e,{'query':'immune','method':'semantic','limit':2})['results']
-  self.assertEqual(len(result),2)
+  allowed=[r for r in records if chunks.recall_allowed(r)];blocked=[r for r in records if not chunks.recall_allowed(r)]
+  self.assertTrue(allowed and blocked)
+  cfg=vectors.config(e);pid=vectors.profile(cfg)
+  with chunks.connect(e) as db:
+   db.execute('INSERT INTO profiles VALUES(?,?,?)',(pid,2,'{}'))
+   # Excluded chunks match the query best; they must still never be ranked.
+   for r in records:db.execute('INSERT OR REPLACE INTO embeddings VALUES(?,?,?,?)',(pid,chunks.digest(chunks.embedding_text(r)),2,struct.pack('<2f',*((1.,0.) if r in blocked else (.6,.8)))))
+  with patch.object(chunks,'sync'),patch.object(chunks,'documents',return_value=[doc]),patch.object(vectors,'embed',return_value=[[1.,0.]]):
+   result=vectors.search(e,{'query':'immune','method':'semantic','limit':len(records)})['results']
+  self.assertEqual({r['id'] for r in result},{r['id'] for r in allowed})
+  self.assertAlmostEqual(result[0]['distance'],.4,places=5)
  def test_recall_policy_changes_prepare_signature_not_embedding_profile(self):
   cfg={'method':'bm25','reranker':'none'};before=review.signature(e.ROOT,cfg);profile=vectors.profile(vectors.config(e))
   with patch.object(chunks,'HEADING_MIN_CHARS',120):

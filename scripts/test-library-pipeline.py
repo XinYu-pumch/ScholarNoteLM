@@ -1,4 +1,4 @@
-"""Real Rust RPC + coordinator + download/Marker/Chroma workers, isolated fixtures.
+"""Real Rust RPC + coordinator + download/Marker/index workers, isolated fixtures.
 No external network: OA disabled, fixture papers have no DOI/PMCID; embeddings
 come from a localhost server. Marker reuses a prepared raw text (no inference).
 """
@@ -47,9 +47,8 @@ with tempfile.TemporaryDirectory(prefix='library-integration-',dir=ROOT/'tmp') a
  print('Checking metadata update and cache reuse',flush=True)
  e.atomic(base/'pubmed/current.xml',xml.replace('<Month>Sep</Month>','<Month>Oct</Month>'))
  rpc('vector.start');j=wait('vector.status');assert j['failed']==0 and len(requests)==n,j
- code="import sys,json;sys.path.insert(0,'services/downloader');import engine as e,vector_service as v;e.PROJECT='test';print(json.dumps(v.collection(e,v.profile(v.config(e))).get(include=['metadatas'])['metadatas']))"
- result=subprocess.run([str(ROOT/'runtimes/marker/bin/python'),'-c',code],cwd=ROOT,env=env,text=True,capture_output=True,check=True)
- metas=json.loads(result.stdout);assert all(x['publicationDate']=='2026 Oct' for x in metas);assert next(x for x in metas if x['pmid']=='1')['title']==title.strip()
+ docs=rpc('vector.documents');assert all(d['indexed'] and d['metadataReady'] for d in docs),docs
+ metas=[d['metadata'] for d in docs];assert all(x['publicationDate']=='2026 Oct' for x in metas);assert next(x for x in metas if x['pmid']=='1')['title']==title.strip()
  rpc('vector.start',mode='rebuild',confirm='test');j=wait('vector.status');assert j['failed']==0 and len(requests)==n
  rpc('vector.start',mode='recompute',confirm='test');j=wait('vector.status');assert j['failed']==0 and len(requests)>n
  print('Checking single-stage conversion and explicit clear',flush=True)
@@ -64,5 +63,5 @@ with tempfile.TemporaryDirectory(prefix='library-integration-',dir=ROOT/'tmp') a
  delay=2;rpc('vector.start');time.sleep(.3);rpc('library.clear',scope='markdown',confirm='test');j=wait();assert j['state']=='done',j
  assert not (base/'markdown').exists() and not (base/'vectors').exists() and (base/'pdf/1.pdf').exists()
  time.sleep(2);assert not (base/'vectors').exists(),'late worker resurrected deleted vectors'
- print(json.dumps({'success':True,'checks':['real RPC pipeline across all three workers','autoIndex false still indexes pipeline','incremental second run makes zero API calls','metadata update makes zero API calls','complete Unicode title persisted in Chroma','rebuild cache reuse','explicit recompute','single-stage conversion does not index','file import preserves original','clear blocks polling resurrection','clear waits for in-flight worker'],'embeddingInputs':len(requests)},ensure_ascii=False),flush=True)
+ print(json.dumps({'success':True,'checks':['real RPC pipeline across all three workers','autoIndex false still indexes pipeline','incremental second run makes zero API calls','metadata update makes zero API calls','complete Unicode title persisted in the index metadata','rebuild cache reuse','explicit recompute','single-stage conversion does not index','file import preserves original','clear blocks polling resurrection','clear waits for in-flight worker'],'embeddingInputs':len(requests)},ensure_ascii=False),flush=True)
 server.shutdown()

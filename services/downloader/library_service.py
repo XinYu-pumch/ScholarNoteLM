@@ -60,8 +60,6 @@ def running(e):
         for kind,record in [('outline',r.vstate(e,directory.name,'current')),('writing',w.job(e,directory.name))]:
             if record and (record.get('state') in ACTIVE or (record.get('pid') and time.time()-record.get('finished',0)<60 and worker_alive(e,record['pid']))):
                 result.append((kind,{**record,'name':directory.name}))
-    cleanup=read(files.base(e)/'metadata/vector-cleanup-process.json',{})
-    if cleanup.get('pid') and time.time()-(files.base(e)/'metadata/vector-cleanup-process.json').stat().st_mtime<120 and worker_alive(e,cleanup['pid']):result.append(('cleanup',cleanup))
     return result
 
 def stop_children(e):
@@ -196,7 +194,7 @@ def safe_remove(base,target):
 def clear_idle(e,j):
     import vector_service as v,artifact_state
     base=files.base(e);scope=j['scope'];counts=inventory(e,scope,j['includeRedundant'])
-    with storage.file_lock(base/'metadata/library-operations.lock'),v.chroma_lock(e),files.lock(e):
+    with storage.file_lock(base/'metadata/library-operations.lock'),v.index_lock(e),files.lock(e):
         if running(e):raise ValueError('后台任务尚未退出，未清理')
         targets=[base/'vectors']
         if scope in ('pdf','markdown'):targets += [base/'markdown',base/'metadata/markdown']
@@ -221,7 +219,7 @@ def clear_idle(e,j):
             for record in e.rows('SELECT pmid,data FROM assets WHERE project=?',(e.PROJECT,)):
                 if j['includeRedundant'] or not json.loads(record['data']).get('archived'):
                     e.execute('DELETE FROM assets WHERE project=? AND pmid=?',(e.PROJECT,record['pmid']))
-        for filename in ('vector-job.json','vector-process.json','vector-cleanup-process.json'):
+        for filename in ('vector-job.json','vector-process.json'):
             (base/'metadata'/filename).unlink(missing_ok=True)
         if scope in ('pdf','markdown'):
             for filename in ('markdown-job.json','markdown-process.json'):(base/'metadata'/filename).unlink(missing_ok=True)

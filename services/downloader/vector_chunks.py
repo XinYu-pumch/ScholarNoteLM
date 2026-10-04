@@ -1,5 +1,5 @@
 """Paragraph splitting with balanced period boundaries and inspectable evidence records."""
-import hashlib,json,re,sqlite3,time,os,subprocess
+import hashlib,json,re,sqlite3
 import xml.etree.ElementTree as ET
 import pubmed_xml,evidence_resources as resources
 from pathlib import Path
@@ -36,7 +36,6 @@ def purge_documents(e,pmids):
                 removed_assets.update(json.loads(r[0]).get('assetPath') for r in c.execute('SELECT data FROM resources WHERE pmid=?',(p,)))
                 versions=[r[0] for r in c.execute('SELECT version FROM documents WHERE pmid=?',(p,))]
                 for version in versions:
-                    c.execute('INSERT OR IGNORE INTO pending_vector_deletes VALUES(?,?)',(version,p))
                     if re.fullmatch('[a-f0-9]{64}',version):(base(e)/'sources'/f'{version}.md').unlink(missing_ok=True)
                 c.execute('DELETE FROM chunk_fts WHERE id IN (SELECT id FROM chunks WHERE pmid=?)',(p,))
                 for table in ('resources','chunks','documents','current_documents','indexed','indexed_metadata','embedding_owners'):
@@ -49,24 +48,6 @@ def purge_documents(e,pmids):
     for p in pmids:
         (files.base(e)/'vectors/chunks'/f'{p}.jsonl').unlink(missing_ok=True)
 
-def launch_cleanup(e):
-    path=files.base(e)/'vectors/chunks.sqlite3'
-    if not path.exists():return
-    with sqlite3.connect(path) as c:
-        if not c.execute("SELECT 1 FROM sqlite_master WHERE name='pending_vector_deletes'").fetchone():return
-        if not c.execute('SELECT 1 FROM pending_vector_deletes LIMIT 1').fetchone():return
-    python=e.ROOT/('runtimes/marker/Scripts/python.exe' if os.name=='nt' else 'runtimes/marker/bin/python')
-    if not python.exists():return
-    import storage
-    try:
-        with storage.file_lock(files.base(e)/'metadata/vector-cleanup-start.lock'):
-            info=files.base(e)/'metadata/vector-cleanup-process.json'
-            previous=json.loads(info.read_text()) if info.exists() else {}
-            if previous.get('pid') and e.process_alive(previous['pid']):return
-            with (files.folder(e,'logs')/'vector-cleanup.log').open('ab') as out:
-                child=subprocess.Popen([str(python),str(e.ROOT/'services/vectors/cleanup.py'),'--project',e.PROJECT],env={**os.environ,'SCHOLARNOTELM_ROOT':str(e.ROOT),'PYTHONDONTWRITEBYTECODE':'1','TMPDIR':str(e.ROOT/'tmp'),'TEMP':str(e.ROOT/'tmp'),'TMP':str(e.ROOT/'tmp')},cwd=e.ROOT,stdin=subprocess.DEVNULL,stdout=out,stderr=out,**({'creationflags':subprocess.CREATE_NO_WINDOW} if os.name=='nt' else {'start_new_session':True}))
-            e.write_json(info,{'pid':child.pid})
-    except ValueError:pass
 def connect(e):
     c=sqlite3.connect(base(e)/'chunks.sqlite3',timeout=15);c.row_factory=sqlite3.Row
     c.executescript('''PRAGMA journal_mode=WAL;
@@ -81,7 +62,7 @@ def connect(e):
     CREATE TABLE IF NOT EXISTS indexed_metadata(profile TEXT,pmid TEXT,hash TEXT,PRIMARY KEY(profile,pmid));
     CREATE TABLE IF NOT EXISTS profiles(id TEXT PRIMARY KEY,dimension INTEGER,config TEXT);
     CREATE TABLE IF NOT EXISTS embedding_owners(profile TEXT,input_hash TEXT,pmid TEXT,PRIMARY KEY(profile,input_hash,pmid));
-    CREATE TABLE IF NOT EXISTS pending_vector_deletes(version TEXT PRIMARY KEY,pmid TEXT);
+    DROP TABLE IF EXISTS pending_vector_deletes;
     CREATE TABLE IF NOT EXISTS schema_meta(key TEXT PRIMARY KEY,value TEXT);
     CREATE INDEX IF NOT EXISTS embeddings_hash ON embeddings(input_hash);
     CREATE VIRTUAL TABLE IF NOT EXISTS chunk_fts USING fts5(id UNINDEXED,text,tokenize='unicode61');
@@ -304,16 +285,6 @@ def documents(e,profile='',pmid=None):
             state='latest' if ready else 'blocked' if m['sourceKind']=='pending_fulltext' else 'outdated' if indexed else 'missing'
             result.append({'pmid':d['pmid'],'title':m['title'],'version':d['version'],'sourceKind':m['sourceKind'],'chunks':len(records),'indexed':ready,'metadataReady':metadata_ready,'state':state,'metadata':m})
         return result
-
-# Fields actually projected into Chroma. JSON encoding preserves nested data in
-# Chroma versions that only accept scalar metadata values. No string slicing.
-def chroma_metadata(record,version,input_hash):
-    m=record['metadata']
-    result={'chunkId':record['id'],'version':version,'documentInputHash':input_hash}
-    for key in ('pmid','title','journal','year','publicationDate','doi','pmcid','sourceKind','blockType','lineStart','lineEnd','chunkIndex','authors','publicationDates','sectionPath','mesh','publicationTypes','language'):
-        value=m.get(key)
-        if value is not None:result[key]=value if isinstance(value,(str,int,float,bool)) else json.dumps(value,ensure_ascii=False)
-    return result
 
 def metadata_signature(meta):
     return digest({k:meta.get(k) for k in ('pmid','title','journal','year','publicationDate','doi','pmcid','sourceKind','authors','publicationDates','mesh','publicationTypes','language')})

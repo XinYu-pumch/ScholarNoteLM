@@ -16,7 +16,7 @@
 | JCR / MeSH | JCR 上传校验；官方 MeSH XML 构建本地索引、应用运行期间自动检查更新 |
 | PDF 下载 | 真实多来源下载、镜像队列、暂停/恢复/重试、逐批次报告 |
 | Markdown | 固定使用 Marker，内置仅清洗参考文献；原稿与替换历史保留 |
-| 文本块 / 向量 | 段落拆分、Embedding API、Chroma、向量缓存、可视化文本块调试 |
+| 文本块 / 向量 | 段落拆分、Embedding API、SQLite 向量缓存与余弦召回、可视化文本块调试 |
 | 综述大纲 | 基于摘要的真实 LLM 生成，完整树编辑、CSV 校验、导出完整提示词 |
 | 综述正文 | Embedding API 正文召回；先准备提示词，再生成片段、按大纲装配 |
 | 导出 | BADR 风格片段 JSON、Markdown、带引用详情的 HTML、Word |
@@ -167,7 +167,7 @@
 | `runtimes/node/` | Node/npm；优先使用 `scripts/npm-local.sh` |
 | `runtimes/rust/`、`cache/cargo/` | Rust 工具链；优先使用 `scripts/cargo-local.sh` |
 | `runtimes/downloader/` | 下载、项目管理、综述服务、写作 HTTP 请求、Word 导出等 |
-| `runtimes/marker/` | Marker / Surya / PyTorch；Chroma 相关任务也使用此环境 |
+| `runtimes/marker/` | Marker / Surya / PyTorch；索引进程与 `vector.*` RPC 也使用此环境 |
 | `runtimes/retrieval/` | 综述及问答检索、NumPy、HTTP 请求 |
 | `runtimes/playwright/` | 正式 Sci-Hub 后台 Chromium 下载与 UI 检查共用的浏览器 |
 | `models/marker/` | 本地 PDF 转换模型 |
@@ -214,7 +214,7 @@ React / TypeScript UI
 | 工作目录与文件生命周期 | `storage.py`、`corpus_files.py`、`artifact_state.py` |
 | 转换、清洗和 Marker 进程 | `services/downloader/markdown_service.py`、`services/marker/worker.py` |
 | 段落分块、元数据与向量缓存 | `services/downloader/vector_chunks.py` |
-| Embedding / Chroma / 限速 | `vector_service.py`、`embedding_limits.py`、`services/vectors/` |
+| Embedding / 索引 / 限速 | `vector_service.py`、`embedding_limits.py`、`services/vectors/` |
 | 主题 / 组件 | `tokens.css`、`styles.css`、`ui.tsx`、`Select.tsx` |
 
 表中未注明路径的前端文件在 `apps/desktop/src/`；Python 文件在 `services/downloader/`。
@@ -285,7 +285,6 @@ ScholarNoteLM/
   markdown/assets/<PMID>/
   vectors/
     chunks.sqlite3              # 文本块、文档版本、Embedding 缓存与索引登记
-    chroma/                     # Chroma 持久化索引
     chunks/                     # 可导出的逐篇 JSONL
     sources/                    # 文本版本快照
   metadata/
@@ -382,7 +381,7 @@ JCR 默认文件来自 BADR 的本地副本，上传通过列名与记录校验�
 
 Embedding 输入仅为 chunk 原文，模板版本为 `chunk-body-only-v2`；论文标题和章节路径只保存在 metadata 中，不拼入向量、关键词排名输入。旧的带标题向量使用不同索引版本，须重新建立索引，不能直接复用。**字符数不是 token 数**；模型拒绝超长输入时明确报错，不静默截断。文本块浏览器展示 PMID、原文、行号/上下文、metadata。完整图表独立保存，按同一份清洗稿的位置关联到文本块；召回后补入问答和综述材料。
 
-`vectors/chunks.sqlite3` 中的 Embedding 缓存与 Chroma 的“某篇文献当前索引已发布”是不同状态。综述 API 召回可直接复用向量缓存进行余弦排序，不等于所有文献都已标记 Chroma 索引最新。遇到“生成缺失 API 向量”时，应检查模型身份、输入哈希、模板/文本版本和摘要块是否已有缓存，不能仅凭缺失数量断言为无 PDF 文献。
+`vectors/chunks.sqlite3` 中的 Embedding 缓存是唯一的向量存储（2026-10-04 起不再使用 Chroma）；`indexed` 登记表示某篇文献的全部块都已有当前模型的向量。综述 API 召回直接对缓存做余弦排序，不要求所有文献都已登记为最新。遇到“生成缺失 API 向量”时，应检查模型身份、输入哈希、模板/文本版本和摘要块是否已有缓存，不能仅凭缺失数量断言为无 PDF 文献。
 
 Embedding 请求使用当前 Embedding 配置中的共享 RPM/TPM 限速，默认 60 RPM / 120000 估算 TPM 是应用值，不代表供应商账号配额；429 遵循 Retry-After。验证绑定实际服务配置与凭据指纹，修改后需重新验证。
 
@@ -548,7 +547,7 @@ PLAYWRIGHT_BROWSERS_PATH="$PWD/runtimes/playwright" TMPDIR="$PWD/tmp" \
 | `scripts/test-review-integration.py` | 大纲与工作区 |
 | `scripts/test-review-writing-integration.py` | 独立 worker、两步写作、重试、文件缺失、取消、导出 |
 | `scripts/test-review-reader-ui.mjs` | 离线 HTML 目录、引用作用域、窄屏侧栏、键盘操作、打印与无外部请求 |
-| `scripts/test-vectors-integration.py` | Chroma 与索引任务 |
+| `scripts/test-vectors-integration.py` | 索引任务与 SQLite 向量召回 |
 | `scripts/test-markdown-corpus.py` | XML 变化、PDF 归档恢复与派生文件 |
 | `scripts/test-literature-workflow.py` | 实际 Marker 流程，不是轻量检查 |
 | `scripts/test-pubmed-live.py`、`test-download-live.py`、`test-source-cache-live.py` | 会访问真实外网，不是离线回归 |
