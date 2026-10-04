@@ -77,6 +77,7 @@ def rows_at(e,path):
     if not csvpath.exists():return []
     return outline.nodes(e,path,outline.parse_csv(csvpath.read_text(encoding='utf8')))
 
+# 'sendTemperature' is retired but stays in the key list so existing signatures remain valid.
 def profile_signature(p):return chunks.digest({k:p.get(k) for k in ('id','model','endpoint','temperature','sendTemperature','visionModels')})
 def unit_signature(unit,cfg,topic,source,model_signature,models,prompt_hash=""):
     return chunks.digest([SYSTEM,review_format.FORMAT,review_bundle.VERSION,{k:v for k,v in unit.items() if k not in ('signature','promptSignature')},{k:v for k,v in cfg.items() if k not in ('concurrency','profileId','model') and (k!='limitContext' or v)},topic,source,model_signature,models,prompt_hash])

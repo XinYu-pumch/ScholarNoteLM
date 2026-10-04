@@ -295,10 +295,8 @@ ScholarNoteLM/
     corpus-membership.json      # 成员关系及生命周期编号
   logs/<task-id>/                # 下载 / 转换 / 索引报告
   review/<ReviewName>/           # 当前真实综述工作区，见下一节
-  reviews/                      # 旧版原型草稿目录，不是当前综述入口
-  notes/
+  notes/                        # 阅读与笔记页的笔记
   qa/                           # 真实问答对话、逐轮证据、任务与导出
-  summaries/                    # 后续总结功能预留
   packages/current-literature.zip
 ```
 

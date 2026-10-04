@@ -32,22 +32,13 @@ def current(e):
     if root.tag!='PubmedArticleSet':raise ValueError('当前 XML 不是 PubMed 文献集合，未移动任何文件')
     return {e.pmid(c.findtext('PMID')) for _,c,_,_ in pubmed_xml.records(root) if c.findtext('PMID')}
 
-def checked(e,name):
+def folder(e,name):
     path=base(e)
     for part in Path(name).parts:
         path=path/part
         if path.is_symlink():raise ValueError('文献目录不能是符号链接')
+    path.mkdir(parents=True,exist_ok=True)
     return path
-
-def folder(e,name):
-    path=checked(e,name);path.mkdir(parents=True,exist_ok=True)
-    return path
-
-def existing(e,name):
-    # Retired legacy folders are only read, never created; recreating them on every
-    # status poll used to trigger a fresh deletion and log entry each time.
-    path=checked(e,name)
-    return path if path.is_dir() else None
 
 def move(e,src,dest,events):
     if src.is_symlink() or dest.is_symlink():raise ValueError('文献文件不能是符号链接')
@@ -67,8 +58,8 @@ def delete_derived(e,pmids):
     removed=[]
     for p in pmids:
         e.pmid(p)
-        paths=[base(e)/name/f'{p}{ext}' for name,ext in [('markdown','.md'),('markdown/raw','.md'),('markdown/redundant','.md'),('markdown/redundant/raw','.md'),('abstracts','.md'),('abstracts/redundant','.md'),('metadata/markdown','.json')]]
-        paths += [base(e)/name/p for name in ('markdown/assets','markdown/redundant/assets','markdown/history')]
+        paths=[base(e)/name/f'{p}{ext}' for name,ext in [('markdown','.md'),('markdown/raw','.md'),('abstracts','.md'),('metadata/markdown','.json')]]
+        paths += [base(e)/name/p for name in ('markdown/assets','markdown/history')]
         for path in paths:
             # Check every parent before recursive removal; never follow links outside the project.
             for parent in [path,*path.parents]:
@@ -83,16 +74,12 @@ def reconcile_locked(e):
     ids=current(e);events=[];errors=[];restored=0;archived=0
     if ids is None:return {'restored':0,'archived':0,'redundant':0,'errors':[],'missingXml':True}
     import artifact_state
-    state=artifact_state.membership(e);known=set(state['ids']);legacy=set();on_disk=set()
+    state=artifact_state.membership(e);known=set(state['ids']);on_disk=set()
     for family,ext in [('pdf','.pdf'),('markdown','.md'),('markdown/raw','.md'),('abstracts','.md'),('metadata/markdown','.json')]:
         for path in folder(e,family).glob('*'+ext):
             if path.stem.isdigit():on_disk.add(path.stem)
-    for name in ('markdown/redundant','markdown/redundant/raw','abstracts/redundant'):
-        if (path:=existing(e,name)):legacy.update(p.stem for p in path.glob('*.md') if p.stem.isdigit())
     for name in ('markdown/assets','markdown/history'):
         on_disk.update(p.name for p in folder(e,name).iterdir() if p.name.isdigit())
-    if (path:=existing(e,'markdown/redundant/assets')):
-        names={p.name for p in path.iterdir() if p.name.isdigit()};on_disk|=names;legacy|=names
     import vector_chunks
     known.update(vector_chunks.known_pmids(e))
     restored_ids=set();restore_allowed=not (base(e)/'metadata/pdf-cleared.json').exists()
@@ -101,7 +88,7 @@ def reconcile_locked(e):
         if path.is_symlink():raise ValueError('文献文件不能是符号链接')
         try:e.validate_pdf(path);restored_ids.add(path.stem)
         except ValueError:pass
-    invalidated=(known|on_disk|legacy)-ids | restored_ids | set(state.get('pending',[]))
+    invalidated=(known|on_disk)-ids | restored_ids | set(state.get('pending',[]))
     epochs=state.get('epochs',{})
     for p in invalidated-set(state.get('pending',[])):epochs[p]=epochs.get(p,0)+1
     updated={'ids':sorted(ids),'epochs':epochs,'pending':sorted(invalidated)}
@@ -123,18 +110,10 @@ def reconcile_locked(e):
             source=base(e)/name/p;dest=archive/name/p
             if source.is_dir() and not dest.exists():shutil.copytree(source,dest,symlinks=True)
     deleted=delete_derived(e,invalidated) if invalidated else []
-    # Retire the old derived-file backup policy, including generated conflict copies.
-    # Current active files are unaffected unless that PMID itself was invalidated.
-    for name in ('markdown/redundant','abstracts/redundant'):
-        if not (directory:=existing(e,name)):continue
-        if any(p.is_symlink() for p in directory.rglob('*')):raise ValueError('文献文件不能是符号链接')
-        # Only retiring actual files is reported; empty leftovers are removed quietly.
-        if any(p.is_file() for p in directory.rglob('*')):deleted.append(name)
-        shutil.rmtree(directory)
     updated['pending']=[]
     if invalidated:e.write_json(base(e)/'metadata/corpus-membership.json',updated)
     for family,ext in FAMILIES:
-        active=folder(e,family);spare=folder(e,'markdown/redundant/raw' if family=='markdown/raw' else family+'/redundant')
+        active=folder(e,family);spare=folder(e,family+'/redundant')
         for src in active.glob('*'+ext):
             if not re.fullmatch(r'\d{1,12}',src.stem) or src.stem in ids:continue
             move(e,src,spare/src.name,events)

@@ -92,8 +92,6 @@ class RetryTests(unittest.TestCase):
   failed=self.add('Retry later','failed');second=q.rpc(e,'new',{});third=q.rpc(e,'new',{})
   with patch.object(q,'job',side_effect=REAL_JOB),patch.object(e,'process_alive',return_value=True):
    one=q.rpc(e,'start',{'threadId':self.t['id'],'question':'Question one'})['id']
-   # Simulate a task already running when upgrading from the single-task version.
-   (q.root(e)/'active'/f"{self.t['id']}.json").unlink()
    two=q.rpc(e,'start',{'threadId':second['id'],'question':'Question two'})['id']
    self.assertEqual({j['id'] for j in q.rpc(e,'statuses',{})},{one,two})
    # Other conversations remain manageable, even while two requests are live.

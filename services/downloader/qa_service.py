@@ -64,6 +64,7 @@ def evidence_model(e,cfg,answer):
 def model_label(p):return (p.get('name','')+'/' if p.get('name') else '')+p['model']
 
 def profile_signature(p):
+    # 'sendTemperature' is retired but stays in the key list so cached QA work remains valid.
     return chunks.digest({k:p.get(k) for k in ('id','model','baseUrl','temperature','timeout','apiKey','sendTemperature','visionModels')})
 
 def documents(e):
@@ -166,7 +167,7 @@ def job(e,rid=None):
     return j
 
 def jobs(e,include_finished=False):
-    # Per-conversation pointers survive app restarts; legacy pointer remains readable.
+    # Per-conversation pointers survive app restarts; the retired single-task active.json is read only.
     ids=[read(root(e)/'active.json',{}).get('id')]
     ids += [read(p,{}).get('id') for p in (root(e)/'active').glob('*.json') if not p.is_symlink()]
     active={}
@@ -267,11 +268,7 @@ def start(e,a):
     else:t['runIds'][replace_index]=rid
     t['updated']=time.time()
     if t['name']=='新对话':t['name']=text[:35]
-    # Retain an already running task started by the former single-task version.
-    legacy=job(e)
-    if legacy and legacy.get('state') in ACTIVE and legacy.get('threadId'):
-        e.write_json(root(e)/'active'/f"{ident(legacy['threadId'])}.json",{'id':legacy['id']})
-    e.write_json(threadpath(e,tid),t);e.write_json(root(e)/'active.json',{'id':rid})
+    e.write_json(threadpath(e,tid),t)
     e.write_json(root(e)/'active'/f'{tid}.json',{'id':rid})
     python=e.ROOT/('runtimes/retrieval/Scripts/python.exe' if os.name=='nt' else 'runtimes/retrieval/bin/python')
     try:

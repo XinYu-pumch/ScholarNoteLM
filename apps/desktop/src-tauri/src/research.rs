@@ -107,9 +107,7 @@ fn db_at(root: &Path, project: Option<&str>) -> R<Connection> {
       CREATE TABLE IF NOT EXISTS corpora(id TEXT PRIMARY KEY, project TEXT NOT NULL, created INTEGER NOT NULL, signature TEXT NOT NULL, manifest TEXT NOT NULL);
       CREATE INDEX IF NOT EXISTS query_project ON queries(project);
       CREATE INDEX IF NOT EXISTS corpus_project ON corpora(project,created);
-      CREATE TABLE IF NOT EXISTS conversations(project TEXT PRIMARY KEY, data TEXT NOT NULL);
-      CREATE TABLE IF NOT EXISTS chat_threads(id TEXT PRIMARY KEY, project TEXT NOT NULL, name TEXT NOT NULL, parent_id TEXT, data TEXT NOT NULL, created INTEGER NOT NULL, archived INTEGER NOT NULL DEFAULT 0);
-      INSERT OR IGNORE INTO chat_threads(id,project,name,parent_id,data,created) SELECT 'legacy-' || project,project,'之前的对话',NULL,data,0 FROM conversations;").map_err(err)?;
+      CREATE TABLE IF NOT EXISTS chat_threads(id TEXT PRIMARY KEY, project TEXT NOT NULL, name TEXT NOT NULL, parent_id TEXT, data TEXT NOT NULL, created INTEGER NOT NULL, archived INTEGER NOT NULL DEFAULT 0);").map_err(err)?;
     // One-time per-query migration preserves the previous project defaults.
     c.execute("INSERT OR IGNORE INTO settings(key,value) SELECT 'queryFilters:' || q.id, COALESCE((SELECT value FROM settings WHERE key='filters:' || q.project), ?) FROM queries q", [json!({"start":"","end":"","sort":"relevance","mode":"explore","limit":100,"jcr":false,"quartiles":["Q1","Q2"],"unknown":"exclude"}).to_string()]).map_err(err)?;
     if project.is_some() {
@@ -887,14 +885,8 @@ fn workspace(root: &Path, c: &Connection, p: &str) -> R<Value> {
         if q["source"]=="zotero" {q["zoteroJob"]=zotero_import::source_job(root,p,&q)?;}
         queries.push(q);
     }
-    let messages: Option<String> = c
-        .query_row("SELECT data FROM conversations WHERE project=?", [p], |r| {
-            r.get(0)
-        })
-        .optional()
-        .map_err(err)?;
     Ok(
-        json!({"queries":queries,"sourceBusy":(["queued","running"].contains(&s(&zotero_job,"state"))),"chats":chat_list(c,p)?,"corpus":corpus(root,c,p)?,"conversation":messages.and_then(|s|serde_json::from_str::<Value>(&s).ok()).unwrap_or(json!([]))}),
+        json!({"queries":queries,"sourceBusy":(["queued","running"].contains(&s(&zotero_job,"state"))),"chats":chat_list(c,p)?,"corpus":corpus(root,c,p)?}),
     )
 }
 const SELECTION_POLICY: u64 = 2;
@@ -1380,17 +1372,8 @@ pub fn auto_mesh(root: &Path) {
 }
 
 fn public_profile(mut p: Value) -> Value {
-    if let Some(o) = p.as_object_mut() { o.remove("networkMode"); }
     if !p["models"].is_array() {
         p["models"] = if s(&p, "model").is_empty() { json!([]) } else { json!([s(&p,"model")]) };
-    }
-    if p["sendTemperature"] == false {
-        p["temperature"] = Value::Null;
-    }
-    if let Some(o) = p.as_object_mut() {
-        for key in ["maxTokens", "tokenField", "sendTemperature"] {
-            o.remove(key);
-        }
     }
     p["hasKey"] = json!(!s(&p, "apiKey").is_empty());
     p.as_object_mut().map(|o| o.remove("apiKey"));
@@ -1417,7 +1400,6 @@ fn profile(c: &Connection, p: &Value) -> R<Value> {
         }
         value["model"]=json!(model);
     }
-    if let Some(o) = value.as_object_mut() { o.remove("networkMode"); }
     if s(&value, "apiKey").trim().is_empty() {
         if let Some(old) = profiles
             .as_array()
@@ -1465,7 +1447,7 @@ fn llm_stream(p: &Value, messages: Value, emit: &mut dyn FnMut(&str, &str) -> R<
         return Err("请填写模型名称".into());
     }
     let mut body = json!({"model":p["model"],"messages":messages,"stream":true});
-    if p["sendTemperature"] != false && p["temperature"].is_number() {
+    if p["temperature"].is_number() {
         body["temperature"] = p["temperature"].clone();
     }
     let mut req = model_client(p["timeout"].as_u64().unwrap_or(120).clamp(10, 600))?
@@ -2275,14 +2257,6 @@ pub fn dispatch(root: &Path, request: Value) -> R<Value> {
             if !default_model.is_empty() && !selected.contains(&default_model) { selected.push(default_model); }
             if s(&value,"model").is_empty() && !selected.is_empty() { value["model"] = json!(selected[0]); }
             value["models"] = json!(selected);
-            if value["sendTemperature"] == false {
-                value["temperature"] = Value::Null;
-            }
-            if let Some(o) = value.as_object_mut() {
-                for key in ["maxTokens", "tokenField", "sendTemperature"] {
-                    o.remove(key);
-                }
-            }
             let models_url = llm_url(&value, "models")?;
             value["baseUrl"] = json!(models_url.strip_suffix("/models").unwrap_or(&models_url));
             if s(&value, "name").trim().is_empty() {

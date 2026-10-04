@@ -79,15 +79,15 @@ class ResourceBlocksTests(unittest.TestCase):
    self.assertTrue(any(p.startswith('word/media/') for p in archive.namelist()));self.assertIn('42',archive.read('word/document.xml').decode())
   md=c.markdown(blocks['1.1'],lambda block:'resources/figure.png');self.assertIn('![图 1](resources/figure.png)',md);self.assertIn('| A | 42 |',md)
  def test_legacy_saved_public_format_and_evidence_are_preserved(self):
-  old=copy.deepcopy(self.fx.bundle);old['schemaVersion']='review-unit-shared-pool-v1'
-  value={'unit_id':'1','sections':[{'node_id':n['serial'],'title':n['title'],'markdown':'Intro' if i==0 else 'Claim [E1] [R1]'} for i,n in enumerate(self.fx.nodes)]}
-  sections,errors=b.decode(value,old,self.fx.unit);self.assertFalse(errors)
+  # Saved sections may lack blocks (markdown-only); their stored format and evidence must survive.
+  value={'unit_id':'1','sections':[{'node_id':n['serial'],'title':n['title'],'blocks':[{'type':'markdown','text':'Intro' if i==0 else 'Claim [E1]'}]} for i,n in enumerate(self.fx.nodes)]}
+  sections,errors=b.decode(value,self.fx.bundle,self.fx.unit);self.assertFalse(errors)
   for s in sections:s.pop('blocks');s.pop('sourceBlocks')
   sections[1]['markdown']='Claim (PMID: 12345678) (PMID: 12345678)'
   public=fmt.public_part(self.fx.unit,sections,self.fx.evidence);before=copy.deepcopy(public)
   rendered=c.render_sections(sections,self.fx.bundle['resources'],self.fx.project)
   self.assertEqual(rendered[1]['markdown'],'Claim (PMID: 12345678)');self.assertEqual(public,before)
-  self.assertEqual(public['format'],'review-unit-shared-pool-v1')
+  self.assertEqual(public['format'],self.fx.bundle['schemaVersion'])
  def test_same_local_id_across_units_does_not_alias_resource(self):
   sections,_=self.decode([{'type':'resource','resource_id':'R1'}]);numbers={}
   first=c.render_sections(sections,self.fx.bundle['resources'],self.fx.project,numbers)

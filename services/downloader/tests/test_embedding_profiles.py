@@ -11,13 +11,6 @@ class EmbeddingProfilesTests(unittest.TestCase):
  def create(self,name='Alpha',model='embed-a',**extra):
   result=v.rpc(e,'settings.save',{'id':'','name':name,'baseUrl':'https://example.test/v1','model':model,'apiKey':'fixture-secret',**extra})
   return p.get(e,result['savedProfile'])
- def test_legacy_migration_preserves_key_cache_and_verification(self):
-  old={**v.DEFAULTS,'baseUrl':'https://example.test/v1','model':'legacy','apiKey':'fixture-secret'}
-  e.write_json(e.ROOT/'config/embedding.json',old);r.mark_verified(e,old,3);before=v.profile(old)
-  data=v.settings(e);self.assertEqual(data['profiles'][0]['id'],'legacy');self.assertNotIn('fixture-secret',json.dumps(data))
-  v.rpc(e,'settings.save',{'id':'legacy','name':'Renamed'})
-  self.assertEqual(v.profile(v.config(e)),before);self.assertTrue(r.verified(e.ROOT));self.assertEqual(v.config(e)['apiKey'],'fixture-secret')
-  self.assertEqual(len(p.store(e)['profiles']),1)
  def test_new_profiles_do_not_switch_active_or_inherit_keys(self):
   a=self.create();b=self.create('Beta','embed-b',apiKey='')
   self.assertEqual(v.config(e)['id'],a['id']);self.assertEqual(b['apiKey'],'')

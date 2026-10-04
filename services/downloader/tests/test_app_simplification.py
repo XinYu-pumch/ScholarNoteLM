@@ -30,14 +30,6 @@ class SimplificationTests(unittest.TestCase):
   self.assertTrue((self.base/'markdown/history/1/fixed-clean/1.md').exists())
   meta=json.loads((self.base/'metadata/markdown/1.json').read_text());self.assertEqual(meta['engine'],'Marker 1.6.0');self.assertEqual(meta['cleaningVersion'],'references-only-v2')
   self.assertIn(fixture.NOTICE,(self.base/'markdown/1.md').read_text())
- def test_rate_migration_preserves_cache_credentials_and_active_profile(self):
-  cfg={**v.DEFAULTS,'id':'old','name':'Old','baseUrl':'https://example.test/v1','model':'embed','apiKey':'fixture'};cfg.pop('rpm');cfg.pop('tpm')
-  e.write_json(e.ROOT/'config/embedding.json',{'activeProfile':'old','profiles':[cfg]});e.write_json(e.ROOT/'config/retrieval.json',{'rpm':17,'tpm':80000,'reranker':'qwen3'})
-  signature=v.profile(cfg);retrieval_settings.mark_verified(e,cfg,2)
-  self.assertEqual((v.config(e)['rpm'],v.config(e)['tpm']),(17,80000))
-  profiles.save(e,{'id':'old','name':'Old'});(e.ROOT/'config/retrieval.json').unlink()
-  self.assertEqual((v.config(e)['rpm'],v.config(e)['tpm']),(17,80000));self.assertEqual(v.profile(v.config(e)),signature);self.assertTrue(retrieval_settings.verified(e.ROOT));self.assertEqual(profiles.store(e)['activeProfile'],'old')
-  limiter=embedding_limits.Limiter(e.ROOT,v.config(e));self.assertEqual(limiter.cfg,{'rpm':17,'tpm':80000})
  def test_short_heading_filter_and_no_metadata_embedding(self):
   rows=[{'id':'short','text':'# Topic','metadata':{'blockType':'heading'}},{'id':'long','text':'# '+('Useful evidence '*12),'metadata':{'blockType':'heading'}},{'id':'caption','text':'Short caption.','metadata':{'blockType':'caption'}},{'id':'body','text':'Measured result.','metadata':{'blockType':'paragraph','title':'Do not embed title'}}]
   with patch.object(review_retrieval,'APIRecall') as recall:

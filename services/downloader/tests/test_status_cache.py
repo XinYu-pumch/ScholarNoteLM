@@ -30,7 +30,7 @@ class StatusCacheTests(unittest.TestCase):
   with chunks.connect(e) as c:
    for r in records:c.execute('INSERT OR REPLACE INTO embeddings VALUES(?,?,?,?)',(profile,chunks.digest(r['text']),1,b'fake-vector'))
   self.assertGreater(self.inventory()['coverage']['searchableChunks'],0)
-  e.write_json(e.ROOT/'config/embedding.json',{'baseUrl':'https://example.invalid/v1','model':'new-model'})
+  e.write_json(e.ROOT/'config/embedding.json',{'profiles':[{'id':'p','name':'New','baseUrl':'https://example.invalid/v1','model':'new-model'}],'activeProfile':'p'})
   self.assertEqual(self.inventory()['coverage']['searchableChunks'],0)
   (e.ROOT/'config/embedding.json').unlink();self.assertGreater(self.inventory()['coverage']['searchableChunks'],0)
   e.write_json(self.base/'metadata/index-cleared.json',{'cleared':True});self.assertEqual(self.inventory()['coverage']['searchableChunks'],0)

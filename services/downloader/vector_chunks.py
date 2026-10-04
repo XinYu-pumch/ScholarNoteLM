@@ -47,7 +47,7 @@ def purge_documents(e,pmids):
                 asset=(files.base(e)/relative).resolve()
                 if asset.is_relative_to((base(e)/'resource-assets').resolve()):asset.unlink(missing_ok=True)
     for p in pmids:
-        for name in ('chunks','chunks/redundant'):(files.base(e)/'vectors'/name/f'{p}.jsonl').unlink(missing_ok=True)
+        (files.base(e)/'vectors/chunks'/f'{p}.jsonl').unlink(missing_ok=True)
 
 def launch_cleanup(e):
     path=files.base(e)/'vectors/chunks.sqlite3'
@@ -244,7 +244,6 @@ def sync_locked(e,pmids=None):
             if not old or old['version']!=version or old['meta']!=encoded or not (base(e)/'chunks'/f'{p}.jsonl').exists():
                 records=records_for(c,version,meta)
                 e.atomic(files.folder(e,'vectors/chunks')/f'{p}.jsonl',''.join(json.dumps({k:v for k,v in r.items() if k!='resources'},ensure_ascii=False)+'\n' for r in records))
-                (base(e)/'chunks/redundant'/f'{p}.jsonl').unlink(missing_ok=True)
         # Keep old versions in SQLite/sources; current JSONL folder reflects current membership.
         output=files.folder(e,'vectors/chunks')
         for path in output.glob('*.jsonl'):

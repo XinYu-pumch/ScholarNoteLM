@@ -49,7 +49,7 @@ try:
   thread=qa.rpc(e,'new',{});job=qa.rpc(e,'start',{'threadId':thread['id'],'question':'What does the evidence show?','pmids':['123','124']})
   until=time.monotonic()+50
   while time.monotonic()<until:
-   state=qa.job(e)
+   state=qa.job(e,job['id'])
    if state and state['id']==job['id'] and state['state'] not in qa.ACTIVE:break
    time.sleep(.1)
   else:raise AssertionError('Worker did not complete')
@@ -70,7 +70,7 @@ try:
   rewrite=qa.rpc(e,'start',{'threadId':thread['id'],'question':'缩短上一条回答','pmids':['123','124']})
   until=time.monotonic()+30
   while time.monotonic()<until:
-   rewrite_state=qa.job(e)
+   rewrite_state=qa.job(e,rewrite['id'])
    if rewrite_state and rewrite_state['state'] not in qa.ACTIVE:break
    time.sleep(.1)
   assert rewrite_state['state']=='done',rewrite_state.get('error')
@@ -88,7 +88,7 @@ try:
     xml=project/'pubmed/current.xml';e.atomic(xml,xml.read_text().replace('Study 123','Changed study 123'))
    until=time.monotonic()+8
    while time.monotonic()<until:
-    result=qa.job(e)
+    result=qa.job(e,pending['id'])
     if result['state'] not in qa.ACTIVE:break
     time.sleep(.05)
    assert result['state']==expected,result.get('error');assert not result.get('answer') and not result.get('draft')
@@ -101,7 +101,7 @@ try:
   before=len(requests);hello=qa.rpc(e,'start',{'threadId':empty_thread['id'],'question':'你好'})
   until=time.monotonic()+30
   while time.monotonic()<until:
-   hello_state=qa.job(e)
+   hello_state=qa.job(e,hello['id'])
    if hello_state and hello_state['state'] not in qa.ACTIVE:break
    time.sleep(.1)
   assert hello_state['state']=='done',hello_state.get('error')

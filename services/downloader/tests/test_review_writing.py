@@ -33,15 +33,6 @@ class WritingTests(unittest.TestCase):
   d=r.rpc(e,'save',{'name':'Test','revision':1,'topic':'Review','rows':rows});self.assertEqual(d['rows'][0]['id'],old)
   roots=[{'serial':'1','title':'New chapter'},*[{**n,'serial':str(int(n['serial'].split('.')[0])+1)+('.'+n['serial'].split('.',1)[1] if '.' in n['serial'] else '')} for n in d['rows']]]
   d=r.rpc(e,'save',{'name':'Test','revision':2,'topic':'Review','rows':roots});self.assertEqual(d['rows'][1]['id'],old)
- def test_legacy_migration_preserves_versions_and_experiments(self):
-  p=self.base/'review/Legacy';e.write_json(p/'review.json',{'name':'Legacy','description':'old','versions':['v0001','v0002'],'nextVersion':3})
-  for vid in ('v0001','v0002'):
-   e.write_json(p/'versions'/vid/'version.json',{'id':vid,'state':'done','revision':1,'topic':vid})
-   e.atomic(p/'versions'/vid/'outline.csv',f'1,{vid}')
-  e.atomic(p/'versions/v0002/retrieval/benchmark/report.md','preserve')
-  d=r.rpc(e,'get',{'name':'Legacy'});self.assertEqual(d['rows'][0]['title'],'v0002');self.assertEqual(d['path'],str(p));self.assertNotIn('versions',d['workspace'])
-  self.assertEqual((p/'versions/v0002/retrieval/benchmark/report.md').read_text(),'preserve');self.assertTrue((p/'versions/v0001/outline.csv').exists())
-  self.assertEqual(r.rpc(e,'get',{'name':'Legacy'})['rows'],d['rows'])
  def test_scope_and_structure_validation(self):
   u=w.tree_units(self.detail['rows'])[0];ids=[n['id'] for n in u['nodes']];ev={ids[1]:{'chunks':[{'metadata':{'pmid':'1'}}]},ids[2]:{'chunks':[{'metadata':{'pmid':'2'}}]}}
   good={'sections':[{'node_id':i,'markdown':'Evidence'+(' (PMID: 1)' if i==ids[1] else '')} for i in ids]}

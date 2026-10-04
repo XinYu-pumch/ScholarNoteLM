@@ -73,7 +73,7 @@ async def chat(profile,messages,cancelled,progress=lambda **kw:None,on_text=None
         nonlocal phase
         phase='connecting'
         body={'model':profile['model'],'messages':messages,'stream':True}
-        if profile.get('sendTemperature') is not False and isinstance(profile.get('temperature'),(int,float)):body['temperature']=profile['temperature']
+        if isinstance(profile.get('temperature'),(int,float)):body['temperature']=profile['temperature']
         timeout=max(10,min(600,int(profile.get('timeout',120))))
         headers={'Authorization':'Bearer '+profile['apiKey']} if profile.get('apiKey') else {}
         async with httpx.AsyncClient(timeout=httpx.Timeout(timeout,connect=min(25,timeout)),follow_redirects=False,trust_env=False) as client:

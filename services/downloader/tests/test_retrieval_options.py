@@ -10,7 +10,7 @@ class RetrievalOptionsTests(unittest.TestCase):
  def tearDown(self):e.ROOT=self.old;self.tmp.cleanup()
  def test_api_selection_requires_exact_saved_verified_configuration(self):
   cfg=v.validated(e,{'baseUrl':'https://example.test/v1','model':'bge','apiKey':'secret'})
-  e.write_json(e.ROOT/'config/embedding.json',cfg)
+  e.write_json(e.ROOT/'config/embedding.json',{'profiles':[{**cfg,'id':'legacy','name':'默认配置'}],'activeProfile':'legacy'})
   with self.assertRaisesRegex(ValueError,'测试'):v.rpc(e,'profile.activate',{'id':'legacy'})
   s.mark_verified(e,cfg,3);self.assertTrue(s.verified(e.ROOT));self.assertEqual(s.read(e.ROOT)['method'],'api')
   for key,value in [('apiKey','newsecret'),('model','different'),('baseUrl','https://example.test/v2'),('modelRevision','v2')]:
@@ -30,7 +30,6 @@ class RetrievalOptionsTests(unittest.TestCase):
   with self.assertRaisesRegex(ValueError,'cancelled'):limits.Limiter(e.ROOT,cfg,cancel).acquire(10)
  def test_429_retry_after_and_complete_batch_packing(self):
   import httpx
-  e.write_json(e.ROOT/'config/retrieval.json',{'rpm':60000,'tpm':35})
   calls=[];codes=iter([429,200,200])
   def post(url,headers,payload,timeout,check):
    calls.append(payload['input']);code=next(codes)

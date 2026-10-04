@@ -135,25 +135,8 @@ def abstracts(e):
 def manifest(e,name):
     path=work(e,name);value=read(safe(path,'review.json'))
     if not value:raise ValueError('综述工作区不存在')
-    if value.get('schema')!=2:
-        versions=value.get('versions',[])
-        for vid in versions:
-            state=read(safe(path,'versions',vid,'version.json'),{})
-            if state.get('state') in ACTIVE and (not state.get('pid') or e.process_alive(state['pid'])):
-                raise ValueError('请等待旧版大纲生成结束后再打开此工作区')
-        selected=versions[-1] if versions else None
-        if selected:
-            old=safe(path,'versions',selected)
-            # Copy only small outline artifacts. All old versions and experiments remain intact.
-            for f in old.iterdir():
-                if f.is_file() and not f.is_symlink():
-                    target=path/('outline-state.json' if f.name=='version.json' else f.name)
-                    if not target.exists():shutil.copy2(f,target)
-            state=read(path/'outline-state.json',{});state['id']='current'
-            e.write_json(path/'outline-state.json',state)
-        value.update(schema=2,legacyVersions=versions,migratedFrom=selected)
-        value.pop('versions',None);value.pop('nextVersion',None)
-        e.write_json(path/'review.json',value)
+    # Every schema-1 workspace (with versions/) has already been migrated.
+    if value.get('schema')!=2:raise ValueError('不支持的旧版综述工作区格式')
     return value
 
 def nodes(e,path,rows,supplied=None):
@@ -343,7 +326,7 @@ def worker(e,name,vid,token):
         async def request(p):
             import httpx
             cfg=read(path/'prompt.json');body={'model':p['model'],'messages':[{'role':'system','content':cfg['system']},{'role':'user','content':cfg['user']}],'stream':True}
-            if p.get('sendTemperature') is not False and isinstance(p.get('temperature'),(int,float)):body['temperature']=p['temperature']
+            if isinstance(p.get('temperature'),(int,float)):body['temperature']=p['temperature']
             timeout=max(10,min(600,int(p.get('timeout',120))))
             headers={'Authorization':'Bearer '+p['apiKey']} if p.get('apiKey') else {}
             async with httpx.AsyncClient(timeout=httpx.Timeout(timeout,connect=min(25,timeout)),follow_redirects=False,trust_env=False) as client:

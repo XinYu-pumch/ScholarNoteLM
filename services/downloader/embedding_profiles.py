@@ -1,4 +1,4 @@
-"""Named embedding configurations. Legacy single-config files migrate on save."""
+"""Named embedding configurations."""
 import json,os,uuid
 import storage
 
@@ -6,13 +6,10 @@ def store(e):
     path=e.ROOT/'config/embedding.json'
     if not path.exists():return {'profiles':[],'activeProfile':''}
     data=json.loads(path.read_text())
-    if 'profiles' not in data:data={'profiles':[{**data,'id':'legacy','name':'默认配置'}],'activeProfile':'legacy'}
-    # Read legacy global limits only for profiles that have not migrated yet.
-    legacy=e.ROOT/'config/retrieval.json'
-    limits=json.loads(legacy.read_text()) if legacy.exists() else {}
+    if 'profiles' not in data:raise ValueError('config/embedding.json 是已停用的单配置格式，请移走该文件后在设置中重新配置')
+    # The id 'legacy' is just the first profile's name in existing installs; keep it stable.
     for profile in data['profiles']:
-        for key,default in (('rpm',60),('tpm',120000)):
-            profile.setdefault(key,limits.get(key,default))
+        for key,default in (('rpm',60),('tpm',120000)):profile.setdefault(key,default)
     return data
 
 def get(e,pid):

@@ -44,9 +44,6 @@ class ArtifactStateTests(unittest.TestCase):
    self.assertTrue(db.execute('SELECT 1 FROM pending_vector_deletes WHERE version=?',(version,)).fetchone())
   self.xml(['1','2']);f.reconcile(e);self.assertTrue((self.base/'pdf/1.pdf').exists());self.assertFalse((self.base/'markdown/1.md').exists());self.assertGreater(a.epoch(e,'1'),generation)
   c.sync(e);d=c.documents(e)[0];self.assertEqual(d['state'],'blocked');self.assertFalse(d['indexed'])
- def test_legacy_redundant_markdown_is_deleted_instead_of_restored(self):
-  e.atomic(self.base/'pdf/redundant/1.pdf',fixtures.pdf());e.atomic(self.base/'markdown/redundant/raw/1.md','old raw');e.atomic(self.base/'markdown/redundant/1.md','old clean');e.atomic(self.base/'markdown/redundant/assets/1/test.png',b'old image')
-  f.reconcile(e);self.assertTrue((self.base/'pdf/1.pdf').exists());self.assertFalse((self.base/'markdown/1.md').exists());self.assertFalse((self.base/'markdown/redundant/raw/1.md').exists());self.assertFalse((self.base/'markdown/redundant/assets/1').exists())
  def test_removal_preserves_shared_cache_owned_by_remaining_article(self):
   c.sync(e)
   with c.connect(e) as db:

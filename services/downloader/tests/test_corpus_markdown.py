@@ -57,11 +57,6 @@ class CorpusMarkdownTests(unittest.TestCase):
   self.xml(['1']);self.put('pdf/1.pdf',fixtures.pdf());logs=lambda:sorted((self.base/'logs').glob('corpus-files-*.json'))
   for _ in range(3):self.assertEqual(f.reconcile(e)['deletedDerived'],0)
   self.assertEqual(logs(),[]);self.assertFalse((self.base/'markdown/redundant').exists());self.assertFalse((self.base/'abstracts/redundant').exists())
- def test_empty_legacy_folders_removed_without_log(self):
-  self.xml(['1'])
-  for name in ('markdown/redundant/raw','markdown/redundant/assets','abstracts/redundant'):(self.base/name).mkdir(parents=True)
-  self.assertEqual(f.reconcile(e)['deletedDerived'],0);self.assertFalse((self.base/'markdown/redundant').exists());self.assertFalse((self.base/'abstracts/redundant').exists())
-  self.assertEqual(list((self.base/'logs').glob('corpus-files-*.json')),[])
  def test_symlink_refused(self):
   self.xml(['1']);outside=e.ROOT/'outside';outside.mkdir();(self.base/'pdf').symlink_to(outside)
   with self.assertRaises(ValueError):f.reconcile(e)
