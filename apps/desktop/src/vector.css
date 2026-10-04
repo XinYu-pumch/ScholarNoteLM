@@ -1,6 +1,6 @@
 
 .vector-settings>h2 {
-  font-size: 19px
+  font-size: var(--fs-headline)
 }
 .vector-settings>p {
   margin: 8px 0 20px
@@ -45,7 +45,7 @@
 }
 .chunk-tabs>button {
   padding: 10px 0;
-  font-size: 13px
+  font-size: var(--fs-subhead)
 }
 .chunk-tabs>button.active {
   color: var(--accent);
@@ -53,7 +53,7 @@
 }
 .chunk-tabs>span {
   color: var(--muted);
-  font-size: 12px;
+  font-size: var(--fs-footnote);
   margin-left: auto
 }
 .chunk-controls {
@@ -69,7 +69,7 @@
   display: flex;
   align-items: center;
   gap: 14px;
-  font-size: 12px;
+  font-size: var(--fs-footnote);
   color: var(--muted);
   flex-wrap: wrap;
   flex-shrink: 0
@@ -88,7 +88,7 @@
   min-height: 0;
   flex: 1;
   border: 1px solid var(--line);
-  border-radius: 10px;
+  border-radius: var(--radius-lg);
   overflow: hidden
 }
 .chunk-list {
@@ -113,10 +113,10 @@
 .chunk-list strong {
   display: flex;
   justify-content: space-between;
-  font-size: 12px
+  font-size: var(--fs-footnote)
 }
 .chunk-list small {
-  font-size: 12px;
+  font-size: var(--fs-footnote);
   color: var(--muted);
   font-weight: 400
 }
@@ -125,7 +125,7 @@
   -webkit-line-clamp: 3;
   -webkit-box-orient: vertical;
   overflow: hidden;
-  font-size: 12px;
+  font-size: var(--fs-footnote);
   line-height: 1.7;
   margin: 6px 0;
   color: var(--muted)
@@ -140,12 +140,12 @@
   display: flex;
   justify-content: space-between;
   align-items: center;
-  font-size: 12px;
+  font-size: var(--fs-footnote);
   gap: 12px
 }
 .chunk-section {
   color: var(--accent);
-  font-size: 12px;
+  font-size: var(--fs-footnote);
   line-height: 1.7;
   margin: 12px 0
 }
@@ -153,7 +153,7 @@
   white-space: pre-wrap;
   overflow-wrap: anywhere;
   font-family: inherit;
-  font-size: 13px;
+  font-size: var(--fs-subhead);
   line-height: 1.9;
   margin: 16px 0;
   user-select: text
@@ -163,8 +163,8 @@
   overflow-wrap: anywhere;
   background: var(--bg);
   border: 1px solid var(--line);
-  border-radius: 8px;
-  font-size: 12px;
+  border-radius: var(--radius-md);
+  font-size: var(--fs-footnote);
   padding: 14px;
   line-height: 1.6;
   user-select: text
@@ -172,7 +172,7 @@
 .chunk-source {
   background: var(--bg);
   padding: 14px;
-  border-radius: 8px
+  border-radius: var(--radius-md)
 }
 .chunk-source mark {
   background: var(--accent-soft);
@@ -187,7 +187,7 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  font-size: 12px;
+  font-size: var(--fs-footnote);
   color: var(--muted);
   flex-shrink: 0
 }
@@ -206,7 +206,7 @@
   flex: 1;
   min-width: 0;
   border: 1px solid var(--line);
-  border-radius: 7px;
+  border-radius: var(--radius-md);
   padding: 9px 12px
 }
 .vector-hits {
@@ -216,16 +216,16 @@
 }
 .vector-hits>article {
   border: 1px solid var(--line);
-  border-radius: 10px;
+  border-radius: var(--radius-lg);
   padding: 16px;
   margin: 0 0 12px
 }
 .vector-hits>article>strong {
-  font-size: 12px;
+  font-size: var(--fs-footnote);
   color: var(--accent)
 }
 .vector-hits details {
-  font-size: 12px
+  font-size: var(--fs-footnote)
 }
 .vector-hits>article>p {
   margin-top: 8px
@@ -270,7 +270,7 @@
 }
 .chunk-article {
   flex-shrink: 0;
-  font-size: 13px;
+  font-size: var(--fs-subhead);
   line-height: 1.6;
   overflow-wrap: anywhere;
   max-height: 150px;
@@ -281,8 +281,8 @@
 }
 .chunk-article span {
   color: var(--muted);
-  font-size: 12px
+  font-size: var(--fs-footnote)
 }
 
 
-.index-live-progress{padding:16px 20px;border-top:1px solid var(--border,#e0e2e7);display:grid;gap:12px}.index-live-progress p{margin:0;font-size:13px;color:var(--muted,#717680)}.index-progress-row>div{display:flex;justify-content:space-between;gap:16px;font-size:13px;margin-bottom:6px}.index-progress-row progress{display:block;width:100%;height:6px;border:0;border-radius:4px;overflow:hidden;accent-color:var(--accent,#4055d8)}.index-progress-row progress::-webkit-progress-bar{background:var(--border,#e0e2e7)}.index-progress-row progress::-webkit-progress-value{background:var(--accent,#4055d8)}
+.index-live-progress{padding:16px 20px;border-top:1px solid var(--border,#e0e2e7);display:grid;gap:12px}.index-live-progress p{margin:0;font-size:var(--fs-subhead);color:var(--muted,#717680)}.index-progress-row>div{display:flex;justify-content:space-between;gap:16px;font-size:var(--fs-subhead);margin-bottom:6px}.index-progress-row progress{display:block;width:100%;height:6px;border:0;border-radius:var(--radius-sm);overflow:hidden;accent-color:var(--accent,#4055d8)}.index-progress-row progress::-webkit-progress-bar{background:var(--border,#e0e2e7)}.index-progress-row progress::-webkit-progress-value{background:var(--accent,#4055d8)}

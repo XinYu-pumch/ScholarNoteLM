@@ -26,10 +26,10 @@
 .qa-page .qa-header h1 {
   letter-spacing: -.5px;
   font-weight: 600;
-  font-size: 26px
+  font-size: var(--fs-title2)
 }
 .qa-page .qa-header p {
-  font-size: 12px;
+  font-size: var(--fs-footnote);
   margin-top: 5px
 }
 .qa-header-actions>.button {
@@ -51,8 +51,8 @@
   gap: 7px;
   cursor: pointer;
   padding: 8px 10px;
-  border-radius: 7px;
-  font-size: 12px;
+  border-radius: var(--radius-md);
+  font-size: var(--fs-footnote);
   color: var(--chat-muted)
 }
 .qa-model-picker>summary::-webkit-details-marker {
@@ -67,7 +67,7 @@
   overflow: hidden;
   white-space: nowrap;
   text-overflow: ellipsis;
-  font-size: 12px
+  font-size: var(--fs-footnote)
 }
 .qa-model-panel {
   position: absolute;
@@ -79,7 +79,7 @@
   padding: 20px;
   background: var(--chat-surface);
   border: 1px solid var(--chat-line);
-  border-radius: 12px;
+  border-radius: var(--radius-lg);
   box-shadow: var(--shadow);
   display: grid;
   gap: 16px
@@ -92,7 +92,7 @@
 .qa-model-panel>label {
   display: grid;
   gap: 8px;
-  font-size: 12px;
+  font-size: var(--fs-footnote);
   color: var(--chat-muted)
 }
 .qa-page .qa-conversation {
@@ -111,8 +111,8 @@
   max-width: 100%;
   margin: 0 0 20px;
   padding: 14px 16px;
-  border-radius: 8px;
-  font-size: 16px;
+  border-radius: var(--radius-md);
+  font-size: var(--fs-callout);
   background: var(--panel);
   border: 1px solid var(--line)
 }
@@ -122,12 +122,12 @@
   margin-bottom: 16px
 }
 .qa-page .qa-answer-head strong {
-  font-size: 12px;
+  font-size: var(--fs-footnote);
   font-weight: 600
 }
 .qa-page .qa-answer-head>span:last-child {
   margin-left: auto;
-  font-size: 12px;
+  font-size: var(--fs-footnote);
   color: var(--chat-muted)
 }
 .qa-assistant-mark {
@@ -135,7 +135,7 @@
   height: 28px;
   display: grid;
   place-items: center;
-  border-radius: 8px;
+  border-radius: var(--radius-md);
   background: var(--chat-user);
   color: var(--chat-accent)
 }
@@ -146,7 +146,7 @@
   padding: 4px 0 20px;
   box-shadow: none;
   color: var(--chat-ink);
-  font-size: 16px;
+  font-size: var(--fs-callout);
   line-height: 27px
 }
 .qa-answer>p {
@@ -156,11 +156,11 @@
   line-height: 1.6;
   letter-spacing: -.3px;
   margin: 28px 0 16px;
-  font-size: 21px;
+  font-size: var(--fs-title3);
   font-weight: 600
 }
 .qa-page .qa-answer h3 {
-  font-size: 16px;
+  font-size: var(--fs-callout);
   font-weight: 600;
   margin: 24px 0 12px
 }
@@ -192,11 +192,11 @@
   border-color: var(--chat-line)
 }
 .qa-page .qa-citation {
-  font-size: 12px;
+  font-size: var(--fs-footnote);
   line-height: 1.4;
   padding: 2px 5px;
   margin: 0 2px;
-  border-radius: 5px;
+  border-radius: var(--radius-sm);
   background: var(--chat-blue-bg);
   color: var(--chat-blue);
   vertical-align: 3px;
@@ -210,7 +210,7 @@
 .qa-page .qa-trace {
   background: var(--chat-surface);
   border: 1px solid var(--chat-line);
-  border-radius: 10px;
+  border-radius: var(--radius-lg);
   box-shadow: none;
   margin: 0 0 24px
 }
@@ -227,12 +227,12 @@
 }
 .qa-trace-toggle strong {
   font-weight: 500;
-  font-size: 12px;
+  font-size: var(--fs-footnote);
   white-space: nowrap;
   color: var(--chat-accent)
 }
 .qa-trace-toggle small {
-  font-size: 12px;
+  font-size: var(--fs-footnote);
   margin: 0;
   white-space: nowrap;
   overflow: hidden;
@@ -272,7 +272,7 @@
 .qa-aspects {
   background: var(--chat-bg);
   color: var(--chat-muted);
-  font-size: 12px
+  font-size: var(--fs-footnote)
 }
 .qa-event-round_start .qa-step-reason,.qa-event-gap .qa-step-reason {
   border-left: 2px solid var(--ochre);
@@ -289,11 +289,11 @@
   border: 1px solid var(--chat-line);
   border-left: 3px solid var(--ochre);
   background: transparent;
-  border-radius: 7px;
+  border-radius: var(--radius-md);
   margin: 0 0 16px;
   padding: 0;
   color: var(--chat-amber);
-  font-size: 12px
+  font-size: var(--fs-footnote)
 }
 .qa-validation>summary {
   list-style: none;
@@ -307,12 +307,12 @@
   display: none
 }
 .qa-validation>summary strong {
-  font-size: 12px;
+  font-size: var(--fs-footnote);
   font-weight: 500
 }
 .qa-validation>summary>span {
   margin-left: auto;
-  font-size: 12px;
+  font-size: var(--fs-footnote);
   color: var(--chat-muted)
 }
 .qa-validation[open]>summary>svg:last-child {
@@ -323,7 +323,7 @@
   padding: 12px 16px
 }
 .qa-validation-note {
-  font-size: 12px;
+  font-size: var(--fs-footnote);
   color: var(--chat-muted);
   margin: 0 0 12px
 }
@@ -333,7 +333,7 @@
   gap: 12px;
   padding: 10px 0;
   color: var(--chat-ink);
-  font-size: 12px;
+  font-size: var(--fs-footnote);
   line-height: 1.8
 }
 .qa-validation-body>div>button {
@@ -344,17 +344,17 @@
   background: var(--chat-amber-bg);
   color: var(--chat-amber);
   padding: 3px 7px;
-  border-radius: 5px
+  border-radius: var(--radius-sm)
 }
 .qa-answer-foot {
   padding: 10px 0 16px;
-  font-size: 12px;
+  font-size: var(--fs-footnote);
   border-top: 1px solid var(--chat-line);
   color: var(--chat-muted)
 }
 .qa-sources {
   border-top: 1px solid var(--chat-line);
-  font-size: 12px
+  font-size: var(--fs-footnote)
 }
 .qa-sources>summary {
   list-style: none;
@@ -388,7 +388,7 @@
   border-top: 1px solid var(--chat-line)
 }
 .qa-source-number {
-  font-size: 12px;
+  font-size: var(--fs-footnote);
   color: var(--chat-muted);
   padding-top: 3px
 }
@@ -396,7 +396,7 @@
   min-width: 0
 }
 .qa-source-row strong {
-  font-size: 12px;
+  font-size: var(--fs-footnote);
   line-height: 1.7;
   display: block;
   font-weight: 500
@@ -404,7 +404,7 @@
 .qa-source-row small {
   display: block;
   color: var(--chat-muted);
-  font-size: 12px;
+  font-size: var(--fs-footnote);
   margin: 5px 0 8px
 }
 .qa-source-row button {
@@ -413,15 +413,15 @@
   gap: 5px;
   padding: 3px 7px;
   margin: 0 5px 4px 0;
-  border-radius: 5px;
-  font-size: 12px;
+  border-radius: var(--radius-sm);
+  font-size: var(--fs-footnote);
   background: var(--chat-blue-bg);
   color: var(--chat-blue)
 }
 .qa-page .qa-composer,.search-chat-layout .wb-composer {
   background: var(--chat-surface);
   border: 1px solid var(--chat-line);
-  border-radius: 10px;
+  border-radius: var(--radius-lg);
   padding: 12px 14px 10px;
   box-shadow: none;
   border-color: var(--line-strong)
@@ -443,7 +443,7 @@
   min-height: 42px;
   padding: 0 0 8px;
   background: transparent;
-  font-size: 15px
+  font-size: var(--fs-callout)
 }
 .qa-composer textarea::placeholder,.wb-composer textarea::placeholder {
   color: var(--chat-muted)
@@ -451,7 +451,7 @@
 .qa-composer-bottom .app-select-trigger {
   background: transparent;
   border-color: transparent;
-  font-size: 12px;
+  font-size: var(--fs-footnote);
   padding-left: 0;
   min-height: 32px
 }
@@ -463,7 +463,7 @@
   min-width: 66px;
   background: var(--accent);
   color: var(--on-accent);
-  border-radius: 7px
+  border-radius: var(--radius-md)
 }
 .qa-page .qa-evidence {
   background: var(--chat-surface);
@@ -476,11 +476,11 @@
 }
 .qa-source-filter input {
   font: inherit;
-  font-size: 12px;
+  font-size: var(--fs-footnote);
   color: var(--chat-ink);
   background: var(--chat-bg);
   border: 1px solid var(--chat-line);
-  border-radius: 7px;
+  border-radius: var(--radius-md);
   padding: 9px 11px;
   outline: none
 }
@@ -510,7 +510,7 @@
   padding: 13px 18px;
   margin-left: auto;
   box-shadow: none;
-  border-radius: 8px;
+  border-radius: var(--radius-md);
   max-width: 100%;
   background: var(--panel);
   border: 1px solid var(--line)
@@ -520,7 +520,7 @@
   border: 0;
   border-radius: 0;
   padding: 4px 0 12px;
-  font-size: 16px;
+  font-size: var(--fs-callout);
   line-height: 27px
 }
 .search-chat-layout .chat-speaker {
@@ -536,7 +536,7 @@
 .search-chat-layout .chat-foldout {
   background: var(--chat-surface);
   border-color: var(--chat-line);
-  border-radius: 8px
+  border-radius: var(--radius-md)
 }
 .search-chat-layout .chat-foldout-toggle {
   color: var(--chat-blue)
@@ -547,7 +547,7 @@
 .search-chat-layout .chat-proposal-action {
   background: var(--chat-surface);
   border: 1px solid var(--chat-line);
-  border-radius: 10px;
+  border-radius: var(--radius-lg);
   overflow: hidden
 }
 .search-chat-layout .chat-proposal-action header {
@@ -581,7 +581,7 @@
 .qa-reasoning {
   margin: 12px 0;
   border: 1px solid var(--chat-line);
-  border-radius: 9px;
+  border-radius: var(--radius-md);
   overflow: hidden;
   background: var(--chat-bg)
 }
@@ -594,16 +594,16 @@
   color: var(--chat-muted);
   text-align: left;
   background: transparent;
-  font-size: 12px
+  font-size: var(--fs-footnote)
 }
 .qa-reasoning>button strong {
-  font-size: 12px;
+  font-size: var(--fs-footnote);
   font-weight: 500;
   color: var(--chat-ink)
 }
 .qa-reasoning>button>span {
   margin-left: auto;
-  font-size: 12px;
+  font-size: var(--fs-footnote);
   font-variant-numeric: tabular-nums
 }
 .qa-reasoning>button[aria-expanded=true]>svg:last-child {
@@ -614,7 +614,7 @@
   overflow: auto;
   overscroll-behavior: contain;
   padding: 2px 16px 12px;
-  font-size: 12px;
+  font-size: var(--fs-footnote);
   line-height: 1.8;
   color: var(--chat-muted);
   white-space: normal;
@@ -632,7 +632,7 @@
   padding-left: 20px
 }
 .qa-reasoning-body h1,.qa-reasoning-body h2,.qa-reasoning-body h3 {
-  font-size: 13px;
+  font-size: var(--fs-subhead);
   margin: 12px 0 6px
 }
 .qa-reasoning.is-streaming {
@@ -642,7 +642,7 @@
   display: inline-block;
   width: 5px;
   height: 12px;
-  border-radius: 2px;
+  border-radius: var(--radius-xs);
   background: var(--chat-accent);
   animation: reasoning-pulse 1.2s ease-in-out infinite
 }
@@ -696,13 +696,13 @@
   margin-bottom: 10px
 }
 .qa-page .qa-header h1 {
-  font-size: 20px
+  font-size: var(--fs-title3)
 }
 .qa-page .qa-answer {
-  font-size: 13px
+  font-size: var(--fs-subhead)
 }
 .qa-page .qa-answer h2 {
-  font-size: 18px
+  font-size: var(--fs-headline)
 }}
 .qa-page .qa-evidence {
   animation: panel-enter var(--motion-panel) var(--ease)
@@ -714,7 +714,7 @@
   opacity: 1
 }
 .conversation-row .conversation-open {
-  font-size: 13px;
+  font-size: var(--fs-subhead);
   min-height: 42px
 }
 .qa-thread-sidebar,.search-chat-layout .chat-sidebar {
@@ -777,7 +777,7 @@ to {
   width: 100%
 }
 .qa-page .qa-answer {
-  font-size: 16px
+  font-size: var(--fs-callout)
 }
 .qa-page .qa-main {
   padding: 16px

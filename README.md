@@ -215,7 +215,7 @@ React / TypeScript UI
 | 转换、清洗和 Marker 进程 | `services/downloader/markdown_service.py`、`services/marker/worker.py` |
 | 段落分块、元数据与向量缓存 | `services/downloader/vector_chunks.py` |
 | Embedding / 索引 / 限速 | `vector_service.py`、`embedding_limits.py`、`services/vectors/` |
-| 主题 / 组件 | `tokens.css`、`styles.css`、`ui.tsx`、`Select.tsx` |
+| 主题 / 组件 | `tokens.css`（设计 token）、`design.css`（最后加载的组件层，规范见 `docs/UI_DESIGN.md`）、`styles.css`、`ui.tsx`、`Select.tsx` |
 
 表中未注明路径的前端文件在 `apps/desktop/src/`；Python 文件在 `services/downloader/`。
 

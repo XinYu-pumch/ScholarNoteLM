@@ -22,8 +22,8 @@
   appearance: none;
   min-height: 34px;
   padding: 6px 10px;
-  font-size: 13px;
-  border-radius: 7px;
+  font-size: var(--fs-subhead);
+  border-radius: var(--radius-md);
   box-shadow: none
 }
 .app-select-trigger>span {
@@ -51,12 +51,12 @@
   z-index: 10000;
   padding: 6px;
   border: 1px solid var(--line-strong);
-  border-radius: 10px;
+  border-radius: var(--radius-lg);
   background: var(--surface);
   overflow: auto;
   overscroll-behavior: contain;
   color: var(--text);
-  font-size: 12px;
+  font-size: var(--fs-footnote);
   box-shadow: var(--shadow);
   border-color: var(--line)
 }
@@ -65,7 +65,7 @@
   gap: 14px;
   align-items: center;
   justify-content: space-between;
-  border-radius: 6px;
+  border-radius: var(--radius-sm);
   cursor: pointer;
   line-height: 1.5;
   overflow-wrap: anywhere;
@@ -91,7 +91,7 @@
   color: var(--muted)
 }
 .query-table .app-select-trigger {
-  font-size: 12px;
+  font-size: var(--fs-footnote);
   padding: 6px;
   min-height: 30px;
   gap: 5px;
@@ -118,14 +118,14 @@
   background: transparent;
   min-height: 28px;
   padding: 4px;
-  font-size: 12px;
+  font-size: var(--fs-footnote);
   box-shadow: none
 }
 .reader-select .app-select {
   flex: 1
 }
 .wb-form .app-select-trigger {
-  font-size: 12px;
+  font-size: var(--fs-footnote);
   font-weight: 400;
   color: var(--text)
 }

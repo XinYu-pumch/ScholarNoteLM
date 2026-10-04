@@ -10,7 +10,7 @@
   z-index: 100;
   width: min(320px,75vw);
   border: 1px solid var(--line);
-  border-radius: 12px;
+  border-radius: var(--radius-lg);
   background: var(--surface);
   box-shadow: var(--shadow);
   padding: 12px;
@@ -21,7 +21,7 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  font-size: 13px;
+  font-size: var(--fs-subhead);
   margin-bottom: 8px
 }
 .turn-index-panel>input {
@@ -39,9 +39,9 @@
   text-align: left;
   width: 100%;
   padding: 10px 8px;
-  border-radius: 6px;
+  border-radius: var(--radius-sm);
   color: inherit;
-  font-size: 12px;
+  font-size: var(--fs-footnote);
   line-height: 1.5
 }
 .turn-index-panel nav button>span {
@@ -55,7 +55,7 @@
 .turn-index-panel small {
   display: block;
   color: var(--muted);
-  font-size: 12px;
+  font-size: var(--fs-footnote);
   margin-top: 3px
 }
 .turn-index-panel nav button:hover,.turn-index-panel nav button[aria-current] {
@@ -72,7 +72,7 @@
   margin-top: 8px;
   padding: 10px 0 0;
   color: var(--accent);
-  font-size: 12px
+  font-size: var(--fs-footnote)
 }
 .turn-located {
   animation: turn-locate 1.6s ease-out

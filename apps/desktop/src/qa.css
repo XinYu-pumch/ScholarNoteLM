@@ -24,11 +24,11 @@
   flex-shrink: 0
 }
 .qa-header h1 {
-  font-size: 25px;
+  font-size: var(--fs-title2);
   margin: 0
 }
 .qa-header p {
-  font-size: 12px;
+  font-size: var(--fs-footnote);
   color: var(--muted);
   margin: 6px 0 0
 }
@@ -50,7 +50,7 @@
   text-align: center
 }
 .qa-welcome h2 {
-  font-size: 25px;
+  font-size: var(--fs-title2);
   margin: 20px 0 12px
 }
 .qa-welcome p {
@@ -66,7 +66,7 @@
   text-align: left;
   background: var(--surface,#fff);
   border: 1px solid var(--line);
-  border-radius: 10px;
+  border-radius: var(--radius-lg);
   padding: 15px;
   color: inherit;
   cursor: pointer
@@ -79,7 +79,7 @@
   white-space: pre-wrap;
   background: var(--subtle);
   padding: 16px 18px;
-  border-radius: 12px;
+  border-radius: var(--radius-lg);
   line-height: 1.8;
   margin: 8px 0 22px
 }
@@ -87,18 +87,18 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  font-size: 13px;
+  font-size: var(--fs-subhead);
   margin-bottom: 12px;
   gap: 10px
 }
 .qa-answer-head>span {
-  font-size: 12px;
+  font-size: var(--fs-footnote);
   color: var(--muted);
   overflow-wrap: anywhere
 }
 .qa-answer {
   line-height: 1.9;
-  font-size: 14px;
+  font-size: var(--fs-body);
   overflow-wrap: anywhere
 }
 .qa-answer table {
@@ -114,15 +114,15 @@
   overflow: auto
 }
 .qa-answer h1,.qa-answer h2,.qa-answer h3 {
-  font-size: 17px
+  font-size: var(--fs-headline)
 }
 .qa-citation {
   display: inline;
   background: var(--accent-soft);
   color: var(--accent);
   border: 0;
-  border-radius: 4px;
-  font-size: 12px;
+  border-radius: var(--radius-sm);
+  font-size: var(--fs-footnote);
   padding: 2px 5px;
   margin: 0 2px;
   cursor: pointer;
@@ -130,8 +130,8 @@
 }
 .qa-trace {
   border: 1px solid var(--line);
-  border-radius: 9px;
-  font-size: 12px;
+  border-radius: var(--radius-md);
+  font-size: var(--fs-footnote);
   margin: 10px 0 18px;
   overflow: hidden
 }
@@ -172,7 +172,7 @@
 .qa-composer {
   flex-shrink: 0;
   border: 1px solid var(--line);
-  border-radius: 12px;
+  border-radius: var(--radius-lg);
   padding: 12px 14px 10px;
   background: var(--surface,#fff);
   box-shadow: none
@@ -184,7 +184,7 @@
   border: 0;
   outline: none;
   font: inherit;
-  font-size: 14px;
+  font-size: var(--fs-body);
   line-height: 1.6;
   min-height: 54px;
   max-height: 150px;
@@ -202,13 +202,13 @@
   min-width: 0
 }
 .qa-composer-bottom>span:not(.app-select) {
-  font-size: 12px;
+  font-size: var(--fs-footnote);
   color: var(--muted);
   margin-left: auto
 }
 .qa-composer>small {
   display: block;
-  font-size: 12px;
+  font-size: var(--fs-footnote);
   color: var(--muted);
   padding-top: 9px;
   line-height: 1.5
@@ -240,25 +240,25 @@
 }
 .qa-evidence-detail h3 {
   line-height: 1.6;
-  font-size: 15px
+  font-size: var(--fs-callout)
 }
 .qa-evidence-detail pre {
   white-space: pre-wrap;
   overflow-wrap: anywhere;
   font: inherit;
-  font-size: 13px;
+  font-size: var(--fs-subhead);
   line-height: 1.85;
   background: var(--subtle);
   padding: 14px;
-  border-radius: 8px
+  border-radius: var(--radius-md)
 }
 .qa-evidence-detail code {
   overflow-wrap: anywhere;
-  font-size: 12px
+  font-size: var(--fs-footnote)
 }
 .qa-evidence-detail details {
   margin-top: 20px;
-  font-size: 12px;
+  font-size: var(--fs-footnote);
   line-height: 1.8
 }
 .qa-source-filter {
@@ -268,7 +268,7 @@
   width: 100%
 }
 .qa-source-filter p {
-  font-size: 12px;
+  font-size: var(--fs-footnote);
   color: var(--muted)
 }
 .qa-paper-list {
@@ -289,12 +289,12 @@
 .qa-paper strong {
   display: block;
   font-weight: 500;
-  font-size: 12px;
+  font-size: var(--fs-footnote);
   line-height: 1.6
 }
 .qa-paper small {
   display: block;
-  font-size: 12px;
+  font-size: var(--fs-footnote);
   color: var(--muted);
   margin-top: 7px;
   line-height: 1.5
@@ -303,7 +303,7 @@
   display: flex;
   justify-content: space-between;
   align-items: center;
-  font-size: 12px;
+  font-size: var(--fs-footnote);
   color: var(--muted);
   gap: 12px
 }
@@ -311,7 +311,7 @@
   border-left: 3px solid #ba9558;
   padding: 12px;
   background: #ba95580d;
-  font-size: 12px;
+  font-size: var(--fs-footnote);
   line-height: 1.7;
   margin: 16px 0
 }
@@ -330,7 +330,7 @@
 }
 .model-choice-box {
   border: 1px solid var(--line);
-  border-radius: 9px;
+  border-radius: var(--radius-md);
   padding: 14px
 }
 .model-choice-box>label {
@@ -388,11 +388,11 @@
   gap: 4px
 }
 .qa-header-actions>.button {
-  font-size: 12px;
+  font-size: var(--fs-footnote);
   padding: 7px
 }
 .qa-header h1 {
-  font-size: 21px
+  font-size: var(--fs-title3)
 }
 .qa-answer-head {
   align-items: flex-start;
@@ -431,7 +431,7 @@
   display: block
 }
 .qa-trace-toggle small {
-  font-size: 12px;
+  font-size: var(--fs-footnote);
   line-height: 1.6;
   margin-top: 4px
 }
@@ -457,7 +457,7 @@
 }
 .qa-event-heading>small {
   margin: 0;
-  font-size: 12px;
+  font-size: var(--fs-footnote);
   white-space: nowrap
 }
 .qa-step-index {
@@ -466,25 +466,25 @@
   width: 23px;
   height: 23px;
   border-radius: 50%;
-  font-size: 12px;
+  font-size: var(--fs-footnote);
   flex-shrink: 0
 }
 .qa-step-status {
-  font-size: 12px;
+  font-size: var(--fs-footnote);
   padding: 2px 6px;
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
   white-space: nowrap
 }
 .qa-model-meta {
-  font-size: 12px;
+  font-size: var(--fs-footnote);
   margin: 8px 0
 }
 .qa-query {
   display: block;
   padding: 10px 12px;
-  border-radius: 6px;
+  border-radius: var(--radius-sm);
   margin: 10px 0;
-  font-size: 12px;
+  font-size: var(--fs-footnote);
   line-height: 1.7;
   white-space: pre-wrap;
   overflow-wrap: anywhere
@@ -501,11 +501,11 @@
 .qa-trace-refs button {
   padding: 3px 7px;
   border: 1px solid var(--line);
-  border-radius: 5px;
-  font-size: 12px
+  border-radius: var(--radius-sm);
+  font-size: var(--fs-footnote)
 }
 .qa-model-output summary {
-  font-size: 12px;
+  font-size: var(--fs-footnote);
   cursor: pointer;
   padding: 5px 0
 }
@@ -514,18 +514,18 @@
   overflow: auto;
   white-space: pre-wrap;
   overflow-wrap: anywhere;
-  font-size: 12px;
+  font-size: var(--fs-footnote);
   line-height: 1.7;
   padding: 12px;
-  border-radius: 6px
+  border-radius: var(--radius-sm)
 }
 .qa-live-output {
   padding: 8px 12px;
-  border-radius: 6px
+  border-radius: var(--radius-sm)
 }
 .qa-live-output b {
   display: block;
-  font-size: 12px
+  font-size: var(--fs-footnote)
 }
 .qa-coverage {
   display: flex;
@@ -546,7 +546,7 @@
 .qa-aspects {
   line-height: 1.8;
   padding: 12px;
-  border-radius: 6px;
+  border-radius: var(--radius-sm);
   margin: 0 0 8px
 }
 .qa-stream-wait {
@@ -555,16 +555,16 @@
   align-items: center
 }
 .qa-step-reason {
-  font-size: 12px
+  font-size: var(--fs-footnote)
 }
 .qa-recovery-notice {
   margin: 14px 0;
   padding: 12px 15px;
   border: 1px solid var(--line);
-  border-radius: 9px;
+  border-radius: var(--radius-md);
   background: var(--panel);
   color: var(--text);
-  font-size: 12px
+  font-size: var(--fs-footnote)
 }
 .qa-recovery-notice>summary {
   display: flex;
@@ -584,7 +584,7 @@
   line-height: 1.7
 }
 .qa-reading-progress {
-  font-size: 12px;
+  font-size: var(--fs-footnote);
   color: var(--muted);
   margin: 0 0 12px;
   border-bottom: 1px solid var(--line);
@@ -601,7 +601,7 @@
 .qa-reading-progress>summary>span {
   background: var(--surface);
   border: 1px solid var(--line);
-  border-radius: 5px;
+  border-radius: var(--radius-sm);
   padding: 3px 7px;
   color: var(--text)
 }
@@ -621,10 +621,10 @@
 .qa-card-detail {
   background: color-mix(in srgb,var(--accent,#49655b) 7%,var(--surface,#fff));
   border: 1px solid var(--line);
-  border-radius: 10px;
+  border-radius: var(--radius-lg);
   padding: 14px;
   margin: 15px 0;
-  font-size: 12px;
+  font-size: var(--fs-footnote);
   line-height: 1.7
 }
 .qa-card-detail>strong {
@@ -651,7 +651,7 @@
 
 /* Keep the three conversation actions at one visual level. */
 .qa-page .qa-header-actions {gap:8px;flex-wrap:wrap;justify-content:flex-end}
-.qa-page .qa-header-actions .qa-toolbar-button {display:inline-flex;align-items:center;justify-content:center;gap:7px;height:36px;min-height:36px;box-sizing:border-box;padding:7px 11px;border:1px solid var(--chat-line);border-radius:8px;background:var(--chat-surface);color:var(--chat-ink);font-size:13px;line-height:20px;box-shadow:none;white-space:nowrap}
+.qa-page .qa-header-actions .qa-toolbar-button {display:inline-flex;align-items:center;justify-content:center;gap:7px;height:36px;min-height:36px;box-sizing:border-box;padding:7px 11px;border:1px solid var(--chat-line);border-radius:var(--radius-md);background:var(--chat-surface);color:var(--chat-ink);font-size:var(--fs-subhead);line-height:20px;box-shadow:none;white-space:nowrap}
 .qa-page .qa-header-actions .qa-toolbar-button:hover {background:var(--chat-user)}
 .qa-page .qa-header-actions .qa-toolbar-button[aria-disabled=true] {opacity:.5;cursor:default}
 .qa-page .qa-header-actions .qa-model-panel {width:320px;gap:16px}

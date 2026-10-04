@@ -19,7 +19,7 @@
 }
 .storage-tree {
   border: 1px solid var(--line);
-  border-radius: 12px;
+  border-radius: var(--radius-lg);
   margin: 22px 0 12px;
   padding: 16px 20px;
   background: var(--surface)
@@ -29,10 +29,10 @@
   gap: 12px;
   align-items: center;
   padding: 6px 0;
-  font-size: 12px
+  font-size: var(--fs-footnote)
 }
 .storage-tree>div:first-child {
-  font-size: 14px;
+  font-size: var(--fs-body);
   margin-bottom: 8px
 }
 .storage-tree code {
@@ -49,16 +49,16 @@
   padding: 18px 0;
   border-top: 1px solid var(--line);
   margin-top: 20px;
-  font-size: 13px
+  font-size: var(--fs-subhead)
 }
 .storage-system p {
-  font-size: 12px;
+  font-size: var(--fs-footnote);
   color: var(--muted);
   line-height: 1.7
 }
 .storage-system code,.storage-path {
   overflow-wrap: anywhere;
-  font-size: 12px
+  font-size: var(--fs-footnote)
 }
 .project-file-tools {
   display: flex;
@@ -73,7 +73,7 @@
   display: flex;
   align-items: center;
   gap: 8px;
-  font-size: 12px;
+  font-size: var(--fs-footnote);
   margin-right: auto;
   color: var(--muted)
 }@media(max-width:800px){

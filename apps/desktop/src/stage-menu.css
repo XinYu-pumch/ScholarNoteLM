@@ -1,17 +1,17 @@
-.stage-menu-trigger {display:inline-flex;align-items:center;justify-content:center;gap:6px;min-height:36px;padding:6px 9px;border:0;border-radius:7px;background:transparent;color:var(--muted);font:inherit;font-size:12px;cursor:pointer;flex:0 0 auto}
+.stage-menu-trigger {display:inline-flex;align-items:center;justify-content:center;gap:6px;min-height:36px;padding:6px 9px;border:0;border-radius:var(--radius-md);background:transparent;color:var(--muted);font:inherit;font-size:var(--fs-footnote);cursor:pointer;flex:0 0 auto}
 .stage-menu-trigger:hover,.stage-menu-trigger[aria-expanded=true] {background:var(--subtle);color:var(--text)}
 .stage-menu-trigger:focus-visible {outline:2px solid var(--accent);outline-offset:2px}
-.stage-action-popover {position:fixed;inset:auto;z-index:1000;display:flex;flex-direction:column;align-items:stretch;justify-content:flex-start;gap:2px;box-sizing:border-box;width:248px;max-width:calc(100vw - 24px);height:max-content;min-height:0;max-height:calc(100dvh - 24px);overflow-y:auto;margin:0;padding:6px;border:1px solid var(--line);border-radius:10px;background:var(--surface);color:var(--text);box-shadow:0 8px 28px rgb(0 0 0 / .13);animation:stage-menu-appear 120ms ease-out}
+.stage-action-popover {position:fixed;inset:auto;z-index:1000;display:flex;flex-direction:column;align-items:stretch;justify-content:flex-start;gap:2px;box-sizing:border-box;width:248px;max-width:calc(100vw - 24px);height:max-content;min-height:0;max-height:calc(100dvh - 24px);overflow-y:auto;margin:0;padding:6px;border:1px solid var(--line);border-radius:var(--radius-lg);background:var(--surface);color:var(--text);box-shadow:0 8px 28px rgb(0 0 0 / .13);animation:stage-menu-appear 120ms ease-out}
 .stage-action-popover .project-file-tools {display:flex;flex-direction:column;gap:2px;margin:0;padding:0;border:0}
-.stage-action-popover button {display:flex;align-items:center;justify-content:flex-start;flex:0 0 auto;gap:9px;box-sizing:border-box;width:100%;min-height:36px;height:auto;margin:0;padding:8px 10px;border:0;border-radius:6px;background:transparent;color:var(--text);font:inherit;font-size:12px;font-weight:400;line-height:1.5;text-align:left;text-decoration:none;white-space:normal;cursor:pointer}
+.stage-action-popover button {display:flex;align-items:center;justify-content:flex-start;flex:0 0 auto;gap:9px;box-sizing:border-box;width:100%;min-height:36px;height:auto;margin:0;padding:8px 10px;border:0;border-radius:var(--radius-sm);background:transparent;color:var(--text);font:inherit;font-size:var(--fs-footnote);font-weight:400;line-height:1.5;text-align:left;text-decoration:none;white-space:normal;cursor:pointer}
 .stage-action-popover button svg {flex:0 0 14px;color:var(--muted)}
 .stage-action-popover button:hover:not(:disabled),.stage-action-popover button:focus-visible {background:var(--subtle);color:var(--text);text-decoration:none}
 .stage-action-popover button:focus-visible {outline:2px solid var(--accent);outline-offset:-2px}
-.stage-action-popover button.danger {color:var(--red);border-top:1px solid var(--line);border-radius:0 0 6px 6px;margin-top:4px;padding-top:10px}
+.stage-action-popover button.danger {color:var(--red);border-top:1px solid var(--line);border-radius:0 0 var(--radius-sm) var(--radius-sm);margin-top:4px;padding-top:10px}
 .stage-action-popover button.danger svg {color:inherit}
 .stage-action-popover button.danger:hover:not(:disabled) {background:var(--red-tint)}
 .stage-action-popover button:disabled {opacity:.45;cursor:not-allowed}
-.stage-action-popover .stage-menu-count {margin-left:auto;min-width:22px;padding:0 5px;border-radius:4px;background:var(--subtle);font-variant-numeric:tabular-nums;text-align:center;font-size:11px;color:var(--muted)}
-.stage-action-popover>.quiet {padding:6px 10px;font-size:11px}
+.stage-action-popover .stage-menu-count {margin-left:auto;min-width:22px;padding:0 5px;border-radius:var(--radius-sm);background:var(--subtle);font-variant-numeric:tabular-nums;text-align:center;font-size:var(--fs-caption);color:var(--muted)}
+.stage-action-popover>.quiet {padding:6px 10px;font-size:var(--fs-caption)}
 @keyframes stage-menu-appear {from{opacity:0}to{opacity:1}}
 @media(prefers-reduced-motion:reduce){.stage-action-popover{animation:none}}
