@@ -37,24 +37,6 @@
   align-items: center;
   gap: 8px
 }
-.qa-controls {
-  display: grid;
-  grid-template-columns: minmax(130px,.85fr) minmax(140px,1fr) minmax(140px,1fr);
-  align-items: end;
-  gap: 12px;
-  padding: 18px 0 12px
-}
-.qa-controls label {
-  font-size: 12px;
-  display: grid;
-  gap: 5px;
-  color: var(--muted);
-  min-width: 0
-}
-.qa-controls .app-select {
-  min-width: 0;
-  width: 100%
-}
 .qa-conversation {
   flex: 1;
   min-height: 0;
@@ -325,21 +307,6 @@
   color: var(--muted);
   gap: 12px
 }
-.qa-source-chips {
-  display: flex;
-  gap: 6px;
-  flex-wrap: wrap;
-  margin-top: 12px
-}
-.qa-source-chips button {
-  font-size: 12px;
-  border: 1px solid var(--line);
-  border-radius: 5px;
-  background: transparent;
-  color: inherit;
-  padding: 5px 7px;
-  cursor: pointer
-}
 .qa-validation {
   border-left: 3px solid #ba9558;
   padding: 12px;
@@ -411,13 +378,6 @@
 .qa-main {
   padding: 16px 14px 12px
 }
-.qa-controls {
-  gap: 7px;
-  grid-template-columns: 1fr 1fr
-}
-.qa-controls>.app-select {
-  grid-column: 1/-1
-}
 .qa-composer-bottom>span:not(.app-select) {
   display: none
 }
@@ -477,11 +437,6 @@
 }
 .qa-trace-toggle[aria-expanded=true]>svg:last-child {
   transform: rotate(180deg)
-}
-.qa-round-count {
-  white-space: nowrap;
-  font-size: 12px;
-  font-variant-numeric: tabular-nums
 }
 .qa-trace .qa-trace-body {
   padding: 0 16px 16px;

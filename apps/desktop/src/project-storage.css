@@ -76,18 +76,6 @@
   font-size: 12px;
   margin-right: auto;
   color: var(--muted)
-}
-.project-file-tools .storage-clear {
-  font-size: 12px;
-  color: #a55b4d
-}
-.storage-danger {
-  color: white;
-  background: #a94f43
-}
-.storage-result {
-  overflow-wrap: anywhere;
-  margin-bottom: 16px
 }@media(max-width:800px){
 .storage-location {
   align-items: stretch;

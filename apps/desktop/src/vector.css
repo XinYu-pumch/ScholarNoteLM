@@ -14,19 +14,6 @@
   width: 100%;
   min-width: 0
 }
-.vector-rule {
-  border: 1px solid var(--line);
-  padding: 13px;
-  border-radius: 8px;
-  background: var(--bg);
-  font-size: 12px
-}
-.vector-rule p,.vector-rule small {
-  display: block;
-  color: var(--muted);
-  line-height: 1.8;
-  margin-top: 6px
-}
 .modal:has(.chunk-browser) {
   width: min(1180px,94vw);
   max-width: 94vw
@@ -242,52 +229,13 @@
 }
 .vector-hits>article>p {
   margin-top: 8px
-}
-.workflow-steps.has-index {
-  grid-template-columns: 1fr 16px 1fr 16px 1fr;
-  gap: 8px
-}
-.has-index .workflow-number {
-  display: none
-}
-.has-index .workflow-step-title>span {
-  font-size: 12px
-}
-.has-index .workflow-count b {
-  font-size: 20px
-}
-.workflow-index-action {
-  margin-top: 7px
-}
-.vector-inline-note {
-  font-size: 12px;
-  color: var(--muted);
-  padding-bottom: 12px
-}
-.vector-inline-note button {
-  margin-left: 10px
 }@media(max-width:1100px){
-.workflow-steps.has-index>div {
-  padding: 10px
-}
-.has-index .workflow-step-title>span {
-  display: none
-}
-.has-index .workflow-step-title strong {
-  font-size: 12px
-}
-.has-index .workflow-count span {
-  font-size: 12px
-}
 .chunk-controls {
   grid-template-columns: 180px 1fr
 }
 .chunk-layout {
   grid-template-columns: 200px minmax(0,1fr)
 }}@media(max-width:650px){
-.workflow-steps.has-index {
-  grid-template-columns: 1fr
-}
 .chunk-controls {
   grid-template-columns: 1fr
 }
@@ -319,43 +267,6 @@
 }
 .embedding-test>.button {
   align-self: flex-start
-}
-.embedding-test-result {
-  padding: 14px;
-  border: 1px solid var(--line);
-  border-radius: 8px;
-  background: var(--accent-wash);
-  color: var(--accent);
-  font-size: 12px;
-  line-height: 1.7
-}
-.embedding-test-result>div {
-  display: flex;
-  gap: 14px;
-  margin: 7px 0
-}
-.embedding-test-result code {
-  display: block;
-  font-size: 12px;
-  overflow-wrap: anywhere;
-  margin-top: 7px
-}
-.embedding-options {
-  border: 1px solid var(--line);
-  border-radius: 10px;
-  margin-top: 16px;
-  padding: 14px 18px
-}
-.embedding-options>summary {
-  font-size: 12px;
-  cursor: pointer;
-  color: var(--muted)
-}
-.embedding-options>.wb-form {
-  margin-top: 16px
-}
-.embedding-options .vector-numbers {
-  max-width: 450px
 }
 .chunk-article {
   flex-shrink: 0;

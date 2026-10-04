@@ -29,70 +29,6 @@
   flex-wrap: wrap;
   margin-top: 18px
 }
-.download-expand {
-  margin-left: auto
-}
-.download-batches {
-  display: grid;
-  gap: 20px
-}
-.download-batch {
-  border: 1px solid var(--line-strong);
-  background: var(--surface,#fff);
-  padding: 18px 20px;
-  border-color: var(--line);
-  border-radius: 10px
-}
-.download-batch-heading {
-  display: flex;
-  justify-content: space-between;
-  gap: 20px;
-  align-items: start
-}
-.download-batch-heading h3 {
-  margin: 0 0 8px
-}
-.download-batch-heading p,.download-item p {
-  font-size: 12px;
-  color: var(--muted);
-  margin: 5px 0
-}
-.download-counts {
-  display: flex;
-  flex-wrap: wrap;
-  color: var(--muted);
-  font-size: 12px;
-  margin: 16px 0;
-  gap: 24px
-}
-.download-counts b {
-  font-size: 21px;
-  margin-right: 4px;
-  color: var(--text,#293e35);
-  font-weight: 500
-}
-.download-items {
-  margin-top: 18px;
-  border-top: 1px solid var(--line-strong);
-  max-height: 480px;
-  overflow: auto
-}
-.download-item {
-  display: flex;
-  align-items: start;
-  justify-content: space-between;
-  gap: 20px;
-  padding: 16px 0;
-  border-bottom: 1px solid var(--line-strong)
-}
-.download-item strong {
-  font-size: 13px;
-  font-weight: 500
-}
-.download-item small {
-  color: var(--ochre);
-  overflow-wrap: anywhere
-}
 .download-report {
   font-size: 12px;
   line-height: 1.7;
@@ -103,17 +39,6 @@
   background: var(--subtle);
   padding: 20px;
   border-radius: 10px
-}
-.download-route {
-  display: flex;
-  gap: 12px;
-  flex-wrap: wrap;
-  padding: 18px 0;
-  font-size: 12px;
-  color: var(--muted)
-}
-.download-route span {
-  opacity: .5
 }
 .download-settings {
   max-width: 1040px
@@ -130,13 +55,6 @@
 }
 .download-settings .wb-form>label {
   max-width: 700px
-}
-.download-index-status {
-  display: flex;
-  gap: 12px;
-  align-items: center;
-  flex-wrap: wrap;
-  font-size: 12px
 }
 .pdf-details {
   border-top: 1px solid var(--line-strong);
@@ -170,53 +88,14 @@
 .paper-pdf-cell .text-button {
   font-size: 12px
 }
-.download-inline-summary {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  margin: 0 0 22px;
-  padding: 12px 16px;
-  border-radius: 9px;
-  background: var(--subtle);
-  font-size: 12px;
-  color: var(--muted)
-}
-.download-inline-summary button {
-  margin-left: auto
-}
 @media(max-width:1000px){
 .download-settings .model-config-card.wb-form {
   display: flex;
   flex-direction: column
 }
-.download-counts {
-  gap: 14px
-}
 .pdf-facts {
   grid-template-columns: 1fr
-}
-.download-batch {
-  padding: 18px
 }}
-.bloom-recovery-summary {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 10px 22px;
-  margin: 4px 0 18px;
-  padding: 12px 16px;
-  border-radius: 10px;
-  background: var(--accent-wash);
-  color: var(--muted);
-  font-size: 12px
-}
-.bloom-recovery-summary b {
-  color: var(--text);
-  margin-left: 5px
-}
-.download-page>.page-heading>.download-actions {
-  flex-wrap: wrap;
-  justify-content: flex-end
-}
 
 
 /* Download sources are first-class settings; internal indexes are app-managed. */

@@ -110,10 +110,10 @@
   width: auto;
   min-width: 85px
 }
-.select-control>.app-select+.lucide-chevron-down,.reader-select>.app-select+.lucide-chevron-down,.composer-bottom .app-select+.lucide-chevron-down {
+.select-control>.app-select+.lucide-chevron-down,.reader-select>.app-select+.lucide-chevron-down {
   display: none
 }
-.select-control .app-select-trigger,.composer-bottom .app-select-trigger {
+.select-control .app-select-trigger {
   border: 0;
   background: transparent;
   min-height: 28px;
@@ -123,9 +123,6 @@
 }
 .reader-select .app-select {
   flex: 1
-}
-.composer-bottom .app-select {
-  width: auto
 }
 .wb-form .app-select-trigger {
   font-size: 12px;
