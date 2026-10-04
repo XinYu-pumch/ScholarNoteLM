@@ -1,6 +1,6 @@
 import NumberInput from './NumberInput';
 import {useEffect,useState} from 'react';
-import {Download,FileText,FolderOpen,Save,LoaderCircle,Check,ChevronRight,Pencil,RotateCcw} from 'lucide-react';
+import {FileText,FolderOpen,Save,LoaderCircle,Check,ChevronRight,Pencil,RotateCcw} from 'lucide-react';
 import {useApp} from './context';
 import {rpc,message,stamp} from './research-api';
 import {downloadChanged,recoveryLabel,mb,type DownloadConfig,type PdfAsset,type DownloadItem} from './download-api';

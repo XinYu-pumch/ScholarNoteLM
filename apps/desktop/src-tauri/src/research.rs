@@ -1819,9 +1819,6 @@ fn chat_stream(
     save(&history)?;
     Ok(json!(history))
 }
-fn mesh_check(root: &Path, c: &Connection, query: &str) -> R<Value> {
-    mesh_check_at(root, &setting(c, "mesh", Value::Null)?, query)
-}
 fn mesh_check_at(root: &Path, manifest: &Value, query: &str) -> R<Value> {
     let re =
         regex::Regex::new(r#"(?i)\"([^\"]+)\"\s*\[(?:mh|mesh|mesh terms)(?::noexp)?\]"#).unwrap();
@@ -2009,7 +2006,7 @@ pub fn dispatch(root: &Path, request: Value) -> R<Value> {
     let _source_operation=if ["zotero.start","query.run","query.save","query.create","query.filters.apply","query.toggle","query.archive","xml.import"].contains(&action){
         Some(zotero_import::source_operation(root,p)?)
     }else{None};
-    let _lock = if !p.is_empty() && !["zotero.cancel", "zotero.status", "zotero.report", "zotero.collections", "zotero.preview", "query.run", "query.cancel", "chat", "chat.cancel", "probe"].contains(&action)
+    let _lock = if !p.is_empty() && !["zotero.cancel", "zotero.status", "zotero.report", "zotero.collections", "zotero.preview", "query.run", "query.cancel", "chat", "chat.cancel"].contains(&action)
     {
         Some(project_lock(root, p)?)
     } else {
@@ -2195,40 +2192,6 @@ pub fn dispatch(root: &Path, request: Value) -> R<Value> {
                 .filter_map(|v| serde_json::from_str::<Value>(&v).ok())
                 .collect::<Vec<_>>()))
         }
-        "filters.save" => Err("筛选条件已迁移至各检索式，请编辑对应条目".into()),
-        "probe" => {
-            valid_id(p)?;
-            let f = if a["filters"].is_object() {
-                a["filters"].clone()
-            } else {
-                defaults()
-            };
-            validate_filters(&f)?;
-            let mut result = search(root, &c, s(a, "text"), &f, 5, None)?;
-            result["mesh"] = mesh_check(root, &c, s(a, "text"))?;
-            let ids: Vec<_> = result["ids"]
-                .as_array()
-                .map(|a| a.iter().filter_map(Value::as_str).collect())
-                .unwrap_or_default();
-            if !ids.is_empty() {
-                let xml = ncbi(
-                    root,
-                    &c,
-                    "efetch",
-                    vec![
-                        ("db".into(), "pubmed".into()),
-                        ("retmode".into(), "xml".into()),
-                        ("id".into(), ids.join(",")),
-                    ],
-                    None,
-                )?;
-                result["samples"] = json!(parse_pubmed(&xml)?
-                    .into_iter()
-                    .map(|x| x.1)
-                    .collect::<Vec<_>>());
-            }
-            Ok(result)
-        }
         "xml.import" => {
             valid_id(p)?;
             let articles = parse_pubmed(s(a, "xml"))?;
@@ -2356,21 +2319,7 @@ pub fn dispatch(root: &Path, request: Value) -> R<Value> {
             tx.commit().map_err(err)?;
             Ok(public_profile(value))
         }
-        "profile.activate" => {
-            let tx=c.transaction_with_behavior(rusqlite::TransactionBehavior::Immediate).map_err(err)?;
-            let profiles = setting(&tx, "profiles", json!([]))?;
-            if !profiles
-                .as_array()
-                .unwrap()
-                .iter()
-                .any(|v| v["id"] == a["id"] && !s(v,"model").is_empty())
-            {
-                return Err("配置不存在或尚未添加模型".into());
-            }
-            put(&tx, "activeProfile", &a["id"])?;
-            tx.commit().map_err(err)?;
-            Ok(json!(true))
-        }
+
         "profile.delete" => {
             let tx=c.transaction_with_behavior(rusqlite::TransactionBehavior::Immediate).map_err(err)?;
             let mut profiles = setting(&tx, "profiles", json!([]))?;

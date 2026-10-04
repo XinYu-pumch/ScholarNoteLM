@@ -1,27 +1,12 @@
 import {useEffect,useRef,useState} from 'react';
-import {FileText,FolderOpen,RefreshCw,Save,Square} from 'lucide-react';
+import {Save} from 'lucide-react';
 import {useApp} from './context';
 import {rpc,message} from './research-api';
 import {downloadChanged} from './download-api';
 import Select from './Select';
-import './markdown.css';
 
-import {useMarkdown,type MarkdownSettingsData as Settings,type MarkdownStatus as Status} from './markdown-api';
-const jobLabels:Record<string,string>={queued:'等待转换',running:'转换中',stopping:'正在停止转换',stopped:'已停止',interrupted:'已中断',done:'已完成',failed:'转换失败'};
+import {type MarkdownSettingsData as Settings} from './markdown-api';
 
-export function MarkdownPanel(){
- const {project,notify}=useApp();const {data,error:readError}=useMarkdown(project.id);const [error,setError]=useState('');const [busy,setBusy]=useState(false);const [details,setDetails]=useState(false);
- async function load(){try{const s=await rpc<Status>('markdown.status',{project:project.id});setError('');if(s.files.restored||s.files.archived)downloadChanged();}catch(e){setError(message(e));}}
- async function action(op:string,args:Record<string,unknown>={}){setBusy(true);try{const r=await rpc<{count?:number}>('markdown.'+op,{project:project.id,...args});if(op==='start')notify(`已创建本地${args.mode==='clean'?'清洗':'转换'}任务 · ${r.count} 篇`);if(op==='stop')notify('已请求停止；未完成的文献不会发布');await load();downloadChanged();}catch(e){notify(message(e));}finally{setBusy(false);}}
- const running=!!data?.job&&['queued','running','stopping'].includes(data.job.state);
- return <section className="markdown-panel"><div className="markdown-panel-heading"><div><strong><FileText size={17}/>全文 Markdown</strong><p>{data?`${data.pdfCount} 篇当前 PDF · ${data.markdownCount} 篇已转换 · ${data.files.redundant} 篇未纳入的 PDF`:'正在检查项目文件…'}</p></div><div className="download-actions"><button className="button secondary compact" disabled={busy||running||!data?.items.some(i=>i.raw&&!i.needsConversion)} onClick={()=>void action('start',{mode:'clean',pmids:data?.items.filter(i=>i.raw&&!i.needsConversion).map(i=>i.pmid)})}>重新整理文本</button><button className="button primary compact" disabled={busy||running||!data?.ready||!data.pdfCount||data.latestCount===data.pdfCount} onClick={()=>void action('start')}><FileText size={14}/>{data?.pdfCount&&data.latestCount===data.pdfCount?'最新 · 无需转换':'转换当前 PDF'}</button></div></div>
- {(error||readError)&&<p className="wb-inline-error">{error||readError}</p>}{data&&!data.ready&&<p className="wb-inline-error">Marker 尚未准备好，请查看设置中的“全文转换”。</p>}
- {data?.job&&<div className="markdown-job"><span>{jobLabels[data.job.state]||data.job.state} · 成功 {data.job.completed} · 复用 / 跳过 {data.job.skipped} · 失败 {data.job.failed}{data.job.current?` · PMID ${data.job.current}`:''}{data.job.pages?` · 页 ${data.job.page||0}/${data.job.pages}`:''}</span>{running&&<button className="text-button" onClick={()=>void action('stop')}><Square size={12}/>停止转换</button>}{data.job.error&&<p className="wb-inline-error">{data.job.error}</p>}{data.job.items.filter(i=>i.error).slice(-3).map(i=><p key={i.pmid} className="wb-inline-error">PMID {i.pmid}：{i.error}</p>)}</div>}
- <div className="download-actions"><button className="text-button" disabled={busy} onClick={()=>void action('reconcile')}><RefreshCw size={13}/>检查本地文件</button><button className="text-button" onClick={()=>void action('folder',{redundant:true})}><FolderOpen size={13}/>未纳入的 PDF</button><button className="text-button" onClick={()=>void action('folder')}><FolderOpen size={13}/>转换文本文件夹</button>{data?.job&&<button className="text-button" onClick={()=>void action('report')}>转换报告</button>}<button className="text-button" onClick={()=>setDetails(v=>!v)}>{details?'收起':'转换详情'}</button></div>
- {!!data?.files.errors.length&&<p className="wb-inline-error">{data.files.errors.map(x=>`PMID ${x.pmid}：${x.error}`).join('；')}</p>}
- {details&&<div className="markdown-items">{data?.items.filter(i=>i.pdf||i.raw).map(i=><div key={i.pmid}><span>PMID {i.pmid} · {i.markdownState==='latest'?'最新 · 无需转换':i.markdownState==='outdated'?'待更新':'待转换'}{i.engine?` · ${i.engine}`:''}{i.needsConversion?' · 待重新转换':''}{i.layoutRemoved?` · 版面过滤 ${i.layoutRemoved} 项`:''}{i.ready?` · 已清洗 ${i.removed} 项`:''}</span><span>{i.raw&&<button className="text-button" onClick={()=>void action('open',{pmid:i.pmid,raw:true})}>原稿</button>}{i.ready&&<button className="text-button" onClick={()=>void action('open',{pmid:i.pmid})}>整理后文本</button>}</span></div>)}</div>}
- <p className="quiet small">移出项目的文献会保留 PDF，转换文本和检索数据会删除；重新纳入后需再次准备。</p></section>;
-}
 export function MarkdownSettings(){
  const {project,notify}=useApp();const [data,setData]=useState<Settings|null>(null),[busy,setBusy]=useState(false),[error,setError]=useState('');
  const currentProject=useRef(project.id);currentProject.current=project.id;

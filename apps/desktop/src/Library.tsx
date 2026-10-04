@@ -6,9 +6,9 @@ import {useDownloads,startDownload,downloadChanged} from './download-api';
 import {PdfStatus,PdfDetails} from './Downloads';
 import {rpc,message} from './research-api';
 import Select from './Select';
-import { useRef, useState } from 'react';
-import { ArrowDown, ArrowRight, ArrowUpRight, BookOpen, Check, ChevronDown, Download, FileText, LayoutGrid, List, Plus, Search, SlidersHorizontal, Sparkles, Star, Upload, X } from 'lucide-react';
-import { demoPapers, statusLabels, type Paper, type PaperStatus } from './data';
+import { useState } from 'react';
+import { ArrowDown, ArrowRight, ArrowUpRight, Check, ChevronDown, Download, FileText, LayoutGrid, List, Search, SlidersHorizontal, Star, Upload, X } from 'lucide-react';
+import { statusLabels, type Paper } from './data';
 import { useApp } from './context';
 import { Badge, Empty, IconButton, Modal } from './ui';
 
@@ -33,11 +33,9 @@ export default function Library() {
   const hasPdf=(id:string)=>!!downloads.assets[id.replace('PMID-','')]?.exists||!!markdown?.items.find(i=>i.pmid===id.replace('PMID-',''))?.pdf;
   const usesAbstract=(id:string)=>!!markdown?.items.find(i=>i.pmid===id.replace('PMID-',''))?.abstractFallback;
   const sourcePrepared=(id:string)=>{const local=markdown?.items.find(i=>i.pmid===id.replace('PMID-',''));return usesAbstract(id)||!!(local?.ready&&!local.needsCleaning&&!local.needsConversion);};
-  const conversionState=(id:string)=>markdown?.items.find(i=>i.pmid===id.replace('PMID-',''));
   const isConverted=(id:string)=>!!markdown?.items.find(i=>i.pmid===id.replace('PMID-',''))?.ready;
   const papers=project.papers.map(p=>({...p,status:hasPdf(p.id)?'pdf' as const:p.researchManaged?(usesAbstract(p.id)?'abstract' as const:downloadItem(p.id.replace('PMID-',''))?.state==='failed'?'failed' as const:['queued','running','paused'].includes(downloadItem(p.id.replace('PMID-',''))?.state||'')?'pending' as const:'abstract' as const):p.status}));
   const eligible=papers.filter(p=>p.researchManaged);
-  const missing=eligible.filter(p=>!downloads.assets[p.id.replace('PMID-','')]?.exists);
   const activeBatch=downloads.batches.find(b=>['queued','running','paused'].includes(b.state));
   const [tab, setTab] = usePageState(`${project.id}:library:tab`,'all');
   const [query, setQuery] = usePageState(`${project.id}:library:query`,'');
@@ -46,8 +44,6 @@ export default function Library() {
   const [grid, setGrid] = usePageState(`${project.id}:library:grid`,false);
   const [selected, setSelected] = useState<string[]>([]);
   const [detail, setDetail] = useState<Paper | null>(null);
-  const [searchOpen, setSearchOpen] = useState(false);
-  const input = useRef<HTMLInputElement>(null);
   const filtered = papers.filter(p => (tab !== 'starred' || p.starred) && (tab !== 'fulltext' || (p.status === 'indexed'||p.status === 'pdf')) && (tab !== 'converted' || isConverted(p.id)) && (tab !== 'needs' || (p.researchManaged?!sourcePrepared(p.id):p.status !== 'indexed')) && (status === 'all' || p.status === status) && `${p.title} ${p.author} ${p.tag} ${p.journal}`.toLowerCase().includes(query.toLowerCase())).sort((a, b) => sort === 'year' ? b.year - a.year : sort === 'title' ? a.title.localeCompare(b.title) : 0);
   function toggle(id: string) { setSelected(current => current.includes(id) ? current.filter(v => v !== id) : [...current, id]); }
   function star(id: string) { updateProject(p => ({ ...p, papers: p.papers.map(item => item.id === id ? { ...item, starred: !item.starred } : item) })); }
@@ -75,16 +71,5 @@ export default function Library() {
     <div className="table-footer"><span>共 {filtered.length} 篇文献{query ? ' · 已应用搜索条件' : ''}</span></div>
     {reconvert&&<Modal title="重新转换选中文献" subtitle="重新提取所选 PDF 的内容" onClose={()=>setReconvert(false)}><div className="detail-body"><p>重新提取正文和图表。成功后替换当前转换文本，并保留历史副本；失败时保留现有文本。</p><label className="wb-check"><input type="checkbox" checked={replaceEdited} onChange={e=>setReplaceEdited(e.target.checked)}/>也替换手动编辑过的 Markdown（保留历史副本）</label><button className="button primary" disabled={downloadBusy} onClick={()=>void convertSelection(true)}>开始重新转换</button></div></Modal>}
     {detail && <Modal title="文献详情" subtitle={detail.id.startsWith('DEMO') ? '合成示例 · 不对应真实论文' : '文献信息与全文'} onClose={() => setDetail(null)}><div className="detail-body"><Badge paper={papers.find(p => p.id === detail.id) || detail} /><h2 className="serif">{detail.title}</h2><p className="quiet">{detail.author} · {detail.year || '年份未知'}</p><p className="journal">{detail.journal}</p><div className="rule" /><h4>摘要</h4><p className="abstract">{detail.abstract}</p>{detail.researchManaged&&<PdfDetails pmid={detail.id.replace('PMID-','')} asset={downloads.assets[detail.id.replace('PMID-','')]} item={downloadItem(detail.id.replace('PMID-',''))}/>}<div className="detail-footer"><code>{detail.id}</code><button className="button primary" onClick={() => { openPaper(detail); setDetail(null); }}>打开阅读器 <ArrowUpRight size={15} /></button></div></div></Modal>}
-    {searchOpen && <SearchModal onClose={() => setSearchOpen(false)} />}
   </div>;
-}
-
-function SearchModal({ onClose }: { onClose: () => void }) {
-  const { project, updateProject, notify } = useApp();
-  const [query, setQuery] = useState('microglia');
-  const [searched, setSearched] = useState(false);
-  const [chosen, setChosen] = useState<string[]>([]);
-  const [loading, setLoading] = useState(false);
-  const results = demoPapers.filter(p => `${p.title} ${p.tag}`.toLowerCase().includes(query.toLowerCase()) || query === '小胶质细胞');
-  return <Modal title="发现新的文献" subtitle="PubMed 检索界面预览 · 当前仅搜索内置示例，无网络请求" onClose={onClose}><form className="modal-search" onSubmit={e => { e.preventDefault(); setLoading(true); setTimeout(() => { setLoading(false); setSearched(true); setChosen([]); }, 450); }}><label className="search-field"><Search size={17} /><input aria-label="PubMed 检索式" value={query} onChange={e => { setQuery(e.target.value); setSearched(false); }} placeholder="输入关键词，如 microglia" /></label><button className="button primary" disabled={loading || !query.trim()}>{loading ? '搜索中…' : '搜索示例'}</button></form><div className="search-hint">试试 <button onClick={() => { setQuery('microglia'); setSearched(false); }}>microglia</button>、<button onClick={() => { setQuery('TREM2'); setSearched(false); }}>TREM2</button> 或 <button onClick={() => { setQuery('neuroinflammation'); setSearched(false); }}>neuroinflammation</button></div>{searched ? <div className="search-results">{results.length ? results.map(p => <label key={p.id} className="search-result"><input type="checkbox" checked={chosen.includes(p.id)} disabled={project.papers.some(item => item.id === p.id)} onChange={e => setChosen(current => e.target.checked ? [...current, p.id] : current.filter(id => id !== p.id))} /><div><strong>{p.title}</strong><p>{p.journal} · {p.year} · {project.papers.some(item => item.id === p.id) ? '已在文献库' : '可添加示例'}</p></div></label>) : <Empty title="示例库中没有匹配记录" text="这不是 PubMed 实时检索结果，请尝试上方的示例关键词。" />}</div> : <div className="search-intro"><BookOpen size={32} strokeWidth={1.2} /><p>好的问题，从好的文献开始。</p><span>正式 PubMed 接口将在业务阶段接入。</span></div>}<div className="modal-actions"><span className="quiet small">已选择 {chosen.length} 篇</span><button className="button primary" disabled={!chosen.length} onClick={() => { updateProject(p => ({ ...p, papers: [...p.papers, ...demoPapers.filter(paper => chosen.includes(paper.id) && !p.papers.some(item => item.id === paper.id))] })); notify(`已添加 ${chosen.length} 篇示例文献`); onClose(); }}>添加到文献库 <Plus size={15} /></button></div></Modal>;
 }

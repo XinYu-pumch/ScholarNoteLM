@@ -555,7 +555,7 @@ PLAYWRIGHT_BROWSERS_PATH="$PWD/runtimes/playwright" TMPDIR="$PWD/tmp" \
 | `scripts/test-literature-workflow.py` | 实际 Marker 流程，不是轻量检查 |
 | `scripts/test-pubmed-live.py`、`test-download-live.py`、`test-source-cache-live.py` | 会访问真实外网，不是离线回归 |
 | `scripts/test-workbench-ui.mjs` 等 | 需要开发服务和测试浏览器，读取各脚本说明 |
-| `scripts/smoke-test.mjs`、`visual-check.mjs` | 早期原型测试，可能不适用于当前页面 |
+| `scripts/visual-check.mjs` | 早期原型截图脚本，会切换并保存真实主题设置，可能不适用于当前页面 |
 
 修改分块、Embedding 输入、检索策略或提示词协议时，检查对应签名/版本与缓存失效逻辑。不要只改 UI 而不改实际请求，也不要用演示数据补足真实失败结果。文件删除、外部替换、取消后继续及混合层级大纲都是关键回归场景。
 

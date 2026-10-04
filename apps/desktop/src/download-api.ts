@@ -1,5 +1,5 @@
 import {useQuery} from './useQuery';
-import {useCallback,useEffect,useState} from 'react';
+import {useCallback} from 'react';
 import {rpc} from './research-api';
 export type PdfAsset={pmid:string;source:string;path:string;bytes:number;pages:number;sha256:string;downloaded?:number;pmcid?:string;version?:string|number;isManuscript?:boolean;exists:boolean;url?:string;key?:string;selectionReason?:string;identity?:string|{status?:string;reason?:string;[key:string]:unknown}};
 export type DownloadItem={pmid:string;title:string;state:string;stage:string;source:string;error:string;bytes:number;progress?:{bloomHit?:boolean;retryStatus?:string;nextAttemptAt?:number;retryUsed?:number;zotero?:{outcome?:string;reason?:string;attachmentTitle?:string;manuscriptKind?:string};retrySpentSeconds?:number;retryNetworkSeconds?:number;retryWaitSeconds?:number}};

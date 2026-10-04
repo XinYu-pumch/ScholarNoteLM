@@ -94,7 +94,7 @@ class ImportTests(unittest.TestCase):
         e.execute('INSERT INTO batches(id,project,created,state,snapshot,config) VALUES(?,?,?,?,?,?)',('batch1','test',0,'queued','fixture',json.dumps(cfg)))
         e.execute('INSERT INTO items(batch,pmid,state,paper) VALUES(?,?,?,?)',('batch1','1','queued',json.dumps({'pmid':'1','title':'Paper','doi':'10.1234/test'})))
         e.load_sources()
-        with patch.object(e,'backfill_sources'),patch.object(e.httpx.AsyncClient,'request',side_effect=AssertionError('No network fetch needed')) as request,patch.object(z,'LocalAPI',side_effect=AssertionError('No attachment fetch needed')):
+        with patch.object(e.httpx.AsyncClient,'request',side_effect=AssertionError('No network fetch needed')) as request,patch.object(z,'LocalAPI',side_effect=AssertionError('No attachment fetch needed')):
             asyncio.run(e.run_batch(e.one('SELECT * FROM batches WHERE id=?',('batch1',))))
             request.assert_not_called()
         self.assertEqual(e.one('SELECT state FROM batches WHERE id=?',('batch1',))['state'],'done')

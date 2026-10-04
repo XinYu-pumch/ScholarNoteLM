@@ -81,13 +81,6 @@ def current_signature(e):
     docs=documents(e)
     return chunks.digest([chunks.RECALL_POLICY,chunks.HEADING_MIN_CHARS,chunks.cleared(e),[[d['pmid'],d['version'],chunks.metadata_signature(d['metadata'])] for d in docs]])
 
-def section_label(text):
-    text=re.sub(r'^[\s\d.#*_:–—-]+','',text).casefold()
-    return re.sub(r'[^a-z\u4e00-\u9fff]','',text)
-
-NON_EVIDENCE={'references','referencesandnotes','bibliography','acknowledgments','acknowledgements',
-    'conflictofinterest','conflictsofinterest','competinginterests','authorcontributions','funding','参考文献','致谢','利益冲突'}
-
 def evidence_allowed(r):
     return chunks.recall_allowed(r)
 

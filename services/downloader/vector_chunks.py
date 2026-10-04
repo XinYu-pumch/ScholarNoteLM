@@ -246,7 +246,7 @@ def sync_locked(e,pmids=None):
                 e.atomic(files.folder(e,'vectors/chunks')/f'{p}.jsonl',''.join(json.dumps({k:v for k,v in r.items() if k!='resources'},ensure_ascii=False)+'\n' for r in records))
                 (base(e)/'chunks/redundant'/f'{p}.jsonl').unlink(missing_ok=True)
         # Keep old versions in SQLite/sources; current JSONL folder reflects current membership.
-        output=files.folder(e,'vectors/chunks');arch=files.folder(e,'vectors/chunks/redundant')
+        output=files.folder(e,'vectors/chunks')
         for path in output.glob('*.jsonl'):
             if path.stem not in articles:path.unlink()
         return xml_hash

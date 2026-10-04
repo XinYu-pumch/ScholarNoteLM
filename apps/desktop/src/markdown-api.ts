@@ -1,7 +1,7 @@
 import {useQuery} from './useQuery';
-import {useEffect,useState} from 'react';
-import {rpc,message} from './research-api';
-import {downloadChanged} from './download-api';
+
+
+
 export type MarkdownConfig={device:string;pdftextWorkers:'auto'|number};
 export type EngineInfo={ready:boolean;runtime:string;models:string;missing:string[];label:string;backend:string};
 export type MarkdownSettingsData=EngineInfo&{config:MarkdownConfig};

@@ -86,28 +86,6 @@ def cached_sources(paper):
                   (paper['pmid'], str(paper.get('doi') or '').strip().lower()))
     return ([r for r in result if r['kind'] == 'file'][:2], [r['url'] for r in result if r['kind'] == 'page'][:1])
 
-def backfill_sources():
-    # Import once from old successful attempts, including PDFs subsequently cleared.
-    with db() as c:
-        if c.execute("SELECT 1 FROM settings WHERE key='source-cache-v1'").fetchone():
-            return
-        historical = c.execute("SELECT i.paper,a.detail FROM attempts a JOIN items i ON i.batch=a.batch AND i.pmid=a.pmid WHERE a.outcome='success' AND a.stage LIKE 'scihub%' ORDER BY a.id").fetchall()
-    for row in historical:
-        paper, info = json.loads(row['paper']), json.loads(row['detail'])
-        # Old attempt details lack the published hash; unknown hashes require DOI text validation.
-        remember_sources(paper, info)
-    # Old parsers missed Sci-Net's plain iframe, but the final article page is useful.
-    for row in rows("SELECT i.paper,a.detail FROM attempts a JOIN items i ON i.batch=a.batch AND i.pmid=a.pmid WHERE a.stage LIKE 'scihub%' ORDER BY a.id"):
-        paper, info = json.loads(row['paper']), json.loads(row['detail'])
-        doi = str(paper.get('doi') or '').strip().lower()
-        for request in info.get('requests', []):
-            url = request.get('finalUrl', '')
-            u = urlparse(url)
-            if doi and request.get('role') == 'entry' and request.get('status') == 200 and u.hostname == 'sci-net.xyz' and unquote(u.path).strip('/').lower() == doi:
-                remember_sources(paper, {'source':'Sci-Net','pageUrl':url})
-    execute("INSERT OR REPLACE INTO settings VALUES('source-cache-v1','true')")
-
-
 def bloom_summary(items,attempts,states):
     hit={p for p,v in states.items() if v.get('bloomHit')}
     hit.update(a['pmid'] for a in attempts if 'bloomHit' not in states.get(a['pmid'],{}) and a['stage']=='scihub_bloom' and a['outcome'] in ('failed','success'))
@@ -801,7 +779,6 @@ async def run_batch(b):
     zotero_only=cfg.get('downloadMode')=='zotero'
     if not zotero_only:
         load_sources()
-        backfill_sources()
     corpus_files.reconcile(sys.modules[__name__])
     start=time.monotonic();bid=b['id'];bloom=None
     health=scihub_retry.MirrorHealth({r['endpoint']:json.loads(r['data']) for r in rows('SELECT endpoint,data FROM mirror_health WHERE batch=?',(bid,))},
@@ -990,7 +967,6 @@ def open_local(path):
 def download_rpc(action,a):
     if action=='settings':return get_settings()
     if action=='settings.save':return save_settings(a)
-    if action=='reconcile':return corpus_files.reconcile(sys.modules[__name__])
     if action=='start':return create(a)
     if action=='list':return list_state(a['project'])
     if action=='control':return control(a)
@@ -1072,8 +1048,6 @@ def package_current(a):
         with zipfile.ZipFile(tmp) as z:
             if z.testzip():raise ValueError('压缩包完整性校验失败')
         os.replace(tmp,dest)
-        # Only retire application-generated previous packages, preserving unrelated user ZIPs.
-        for old in folder.glob('downloaded_literature-*.zip'):old.unlink()
         return {'path':str(dest),'count':counts['pdf'],**counts,'missing':len(missing)}
     finally:tmp.unlink(missing_ok=True)
 
@@ -1112,10 +1086,6 @@ def dispatch_rpc(action,a):
         if op=='state.write':
             with storage.file_lock(ROOT/'config/catalog.lock'):return storage.write_state(ROOT,a['state'])
         if op=='open':return open_local(storage.project_dir(ROOT,PROJECT))
-        if op=='markdown':
-            name=Path(a['name']).name
-            if not name.endswith('.md') or name!=a['name']:raise ValueError('Markdown 文件名无效')
-            path=storage.project_dir(ROOT,PROJECT)/'reviews'/name;atomic(path,a['content']);return {'path':str(path)}
         raise ValueError('未知存储操作')
     if action.startswith('vector.'):
         import vector_service

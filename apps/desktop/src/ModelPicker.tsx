@@ -1,7 +1,7 @@
 import {useQuery} from './useQuery';
 import {useEffect,useState} from 'react';
 import Select from './Select';
-import {rpc,type Profile} from './research-api';
+import {type Profile} from './research-api';
 export type ModelSelection={profileId:string;model:string};
 export const defaultSelection:ModelSelection={profileId:'',model:''};
 const emptyPool:{profiles:Profile[];activeProfile:string}={profiles:[],activeProfile:''};

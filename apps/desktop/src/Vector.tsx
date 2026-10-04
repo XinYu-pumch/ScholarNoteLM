@@ -1,9 +1,9 @@
 import {useQuery} from './useQuery';
 import {useEffect,useState} from 'react';
-import {Check,ChevronLeft,ChevronRight,Copy,Database,Download,FileText,LoaderCircle,RefreshCw,Save,Search,Square} from 'lucide-react';
+import {ChevronLeft,ChevronRight,Copy,Download,LoaderCircle,RefreshCw,Search} from 'lucide-react';
 import {useApp} from './context';
 import {rpc,message} from './research-api';
-import {downloadChanged} from './download-api';
+
 import {Modal} from './ui';
 import Select from './Select';
 import './vector.css';
@@ -37,13 +37,6 @@ export function IndexProgress({job}:{job:VectorStatus['job']}){
 }
 
 export {default as VectorSettings} from './EmbeddingSettings';
-export function VectorPanel(){
- const {project,notify}=useApp();const {data,error}=useVectors(project.id);const [busy,setBusy]=useState(false);const [report,setReport]=useState<{text:string;path:string}|null>(null);const [inspect,setInspect]=useState(false);
- const job=data?.job;const active=!!job&&['queued','running','stopping'].includes(job.state);
- const labels:Record<string,string>={queued:'等待索引',running:'索引中',stopped:'已停止',interrupted:'已中断',failed:'索引失败',done:'已完成'};
- async function act(op:string){setBusy(true);try{await rpc('vector.'+op,{project:project.id});downloadChanged();}catch(e){notify(message(e));}finally{setBusy(false);}}
- return <section className="markdown-panel"><div className="markdown-panel-heading"><div><strong><Database size={17}/>准备文献检索</strong><p>{data?`${data.readyDocuments} / ${data.eligibleDocuments} 篇已索引 · ${data.chunks} 段原文`:'正在读取索引状态…'}</p></div><button className="button secondary compact" disabled={busy||(!active&&(!data?.configured||!data.eligibleDocuments||data.readyDocuments===data.eligibleDocuments))} onClick={()=>void act(active?'stop':'start')}>{active?'停止索引':data?.eligibleDocuments&&data.readyDocuments===data.eligibleDocuments?'最新 · 无需更新':'建立 / 更新索引'}</button></div>{error&&<p className="wb-inline-error">{error}</p>}{job&&<div className="markdown-job"><span>{labels[job.state]||job.state} · 成功 {job.completed} · 复用 / 跳过 {job.skipped} · 失败 {job.failed}{job.current?` · PMID ${job.current}`:''}</span>{active&&adaptivePhase(job)&&<span role="status">{adaptivePhase(job)}</span>}{active&&!adaptivePhase(job)&&job.totalChunks!=null&&<span>当前文献 {job.embeddedChunks||0} / {job.totalChunks} 块已获得向量</span>}{job.error&&<p className="wb-inline-error">{job.error}</p>}{job.items.filter(i=>i.error).slice(-3).map(i=><p key={i.pmid} className="wb-inline-error">PMID {i.pmid}：{i.error}</p>)}</div>}<div className="download-actions"><button className="text-button" onClick={()=>setInspect(true)}>查看参考片段</button><button className="text-button" disabled={!job} onClick={()=>void rpc<{text:string;path:string}>('vector.report',{project:project.id}).then(setReport).catch(e=>notify(message(e)))}>查看索引报告</button><button className="text-button" disabled={!job} onClick={()=>void rpc('vector.report',{project:project.id,open:true}).catch(e=>notify(message(e)))}>日志文件夹</button></div>{!data?.configured&&<p className="quiet small">请在设置 → 文献检索模型中配置服务；拆分预览可直接使用。</p>}{inspect&&<ChunkBrowser onClose={()=>setInspect(false)}/>} {report&&<Modal title="索引报告" subtitle={report.path} onClose={()=>setReport(null)}><pre className="download-report">{report.text}</pre></Modal>}</section>;
-}
 export function ChunkBrowser({onClose}:{onClose:()=>void}){
  const {project,notify}=useApp();const [docs,setDocs]=useState<Doc[]>([]);const [pmid,setPmid]=useState('');const [filter,setFilter]=useState('');const [page,setPage]=useState<ChunkPage|null>(null);const [offset,setOffset]=useState(0);const [ignored,setIgnored]=useState(false);const [selected,setSelected]=useState(0);const [busy,setBusy]=useState(true);const [error,setError]=useState('');const [mode,setMode]=useState<'chunks'|'search'>('chunks');const [question,setQuestion]=useState('');const [method,setMethod]=useState('keyword');const [hits,setHits]=useState<Hit[]>([]);const [searchNote,setSearchNote]=useState('');const [metadata,setMetadata]=useState(false);const [viewSource,setViewSource]=useState(false);const [refresh,setRefresh]=useState(0);
  useEffect(()=>{let alive=true;setBusy(true);void rpc<Doc[]>('vector.documents',{project:project.id}).then(d=>{if(alive){setDocs(d);setPmid(p=>d.some(x=>x.pmid===p)?p:d[0]?.pmid||'');setError('');}}).catch(e=>{if(alive)setError(message(e));}).finally(()=>{if(alive)setBusy(false);});return()=>{alive=false;};},[project.id,refresh]);

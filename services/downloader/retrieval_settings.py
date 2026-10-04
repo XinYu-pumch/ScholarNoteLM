@@ -34,6 +34,3 @@ def public(e):
     return {'config':cfg,'apiVerified':verified(e.ROOT,emb),
             'apiModel':((emb.get('name','')+'/') if emb.get('name') else '')+emb['model'] if emb['baseUrl'] else '',
             'apiConfigured':bool(emb['baseUrl'] and emb['model'])}
-def rpc(e,op,a):
-    if op=='settings':return public(e)
-    raise ValueError('请在 Embedding 模型设置中管理检索服务')

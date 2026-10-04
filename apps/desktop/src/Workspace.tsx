@@ -1,42 +1,11 @@
 import {useDownloads} from './download-api';
 import {PdfDetails,PdfStatus} from './Downloads';
 import Select from './Select';
-import { useEffect, useRef, useState } from 'react';
-import { ArrowDownToLine, ArrowLeft, ArrowRight, ArrowUp, ArrowUpRight, BookOpen, Check, ChevronDown, FileText, ListTree, LoaderCircle, MessageSquare, Plus, Search, Sparkles, SquarePen, X } from 'lucide-react';
-import { type Paper } from './data';
+import { useState } from 'react';
+import { ArrowLeft, ArrowUpRight, BookOpen, ChevronDown, FileText, MessageSquare, SquarePen } from 'lucide-react';
+
 import { useApp } from './context';
-import { Badge, Empty, EvidenceCard, IconButton, Modal, downloadText } from './ui';
-
-export {default as Chat} from './LiteratureQA';
-
-export function Review() {
-  const { project, updateProject, saveStatus, notify } = useApp();
-  const [sectionId, setSectionId] = useState(project.sections[0]?.id || '');
-  const [outlineOpen, setOutlineOpen] = useState(false);
-  const [generating, setGenerating] = useState(false);
-  const [sourcePanel, setSourcePanel] = useState(true);
-  const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
-  useEffect(() => () => { if (timer.current) clearTimeout(timer.current); }, []);
-  const section = project.sections.find(s => s.id === sectionId) || project.sections[0];
-  const evidence = project.papers.filter(p => p.id.startsWith('DEMO') && p.status === 'indexed').slice(0, 3);
-  const count = project.sections.filter(s => s.content.trim()).length;
-  const edit = (content: string) => updateProject(p => ({ ...p, sections: p.sections.map(s => s.id === section.id ? { ...s, content } : s) }));
-  function generate() {
-    if (!section || generating) return;
-    setGenerating(true);
-    timer.current = setTimeout(() => {
-      const added = `【演示生成 · ${section.title}】\n\n本节拟围绕“${section.title}”组织研究问题，并将相关文献按研究对象、实验方法与证据局限进行比较。\n\n正式写作前，需要从原文中提取可核验的结果，并为每项结论建立引用关联。目前选用的是界面演示来源，不足以支持真实的学术论断。\n\n建议继续补充：研究设计、主要发现、限制条件和未来研究方向。`;
-      updateProject(p => ({ ...p, sections: p.sections.map(s => s.id === section.id ? { ...s, content: s.content ? `${s.content}\n\n${added}` : added } : s) })); setGenerating(false); notify('演示段落已追加，保留了现有内容。');
-    }, 1100);
-  }
-  return <div className="review-page"><div className="workspace-heading"><div><h1>综述工作台</h1><p>让零散的证据，成为有脉络的表达。</p></div><div className="heading-actions"><button className={`button secondary compact ${sourcePanel ? 'pressed' : ''}`} onClick={() => setSourcePanel(!sourcePanel)}><BookOpen size={15} />证据</button><button className="button primary compact" onClick={() => { downloadText(project.id, `${project.name}-综述草稿.md`, `# ${project.name}\n\n> ScholarNoteLM UI 原型草稿；演示来源不构成真实学术证据。\n\n` + project.sections.map((s, i) => `## ${i + 1}. ${s.title}\n\n${s.content || '（待撰写）'}`).join('\n\n')).then(notify).catch(() => notify('导出失败，请检查存储位置后重试'));  }}><ArrowDownToLine size={15} />导出草稿</button></div></div><div className="review-layout"><aside className="outline-panel"><div className="outline-label"><span>文章大纲</span><IconButton icon={SquarePen} label="编辑大纲" onClick={() => setOutlineOpen(true)} /></div><div className="outline-topic"><span className="eyebrow">LITERATURE REVIEW</span><h3>{project.name}</h3></div><nav aria-label="文章章节">{project.sections.map((s, i) => <button className={s.id === section?.id ? 'active' : ''} key={s.id} onClick={() => setSectionId(s.id)}><span className="outline-index">{String(i + 1).padStart(2, '0')}</span><span>{s.title}</span>{s.content ? <Check size={13} /> : <i />}</button>)}</nav><button className="outline-add" onClick={() => setOutlineOpen(true)}><Plus size={15} />调整大纲</button><div className="outline-progress"><div><span>章节进度</span><strong>{count} / {project.sections.length}</strong></div><div className="progress-track"><span style={{ width: `${count / project.sections.length * 100}%` }} /></div><p>草稿自动保存，随时继续写作。</p></div></aside><div className="editor-area"><div className="editor-toolbar"><span><FileText size={14} />章节草稿</span><span><span className="tiny-dot" />{saveStatus}</span></div><div className="document-sheet"><div className="document-kicker">{String(project.sections.findIndex(s => s.id === section?.id) + 1).padStart(2, '0')} / {project.sections.length.toString().padStart(2, '0')}<span>中文综述 · 草稿</span></div><input className="section-title-input" aria-label="章节标题" value={section?.title || ''} onChange={e => updateProject(p => ({ ...p, sections: p.sections.map(s => s.id === section.id ? { ...s, title: e.target.value } : s) }))} /><div className="document-rule" /><textarea className="document-editor" aria-label="章节正文" value={section?.content || ''} onChange={e => edit(e.target.value)} placeholder={"从一个观点开始写作…\n\n你可以直接编辑，也可以使用下方的演示生成，体验从证据到段落的工作流。"} /><div className="document-foot"><span>{section?.content.length || 0} 字符</span><span>你的编辑会被保留</span></div></div><div className="writing-assistant"><span className="writing-symbol"><Sparkles size={18} /></span><div><strong>给想法一点推力</strong><p>{evidence.length ? `${evidence.length} 篇示例来源 · 生成预设演示段落` : '暂无可用的示例证据，请先添加文献'}</p></div><button className="button primary compact" disabled={generating || !evidence.length} onClick={generate}>{generating ? <LoaderCircle className="spin" size={14} /> : <Sparkles size={14} />}{generating ? '准备中…' : '演示生成'}</button></div></div>{sourcePanel && <aside className="review-evidence"><div className="panel-heading"><h3>章节证据</h3><span className="subtle-badge">{evidence.length} 篇</span></div><div className="coverage-note"><span className="tiny-dot" />示例来源 · 尚未真实检索</div>{evidence.map((p, i) => <EvidenceCard paper={p} key={p.id} index={i + 1} />)}{!evidence.length && <Empty title="证据尚未就绪" text="先向项目添加示例文献。" />}<div className="evidence-tip"><Search size={16} /><p>正式版本将根据当前标题检索原文片段，并检查结论与引用是否一致。</p></div></aside>}</div>{outlineOpen && <OutlineModal onClose={() => setOutlineOpen(false)} />}</div>;
-}
-
-function OutlineModal({ onClose }: { onClose: () => void }) {
-  const { project, updateProject, notify } = useApp();
-  const [items, setItems] = useState(project.sections.map(s => ({ ...s })));
-  return <Modal title="编辑文章大纲" subtitle="调整标题与顺序；已有章节正文会保留。" onClose={onClose}><div className="outline-edit-list">{items.map((s, i) => <div key={s.id}><span>{String(i + 1).padStart(2, '0')}</span><input aria-label={`大纲标题 ${i + 1}`} value={s.title} onChange={e => setItems(current => current.map(item => item.id === s.id ? { ...item, title: e.target.value } : item))} /><button className="icon-button" aria-label={`上移章节 ${i + 1}`} disabled={i === 0} onClick={() => setItems(current => { const copy = [...current]; [copy[i - 1], copy[i]] = [copy[i], copy[i - 1]]; return copy; })}><ArrowUp size={15} /></button></div>)}</div><button className="button secondary compact" onClick={() => setItems(current => [...current, { id: crypto.randomUUID(), title: '新的章节', content: '' }])}><Plus size={15} />添加章节</button><div className="modal-actions"><span className="quiet small">共 {items.length} 个章节</span><button className="button primary" disabled={items.some(s => !s.title.trim())} onClick={() => { updateProject(p => ({ ...p, sections: items })); notify('文章大纲已更新'); onClose(); }}>保存大纲</button></div></Modal>;
-}
+import { Badge, Empty } from './ui';
 
 export function Reader() {
   const { project, paperId, setPage, updateProject, setPaperId } = useApp();

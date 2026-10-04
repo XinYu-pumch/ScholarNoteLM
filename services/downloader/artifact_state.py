@@ -114,7 +114,7 @@ def download_status(e, items):
                                for k in ('doi', 'pmcid'))
             # Newly enabled sources need another pass. Throughput and timeout
             # changes alone leave coverage current; users can explicitly retry.
-            sources_covered = all(not cfg.get(k) or previous.get(k) for k in ('fastOa', 'enhanced'))
+            sources_covered = all(not cfg.get(k) or previous.get(k) for k in ('fastOa',))
             mirrors_covered = set(cfg.get('mirrors', [])) <= set(previous.get('mirrors', []))
             settled = same_article and sources_covered and mirrors_covered
         if settled:

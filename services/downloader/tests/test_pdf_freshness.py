@@ -44,7 +44,8 @@ class PdfFreshnessTests(unittest.TestCase):
   self.xml([]);self.assertFalse(self.status()['latest'])
  def test_enabling_sources_invalidates_missing_only_but_tuning_throughput_does_not(self):
   self.download_result('1','deferred');self.materialize('2');self.assertTrue(self.status()['latest'])
-  with patch.object(e,'config',return_value={**e.DEFAULTS,'enhanced':True}):self.assertEqual(self.status()['pendingPmids'],['1'])
+  e.execute("UPDATE batches SET config=? WHERE id='b'",(json.dumps({'fastOa':False}),));self.assertEqual(self.status()['pendingPmids'],['1'])
+  e.execute("UPDATE batches SET config='{}' WHERE id='b'")
   with patch.object(e,'config',return_value={**e.DEFAULTS,'mirrors':e.DEFAULTS['mirrors']+['https://new.example']}):self.assertFalse(self.status()['latest'])
   with patch.object(e,'config',return_value={**e.DEFAULTS,'pmcConcurrency':2,'s3ArticleTimeout':120}):self.assertTrue(self.status()['latest'])
  def test_new_pmcid_requires_another_attempt(self):

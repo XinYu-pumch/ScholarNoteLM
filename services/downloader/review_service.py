@@ -218,9 +218,6 @@ def start(e,name,vid,a):
     return detail(e,name,vid)
 
 def rpc(e,op,a):
-    if op.startswith('retrieval.'):
-        import retrieval_settings
-        return retrieval_settings.rpc(e,op.removeprefix('retrieval.'),a)
     if op=='validate':return {'rows':parse_csv(a.get('csv',''))}
     with lock(e):
         if op=='list':
@@ -281,7 +278,6 @@ def rpc(e,op,a):
             if a.get('confirm')!=name:raise ValueError('请确认要删除的综述工作区名称')
             idle(vstate(e,name,'current'))
             shutil.rmtree(path);return {'deleted':True}
-        if op.startswith('version.'):raise ValueError('每个综述工作区只管理一份大纲，请新建综述工作区')
         vid='current';v=vstate(e,name,vid);vp=version(e,name,vid)
         if op=='get':return detail(e,name,vid)
         if op=='open':return e.open_local(vp)

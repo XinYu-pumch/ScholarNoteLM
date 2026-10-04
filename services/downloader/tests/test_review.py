@@ -47,7 +47,6 @@ class ReviewTests(unittest.TestCase):
  def test_workspace_has_one_current_outline(self):
   d=self.create();self.assertEqual(d['version']['id'],'current')
   self.assertTrue((self.base/'review/Review1/outline-state.json').exists())
-  with self.assertRaises(ValueError):self.call('version.create')
  def test_save_validate_restore_and_revision_conflict(self):
   self.create();vp=r.version(e,'Review1','v0001');original='Serial,Title\n1,原始\n1.1,机制\n';e.atomic(vp/'generated.csv',original);e.atomic(vp/'outline.csv',original)
   d=self.call('save',version='v0001',revision=0,topic='免疫',rows=[{'serial':'1','title':'修改后'}]);self.assertEqual(d['rows'][0]['title'],'修改后')

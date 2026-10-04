@@ -8,23 +8,11 @@ class FormatTests(unittest.TestCase):
   self.unit={**self.nodes[0],'nodes':self.nodes,'leaves':self.nodes[1:],'ancestors':[],'siblings':[]}
   self.evidence={n['id']:{'query':n['title'],'chunks':[{'id':'debug-id','text':n['title']+' evidence','metadata':{'pmid':'12345678','sourceKind':'fulltext','title':'Not in prompt','secretMeta':'omit'}}]} for n in self.nodes[1:]}
   self.snapshot={'topic':'研究主题','config':{'language':'中文','requirements':'谨慎措辞'}}
- def test_human_prompt_serial_ids_and_minimal_materials(self):
-  p=f.prompt(self.snapshot,self.unit,self.evidence)[1]['content']
-  for label in ('综述主题:','父级节点:','当前写作单元:','当前单元包含节点:','引用作用域:','文献素材:','写作要求:'):self.assertIn(label,p)
-  for excluded in ('debug-id','secretMeta','Not in prompt','b'*32,'chunk_id','source_kind'):self.assertNotIn(excluded,p)
-  shape=json.JSONDecoder().raw_decode(p.split('JSON output shape:')[1].strip())[0]
-  self.assertEqual(shape['unit_id'],'1');self.assertEqual([r['node_id'] for r in shape['sections']],['1','1.1','1.2'])
  def test_public_json_round_trip_and_scopes(self):
-  response={'unit_id':'1','sections':[{'node_id':n['serial'],'title':n['title'],'markdown':'正文'} for n in self.nodes]}
-  internal=f.decode(response,self.unit)['sections'];out=f.public_part(self.unit,internal,self.evidence)
+  internal=[{'node_id':n['id'],'title':n['title'],'markdown':'正文'} for n in self.nodes];out=f.public_part(self.unit,internal,self.evidence)
   self.assertEqual(set(out),{'unit_id','sections','citation_validation','citation_scopes','reference_materials','markdown_content'})
   self.assertEqual(out['citation_scopes']['1'],[]);self.assertEqual(out['reference_materials']['1.1']['12345678'],['肠道菌群 evidence']);self.assertNotIn('a'*32,json.dumps(out))
   self.assertIn('## 1.2 免疫调节',out['markdown_content'])
-  response['sections'][1]['title']='wrong'
-  with self.assertRaises(ValueError):f.decode(response,self.unit)
- def test_abstract_limitation_without_chunk_metadata(self):
-  self.evidence['b'*32]['chunks'][0]['metadata']['sourceKind']='pubmed_abstract'
-  p=f.prompt(self.snapshot,self.unit,self.evidence)[1]['content'];self.assertIn('仅有摘要',p);self.assertNotIn('sourceKind',p)
  def test_html_markdown_and_script_escape(self):
   text='**加粗**，*斜体* (PMID: 12345678)。\n\n<script>alert(1)</script>\n\n[bad](javascript:alert(1))'
   html=x.html_document('Title',self.nodes,{'1.1':text},{'1.1':{'12345678':['</script><script>bad</script>']}},False)

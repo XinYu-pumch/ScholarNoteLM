@@ -101,9 +101,6 @@ def load_bundle(path,plan):
     if hashlib.sha256(raw).hexdigest()!=plan['sha256']:raise ValueError('材料包已修改，请重新准备')
     return review_bundle.validate(json.loads(raw))
 
-def prompt_messages(path,plan,profile=None):
-    return review_bundle.messages(load_bundle(path,plan),path/'review_parts',profile or {})
-
 def prepare_unit(e,path,snapshot,unit,evidence):
     cfg=snapshot['config'];folder=path/'review_parts'
     bundle=review_bundle.make(snapshot,unit,evidence)
@@ -285,8 +282,6 @@ def validate(value,unit,evidence):
         bad=citations(text)-allowed
         if bad:errors[ident]=sorted(bad)
     return sections,errors
-
-def writing_prompt(snapshot,unit,evidence):return review_format.prompt(snapshot,unit,evidence)
 
 def safe_error(ex):
     return str(ex) if isinstance(ex,(ValueError,Cancelled)) else '任务失败，请检查本地运行时与日志后重试'

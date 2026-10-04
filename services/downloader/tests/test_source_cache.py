@@ -102,13 +102,6 @@ class SourceCacheTests(unittest.IsolatedAsyncioTestCase):
         await asyncio.gather(*(request(role,n) for role in active for n in range(6)))
         self.assertEqual(peaks,{'entry':1,'file':2})
 
-    async def test_legacy_success_backfill_once(self):
-        b=self.batch()
-        e.execute("INSERT INTO attempts(batch,pmid,stage,outcome,elapsed,detail) VALUES(?,?,'scihub_retry','success',1,?)",(b['id'],'123',json.dumps({'source':'Sci-Hub','url':'https://files.test/a.pdf'})))
-        e.backfill_sources();e.backfill_sources()
-        self.assertEqual(len(e.rows('SELECT * FROM source_cache')),1)
-        self.assertEqual(e.cached_sources({'pmid':'123','doi':'10.1/example'})[0][0]['sha256'],'')
-
     async def test_nonhit_cache_failure_not_eligible_for_bloom_only_retry(self):
         b=self.batch()
         e.save_progress(b['id'],'123',{'bloomHit':False})

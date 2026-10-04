@@ -86,8 +86,7 @@ class Tests(unittest.IsolatedAsyncioTestCase):
         b=self.batch();seen=[];content=pdf()
         async def fake_s3(client,paper,path,b,cfg):seen.append('s3');path.write_bytes(content);return {'source':'PMC S3'},''
         async def fake_unpaywall(*args):seen.append('unpaywall');return None,'no PDF'
-        async def no_rescue(*args,**kwargs):raise AssertionError('enhanced rescue must be off')
-        with patch.object(e,'source_s3',fake_s3),patch.object(e,'source_unpaywall',fake_unpaywall),patch.object(e.badr,'download_from_europepmc',no_rescue):await e.run_batch(b)
+        with patch.object(e,'source_s3',fake_s3),patch.object(e,'source_unpaywall',fake_unpaywall):await e.run_batch(b)
         self.assertEqual(seen,['s3']);self.assertTrue((e.paper_dir('p','123')/'123.pdf').exists());self.assertEqual(e.one('SELECT * FROM items')['state'],'success')
         b2=self.batch();await e.run_batch(b2);self.assertEqual(e.one('SELECT * FROM items WHERE batch=?',(b2['id'],))['state'],'skipped')
     async def test_cancel_inflight_keeps_unfinished_not_failed(self):
@@ -107,9 +106,7 @@ class Tests(unittest.IsolatedAsyncioTestCase):
         e.save_settings({'mirrors':[]});b=self.batch();b['config']=json.dumps({**json.loads(b['config']),'enhanced':True,'bloom':'untrusted.bloom'});seen=[]
         async def unpaywall(*args):seen.append('unpaywall');return None,'no PDF'
         async def s3(*args):seen.append('s3');return None,'no PDF'
-        async def rescue(paper,directory,callback,profile):
-            seen.append('rescue');(pathlib.Path(directory)/'123.pdf').write_bytes(pdf());profile['download_url']='https://example.org/main.pdf';return True
-        with patch.object(e,'source_unpaywall',unpaywall),patch.object(e,'source_s3',s3),patch.object(e.badr,'download_from_europepmc',rescue):await e.run_batch(b)
+        with patch.object(e,'source_unpaywall',unpaywall),patch.object(e,'source_s3',s3):await e.run_batch(b)
         self.assertEqual(seen,['s3','unpaywall']);self.assertEqual(e.one('SELECT * FROM items')['state'],'failed')
     async def test_owner_exit_pauses_batch(self):
         b=self.batch();b['owner']=123456789

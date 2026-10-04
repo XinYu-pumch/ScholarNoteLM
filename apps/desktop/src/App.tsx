@@ -7,7 +7,7 @@ import {useVectors} from './Vector';
 import {currentDownload,taskActive,taskWaits,type Pipeline} from './task-state';
 import DownloadTasks from './Downloads';
 import { useEffect, useRef, useState } from 'react';
-import { ArrowRight, ArrowUpRight, BookOpen, Check, ChevronDown, ChevronRight, CircleHelp, FileText, Folder, FolderOpen, LayoutDashboard, Leaf, ListTodo, LoaderCircle, Menu, MessageSquare, Moon, Plus, Search, Settings, Sparkles, SquarePen, Sun, X, RotateCcw, Monitor, Database, HardDrive, Trash2 } from 'lucide-react';
+import { ArrowRight, ArrowUpRight, BookOpen, Check, ChevronDown, ChevronRight, CircleHelp, FileText, Folder, LayoutDashboard, ListTodo, Menu, MessageSquare, Moon, Plus, Search, Settings, SquarePen, Sun, Database, Trash2 } from 'lucide-react';
 import { Provider, useApp } from './context';
 import type { Page, Project } from './data';
 import Library from './Library';
@@ -34,7 +34,7 @@ function ProjectRoot() {
   return <div className="boot-screen"><img src="/mark.svg" alt="" /><h2>还没有研究项目</h2><p>创建一个项目，开始整理文献与笔记。</p><button className="button primary" onClick={()=>setCreating(true)}><Plus size={16}/>创建新项目</button>{creating&&<NewProject onClose={()=>setCreating(false)}/ >}{toast&&<div className="toast" role="status">{toast}</div>}</div>;
 }
 function Shell() {
-  const { state, project, page, setPage, updateState, openPaper, toast, saveStatus } = useApp();
+  const { state, project, page, setPage, updateState, toast, saveStatus } = useApp();
   const [projectMenu, setProjectMenu] = useState(false);
   const [deletingProject,setDeletingProject]=useState(false);
   const [newProject, setNewProject] = useState(false);

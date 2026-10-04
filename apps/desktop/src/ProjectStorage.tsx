@@ -1,9 +1,9 @@
 import {useEffect,useState} from 'react';
-import {FolderOpen,Folder,HardDrive,Package,Trash2,LoaderCircle} from 'lucide-react';
+import {FolderOpen,Folder,HardDrive,Package,LoaderCircle} from 'lucide-react';
 import {useApp} from './context';
 import {rpc,message,changed} from './research-api';
 import {downloadChanged} from './download-api';
-import {Modal} from './ui';
+
 import './project-storage.css';
 
 type StorageInfo={workspace:string;system:string;projectPath:string;folder:string;folders:Record<string,string>};

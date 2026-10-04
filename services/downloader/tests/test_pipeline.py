@@ -98,7 +98,7 @@ class PipelineTests(unittest.IsolatedAsyncioTestCase):
         a=next(x for x in r['attempts'] if x['stage']=='unpaywall');self.assertEqual(a['detail']['fileRequests'],2)
         self.assertTrue(slow.closed)
 
-    async def test_timeout_proceeds_to_scihub_and_slow_rescue_is_opt_in(self):
+    async def test_timeout_proceeds_to_scihub_and_retired_slow_rescue_never_runs(self):
         for enhanced in (False,True):
             if enhanced:
                 e.execute('DELETE FROM batches');e.execute('DELETE FROM items')
@@ -111,8 +111,9 @@ class PipelineTests(unittest.IsolatedAsyncioTestCase):
                 seen.append(stage);return None,'no PDF','failed'
             with patch.object(e,'source_s3',self.unavailable),patch.object(e,'source_unpaywall',oa),patch.object(e,'source_scihub',sci):
                 await asyncio.wait_for(e.run_batch(b),1)
-            self.assertEqual(seen,['scihub_bloom','oa','scihub_retry']+(['slow'] if enhanced else []))
-            self.assertEqual(self.report(b)['counts'],{'success':1} if enhanced else {'deferred':1})
+            # Old batches may still carry the retired flag; it must not revive the slow OA rescue.
+            self.assertEqual(seen,['scihub_bloom','oa','scihub_retry'])
+            self.assertEqual(self.report(b)['counts'],{'deferred':1})
 
     async def test_real_s3_metadata_and_download_request_counts(self):
         b=self.batch();paper={'pmid':'123','pmcid':'PMC123','doi':'10.1/test'}
