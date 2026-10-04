@@ -1,0 +1,40 @@
+
+.evidence-resources {
+  margin: 14px 0;
+  min-width: 0
+}
+.evidence-resource {
+  margin: 8px 0;
+  padding: 10px;
+  border: 1px solid var(--border,#d5dcd8);
+  border-radius: 7px;
+  overflow-wrap: anywhere
+}
+.evidence-resource summary {
+  cursor: pointer;
+  font-weight: 600
+}
+.evidence-resource img {
+  display: block;
+  max-width: 100%;
+  height: auto;
+  margin: 12px auto
+}
+.resource-table {
+  overflow-x: auto;
+  max-width: 100%
+}
+.resource-table table {
+  border-collapse: collapse;
+  font-size: 12px
+}
+.resource-table td,.resource-table th {
+  border: 1px solid var(--border,#d5dcd8);
+  padding: 6px;
+  white-space: normal;
+  min-width: 60px
+}
+.evidence-resource pre {
+  white-space: pre-wrap
+}
+

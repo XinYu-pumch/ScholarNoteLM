@@ -1,0 +1,387 @@
+{
+  "version": "zotero-pdf-whitelist-v1",
+  "status": "active",
+  "unknownTitlePolicy": "reject",
+  "required": [
+    "exact normalized parent DOI",
+    "linkMode imported_url",
+    "attachment HTTP(S) URL",
+    "exact normalized whitelist title",
+    "local readable valid PDF"
+  ],
+  "normalization": [
+    "Unicode NFKC",
+    "strip outer whitespace",
+    "collapse internal whitespace",
+    "casefold"
+  ],
+  "sort": [
+    "priority ASC",
+    "physical local file bytes DESC",
+    "random only among exact ties; retain selected key in current batch"
+  ],
+  "entries": [
+    {
+      "id": "pmc_legacy",
+      "priority": 10,
+      "aliases": [
+        "PubMed Central Full Text PDF"
+      ],
+      "kind": "fulltext"
+    },
+    {
+      "id": "sciencedirect",
+      "priority": 20,
+      "aliases": [
+        "ScienceDirect Full Text PDF"
+      ],
+      "kind": "fulltext"
+    },
+    {
+      "id": "springer_legacy",
+      "priority": 30,
+      "aliases": [
+        "Springer Full Text PDF"
+      ],
+      "kind": "fulltext"
+    },
+    {
+      "id": "sage_legacy",
+      "priority": 40,
+      "aliases": [
+        "SAGE PDF Full Text"
+      ],
+      "kind": "fulltext"
+    },
+    {
+      "id": "translator_1",
+      "priority": 100,
+      "aliases": [
+        "AFS - Full Text PDF"
+      ],
+      "kind": "fulltext"
+    },
+    {
+      "id": "translator_2",
+      "priority": 101,
+      "aliases": [
+        "AIAA Full Text PDF"
+      ],
+      "kind": "fulltext"
+    },
+    {
+      "id": "translator_3",
+      "priority": 102,
+      "aliases": [
+        "AOSIC Full Text PDF"
+      ],
+      "kind": "fulltext"
+    },
+    {
+      "id": "translator_4",
+      "priority": 103,
+      "aliases": [
+        "BioOne PDF fulltext"
+      ],
+      "kind": "fulltext"
+    },
+    {
+      "id": "translator_5",
+      "priority": 104,
+      "aliases": [
+        "CanLII Full Text PDF"
+      ],
+      "kind": "fulltext"
+    },
+    {
+      "id": "translator_6",
+      "priority": 105,
+      "aliases": [
+        "Citeseer - Full Text PDF"
+      ],
+      "kind": "fulltext"
+    },
+    {
+      "id": "translator_7",
+      "priority": 106,
+      "aliases": [
+        "CLACSO Full Text"
+      ],
+      "kind": "fulltext"
+    },
+    {
+      "id": "translator_8",
+      "priority": 107,
+      "aliases": [
+        "CLASE Full Text"
+      ],
+      "kind": "fulltext"
+    },
+    {
+      "id": "translator_9",
+      "priority": 108,
+      "aliases": [
+        "CLASE Full Text PDF"
+      ],
+      "kind": "fulltext"
+    },
+    {
+      "id": "translator_10",
+      "priority": 109,
+      "aliases": [
+        "CLASSO Full Text PDF"
+      ],
+      "kind": "fulltext"
+    },
+    {
+      "id": "translator_11",
+      "priority": 110,
+      "aliases": [
+        "CSIRO Publishing PDF"
+      ],
+      "kind": "fulltext"
+    },
+    {
+      "id": "translator_12",
+      "priority": 111,
+      "aliases": [
+        "DABI Full Text PDF"
+      ],
+      "kind": "fulltext"
+    },
+    {
+      "id": "translator_13",
+      "priority": 112,
+      "aliases": [
+        "Dart-Europe Full Text PDF"
+      ],
+      "kind": "fulltext"
+    },
+    {
+      "id": "translator_14",
+      "priority": 113,
+      "aliases": [
+        "Demographic Research Full Text PDF"
+      ],
+      "kind": "fulltext"
+    },
+    {
+      "id": "translator_15",
+      "priority": 114,
+      "aliases": [
+        "DTIC Full Text PDF"
+      ],
+      "kind": "fulltext"
+    },
+    {
+      "id": "translator_16",
+      "priority": 115,
+      "aliases": [
+        "EBSCO Full Text"
+      ],
+      "kind": "fulltext"
+    },
+    {
+      "id": "translator_17",
+      "priority": 116,
+      "aliases": [
+        "EUP PDF fulltext"
+      ],
+      "kind": "fulltext"
+    },
+    {
+      "id": "translator_18",
+      "priority": 117,
+      "aliases": [
+        "FullText PDF via PolicyFile"
+      ],
+      "kind": "fulltext"
+    },
+    {
+      "id": "translator_19",
+      "priority": 118,
+      "aliases": [
+        "HAL PDF Full Text"
+      ],
+      "kind": "fulltext"
+    },
+    {
+      "id": "translator_20",
+      "priority": 119,
+      "aliases": [
+        "HighWire Full Text PDF"
+      ],
+      "kind": "fulltext"
+    },
+    {
+      "id": "translator_21",
+      "priority": 120,
+      "aliases": [
+        "HUDOC Full Text PDF"
+      ],
+      "kind": "fulltext"
+    },
+    {
+      "id": "translator_22",
+      "priority": 121,
+      "aliases": [
+        "Infotrac Full Text PDF"
+      ],
+      "kind": "fulltext"
+    },
+    {
+      "id": "translator_23",
+      "priority": 122,
+      "aliases": [
+        "IngentaConnect Full Text PDF"
+      ],
+      "kind": "fulltext"
+    },
+    {
+      "id": "translator_24",
+      "priority": 123,
+      "aliases": [
+        "Internet Archive Fulltext PDF"
+      ],
+      "kind": "fulltext"
+    },
+    {
+      "id": "translator_25",
+      "priority": 124,
+      "aliases": [
+        "IOP Full Text PDF"
+      ],
+      "kind": "fulltext"
+    },
+    {
+      "id": "translator_26",
+      "priority": 125,
+      "aliases": [
+        "JSTOR Full Text PDF"
+      ],
+      "kind": "fulltext"
+    },
+    {
+      "id": "translator_27",
+      "priority": 126,
+      "aliases": [
+        "LingBuzz (SemanticsArchive) Full Text PDF"
+      ],
+      "kind": "fulltext"
+    },
+    {
+      "id": "translator_28",
+      "priority": 127,
+      "aliases": [
+        "LingBuzz Full Text PDF"
+      ],
+      "kind": "fulltext"
+    },
+    {
+      "id": "translator_29",
+      "priority": 128,
+      "aliases": [
+        "NRC Research Press PDF fulltext"
+      ],
+      "kind": "fulltext"
+    },
+    {
+      "id": "translator_30",
+      "priority": 129,
+      "aliases": [
+        "Scholars Portal Full Text PDF"
+      ],
+      "kind": "fulltext"
+    },
+    {
+      "id": "translator_31",
+      "priority": 130,
+      "aliases": [
+        "SSOAR Full Text PDF"
+      ],
+      "kind": "fulltext"
+    },
+    {
+      "id": "translator_32",
+      "priority": 131,
+      "aliases": [
+        "Theory of computing Full Text PDF"
+      ],
+      "kind": "fulltext"
+    },
+    {
+      "id": "generic_fulltext",
+      "priority": 200,
+      "aliases": [
+        "Full Text PDF",
+        "Full text PDF",
+        "Fulltext PDF",
+        "Full Text",
+        "Fulltext",
+        "全文"
+      ],
+      "kind": "fulltext"
+    },
+    {
+      "id": "europe_pmc_open_access",
+      "priority": 210,
+      "aliases": [
+        "Full Text PDF (Open access)"
+      ],
+      "kind": "fulltext"
+    },
+    {
+      "id": "europe_pmc_free",
+      "priority": 211,
+      "aliases": [
+        "Full Text PDF (Free)"
+      ],
+      "kind": "fulltext"
+    },
+    {
+      "id": "legacy_typo",
+      "priority": 220,
+      "aliases": [
+        "Fullext PDF"
+      ],
+      "kind": "fulltext"
+    },
+    {
+      "id": "accepted",
+      "priority": 300,
+      "aliases": [
+        "Accepted Version",
+        "已接受版本",
+        "接受的版本"
+      ],
+      "kind": "accepted-manuscript"
+    },
+    {
+      "id": "generic_pdf",
+      "priority": 400,
+      "aliases": [
+        "PDF"
+      ],
+      "kind": "unspecified-pdf"
+    },
+    {
+      "id": "submitted",
+      "priority": 500,
+      "aliases": [
+        "Submitted Version",
+        "已提交版本",
+        "送出的版本"
+      ],
+      "kind": "submitted-manuscript"
+    },
+    {
+      "id": "preprint",
+      "priority": 510,
+      "aliases": [
+        "Preprint PDF"
+      ],
+      "kind": "preprint"
+    }
+  ],
+  "note": "核心默认标题及已确认的全文/稿件标题按前次草案保留；Submitted/Preprint 等须标记版本，不声称正式发表版本。来源、名称和有效性校验不构成语义证明。"
+}

@@ -1,0 +1,9 @@
+{
+  "source": "BAAI/bge-m3",
+  "revision": "5617a9f61b028005a4858fdac845db406aefb181",
+  "sha256": "21106b6d7dab2952c1d496fb21d5dc9db75c28ed361a05f5020bbba27810dd08",
+  "count": 16772,
+  "sumTokens": 2138634,
+  "maxTokens": 3286,
+  "over8192": 0
+}

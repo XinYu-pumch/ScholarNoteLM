@@ -1,0 +1,8 @@
+{
+  "inputs": 8000,
+  "validated": 8000,
+  "seconds": 143.84590077400208,
+  "model": "Pro/BAAI/bge-m3",
+  "rpmLimit": 1800,
+  "tpmLimit": 450000
+}

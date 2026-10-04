@@ -1,0 +1,15 @@
+{
+  "version": "0.5.2",
+  "downloaderTests": 29,
+  "old38ArticleRegressionReproduced": true,
+  "realLocalHttp38ArticleRegressionPassed": true,
+  "uiBrowsers": [
+    "chromium",
+    "webkit"
+  ],
+  "nativeStartupVerified": true,
+  "artifactHashesUnchanged": 73,
+  "realProjectDownloadsRun": false,
+  "externalMirrorSuccessRateVerified": false,
+  "verifiedAt": 1789803807.251392
+}

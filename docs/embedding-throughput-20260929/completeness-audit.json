@@ -1,0 +1,87 @@
+{
+  "verifiedAt": 1790687231.9106581,
+  "project": "4481949eab1f40189ddd7f059a691035",
+  "model": "Pro/BAAI/bge-m3",
+  "dimension": 1024,
+  "documents": 230,
+  "indexedDocuments": 216,
+  "currentChunks": 16772,
+  "uniqueInputs": 15187,
+  "duplicateChunksReusingVectors": 1585,
+  "chromaVectors": 16772,
+  "missingVectors": 0,
+  "invalidVectors": 0,
+  "documentsWithoutChunks": [
+    {
+      "pmid": "1283449",
+      "title": "Molecular aspects of immune deposit formation in Heymann nephritis.",
+      "sourceKind": "pubmed_abstract"
+    },
+    {
+      "pmid": "1337179",
+      "title": "Role of C5b-9 in experimental membranous nephropathy.",
+      "sourceKind": "pubmed_abstract"
+    },
+    {
+      "pmid": "1362800",
+      "title": "Heymann nephritis: a model of human membranous glomerulopathy. A study of the role of additional antigens.",
+      "sourceKind": "pubmed_abstract"
+    },
+    {
+      "pmid": "3063233",
+      "title": "[The duality of Heymann nephritis antigen and immunogenoside--a minute quantity of a membranous nephritis-causing substance contained in somewhat crude nephritogenoside].",
+      "sourceKind": "pubmed_abstract"
+    },
+    {
+      "pmid": "6668747",
+      "title": "[Experimental studies on membranous nephropathy. (1) Studies on morphology and pathogenesis of passive Heymann nephritis].",
+      "sourceKind": "pubmed_abstract"
+    },
+    {
+      "pmid": "6748340",
+      "title": "Experimental studies on membranous nephropathy. (II) Role of complement system in proteinuria of passive Heymann nephritis.",
+      "sourceKind": "pubmed_abstract"
+    },
+    {
+      "pmid": "8252799",
+      "title": "Heymann nephritis revisited--new insights into the pathogenesis of experimental membranous glomerulonephritis.",
+      "sourceKind": "pubmed_abstract"
+    },
+    {
+      "pmid": "8500703",
+      "title": "[Membranous glomerulonephritis associated with primary biliary cirrhosis: a pathogenic role of anti-M2 antibodies?].",
+      "sourceKind": "pubmed_abstract"
+    },
+    {
+      "pmid": "15938831",
+      "title": "[Effect of reactive oxygen species and transforming growth factor-beta1 on progressive passive Heymann's nephritis].",
+      "sourceKind": "pubmed_abstract"
+    },
+    {
+      "pmid": "21842598",
+      "title": "[Roles of igG4 subclass and cellular immunity in idiopathic membranous nephropathy].",
+      "sourceKind": "pubmed_abstract"
+    },
+    {
+      "pmid": "21842599",
+      "title": "[Pathogenic mechanism of membranous glomerulonephritis obtained from Heymann nephritis and human membranous glomerulonephritis].",
+      "sourceKind": "pubmed_abstract"
+    },
+    {
+      "pmid": "33915668",
+      "title": "[Leukocyte chemotactic factor 2-associated renal amyloidosis coexisting with PLA2R-mediated idiopathic membranous nephropathy: report of a case].",
+      "sourceKind": "pubmed_abstract"
+    },
+    {
+      "pmid": "34154713",
+      "title": "Corrigendum to Berchtold L, Letouzé E, Alexander MP, et al. HLA-D and PLA2R1 risk alleles associate with recurrent primary membranous nephropathy in kidney transplant recipients. Kidney Int. 2021;99:671-685.",
+      "sourceKind": "pubmed_abstract"
+    },
+    {
+      "pmid": "36462140",
+      "title": "Accuracy of serum PLA2R antibody detected by indirect immunofluorescence in diagnosing biopsy-proven primary membranous nephropathy: a single-center experience and a systematic review of the literature.",
+      "sourceKind": "pubmed_abstract"
+    }
+  ],
+  "allCacheAndChromaVectorsMatch": true
+}

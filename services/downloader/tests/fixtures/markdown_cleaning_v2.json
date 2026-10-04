@@ -1,0 +1,1067 @@
+{
+  "provenance": "Frozen offline v2 audit, 2026-09-21; 58 current protected cases, 4 raw scientific lists, new v2 matches and representative C01–C10 templates.",
+  "cases": [
+    {
+      "project": "gut",
+      "pmid": "27346602",
+      "chunkId": "df87f362a6db7ea206edc781e5946549bf4f07211edee7b89428182ff4af6f71",
+      "sectionPath": [
+        "Correspondence to: Roman M Stilling, PhD APC Microbiome Institute / Dept. Anatomy and Neuroscience University College Cork Western, Rd, Cork Ireland Tel.: +353(0)21-490-1712 E-Mail: roman.stilling@gmail.com",
+        "**7.1 Intestinal Synthesis and Concentrations – Relevance to Host Metabolism and Obesity**"
+      ],
+      "sourceKind": "fulltext",
+      "text": "MANUSCRIPT ACCEPTED As butyrate is – with few exceptions in tissues of goats, rabbits and piglets (Kien et al., 2000; Nandedkar et al., 1969; Nandedkar and Kumar, 1969) – almost exclusively produced by gut bacteria, or taken up with the diet, butyrate concentrations are highest in the gut lumen. Human faeces show substantial variability in faecal butyrate concentrations (McOrist et al., 2011) in the range of about 3.5 to 32.6 g/kg of butyrate, as well as ~60 g/kg acetate and ~10- 20 g/kg propionate (Macfarlane and Macfarlane, 2003; McOrist et al., 2011). This is in line with the typically cited ratio of about 60:20:20 for acetate, propionate and butyrate in colon and stool (den Besten et al., 2013). Notably, butyrate is the main source for energy metabolism in intestinal epithelial cells, especially colonocytes (den Besten et al., 2013), so that a significant proportion of microbial-released butyrate is rapidly taken up and consumed locally in the gut (Hamer et al., 2008; Topping and Clifton, 2001), which also means that faecal concentrations do not necessarily represent SCFA production rates or concentrations present in the colon (den Besten et al., 2013; Rechkemmer et al., 1988; Verbeke et al., 2015). Hence, it is important to note that variations in faecal SCFA concentrations could be a result of either, altered production or altered colonic absorption. This host-microbe cometabolism is of particular importance for studies comparing faecal microbiota composition in case/control studies or when interpreting correlations between faecal SCFA content with a certain physiological parameter. In short, a highly fermenting gut promotes caloric extraction",
+      "rule": null
+    },
+    {
+      "project": "gut",
+      "pmid": "38874761",
+      "chunkId": "e1aea5139592db8beeed483c2519ae07b245ce9f348427441c3a4c6da026b1e4",
+      "sectionPath": [
+        "**Methods**",
+        "**Sorting for IgA‑bound and ‑unbound** *bacteria* **by magnetic cell sorting (MACS) and cell sorter**",
+        "**Sequencing and analysis of 16S rRNA**"
+      ],
+      "sourceKind": "fulltext",
+      "text": "Bacterial DNA was amplifed by polymerase chain reaction (PCR) targeting the V3-V4 variable region of 16S ribosomal RNA (rRNA) gene with the following program: preheating at 98 °C for 3 min; 30 cycles of denaturation at 98 °C for 10 s, annealing at 46 °C for 5 s and extension at 72 °C for 30 s; and a terminal extension at 72 °C for 5 min. The primers used for 16S rRNA sequence were as follows: 342Fw (5'- AATGATACGGCGACCACCGAGATCTACACTCTTTCC CTACACGACGCTCTTCCGATCTCTACGGGGGGCAGC AG-3'), 806Rv (5'- CAAGCAGAAGACGGCATACGAGAT XXXXXXGTGACTGGAGTTCAGACGTGTGCTCTTCCG ATCTGGACTACCGGGGTATCT-3'). XXXXXX represents the index nucleotide sequence. PCR product was purifed with Fast Gene gel extraction kit (Nippon Genetics). Sequence analysis was performed by Myskin Corporation using Miseq Reagent Kit V3 (Illumina). The sequence data were analyzed by Quantitative Insights into Microbial Ecology (Qiime) 2 software (ver. 2020–2). Denoising and trimming of sequences were used by DADA2. The frst 16 bp and 17 bp were trimmed from the 5' end of both forward and reverse reads to remove primer sequences. Taxonomic assignment was determined with the Greengenes and SILVA [[20](#page-11-19), [21\\]](#page-11-20). For the α-diversity, Shannon index was calculated by Qiime2. For the β-diversity, principal coordinate analysis based on unweighted unifrac distance (PERMANOVA/adonis) was analyzed by QIIME2 and the vegan package for R (version 2.6–4). The heatmap analysis was performed by R (version 4.2.3). The diferences in each group were analyzed by linear discriminant analysis efect size (Lefse) analysis [\\[22\\]](#page-11-21).",
+      "rule": null
+    },
+    {
+      "project": "gut",
+      "pmid": "32865024",
+      "chunkId": "26da42e786d84ac5f25d03b5dc25e6aa647a94c2f541f0baf69c9ee1e356e1bf",
+      "sectionPath": [
+        "**1. Introduction**",
+        "**4. Short chain fatty acids in gut health**",
+        "**Short chain fatty acids, gut permeability and tight junctions**"
+      ],
+      "sourceKind": "fulltext",
+      "text": "In IL-10 knock-out mice which spontaneously develop chronic colitis, multi-fibre feeding also increased epithelial expression and correct localisation of TJ proteins occludin and ZO-1 (Wang *et al.*, 2016). Also in mice with experimentally induced autoimmune hepatitis that were fed a high fibre diet, expression of occludin, ZO-1 and claudin-1 was significantly increased (Hu *et al.*, 2018). Administration of (partially hydrolysed) guar gum to dextran sodium sulphate (DSS)-treated mice resulted in doubling of the total faecal SCFA concentrations compared to controls concomitantly with 60-120% increases in expression of occludin and claudin-3, 4 and 7 (Hung and Suzuki, 2016). Furthermore, oral administration of butyrate (9 mM in drinking water) but not a mixture of SCFA (35 mM acetate, 15 mM propionate and 9 mM butyrate) prevented a reduction in small intestinal permeability induced by the chemotherapeutic drug 5-fluorouracil (Ferreira *et al.*, 2012).",
+      "rule": null
+    },
+    {
+      "project": "gut",
+      "pmid": "34631603",
+      "chunkId": "3d77e96ead6db0d0351b7aa0aa5108ebeeca293dad9c77e07ec6f6c1076dee41",
+      "sectionPath": [
+        "INTRODUCTION",
+        "Citation:"
+      ],
+      "sourceKind": "fulltext",
+      "text": "Many metabolites are likely to serve as signaling molecules that influence biological functions. Alterations in metabolite production in the gut, from either host or microbiota or their interaction, may be related to the manifestation of IBS symptoms. There are mounting reports on the effects of intestinal microbial metabolites on human health. While the relationship between microbial metabolites and the development of IBS symptoms has not been clearly elucidated. Based on the extensive interaction of the co-metabolism of gut flora and the host, metabolites might provide a new approach for studying the host-microbiota system. Hence, the gut microbial metabolome may reflect the metabolic variables and clinical phenotypes, which may predict the subtypes and severity of IBS ([James](#page-8-0) [et al., 2020\\)](#page-8-0). According to the recent progress in research on the mechanism of intestinal microbial-derived IBS metabolites, further investigation into the production of gut microbiotaderived metabolites, which may in part underlie the pathophysiology of IBS, are urgently needed. Alterations and fluctuations in gut microbiota and its metabolites appear to promote development and maintenance of IBS symptoms.",
+      "rule": null
+    },
+    {
+      "project": "gut",
+      "pmid": "33674230",
+      "chunkId": "47e181334354d19aefc3a4f9065250a0eef5bb46da81ac3adaf9bad4adc3da18",
+      "sectionPath": [
+        "Gut Microbiota in Cancer Immune Response and Immunotherapy",
+        "Trends in Cancer",
+        "Antibiotics and ICB Efficacy",
+        "Table 2. Clinical Trials on Gut Microbiota Modulation in Cancer Immunotherap[ya](#page-10-0)"
+      ],
+      "sourceKind": "fulltext",
+      "text": "| NC<br>T0<br>335<br>340<br>2<br>NC<br>T0<br>334<br>114<br>3<br>NC<br>T0<br>37<br>728<br>99 | Ad<br>ced<br>van<br>lan<br>me<br>om<br>a<br>Ad<br>ced<br>van<br>lan<br>me<br>om<br>a<br>Ad<br>ced<br>van<br>lan<br>me<br>om<br>a | Pha<br>I<br>se<br>Pha<br>II<br>se<br>Pha<br>I<br>se | 40<br>e ≥<br>18<br>; ag<br>20<br>e ≥<br>18<br>; ag<br>20<br>e ≥<br>19<br>; ag | FM<br>T f<br>nde<br>rom<br>res<br>po<br>rs<br>(tra<br>nsf<br>ed<br>by<br>lon<br>err<br>co<br>osc<br>opy<br>and<br>sul<br>e):<br>afte<br>ti-P<br>D-1<br>cap<br>r an<br>the<br>rap<br>y<br>FM<br>T f<br>nde<br>rom<br>res<br>po<br>rs<br>(tra<br>nsf<br>ed<br>by<br>lon<br>):<br>err<br>co<br>osc<br>opy<br>ith<br>i-P<br>D-1<br>t w<br>ant<br>con<br>cur<br>ren<br>FM<br>T c<br>ule<br>fro<br>m h<br>eal<br>thy<br>aps<br>do<br>rior<br>i-P<br>D-1<br>to<br>ant<br>nor<br>s: p<br>the<br>rap<br>y | Tre<br>lua<br>atm<br>ent<br>: to<br>te<br>eva<br>effi<br>f FM<br>T in<br>sta<br>cac<br>y o<br>ge<br>III/IV<br>ien<br>ho<br>fail<br>ed<br>pat<br>ts w<br>ant<br>i-P<br>D-1<br>Tre<br>lua<br>atm<br>ent<br>: to<br>te<br>eva<br>effi<br>f FM<br>T in<br>ien<br>pat<br>ts<br>cac<br>y o<br>ista<br>bro<br>lizu<br>b<br>nt t<br>res<br>o p<br>em<br>ma<br>Tre<br>min<br>atm<br>ent<br>: to<br>exa<br>e<br>effe<br>nd<br>saf<br>of<br>ct a<br>ety<br>bin<br>ing<br>FM<br>T a<br>nd<br>com | Pro<br>imp<br>lan<br>t<br>per<br>raft<br>nt<br>eng<br>me<br>OR<br>R<br>OR<br>R                                                                                                                  | Re<br>itin<br>cru<br>g<br>(<br>No<br>ber<br>20<br>17–<br>vem<br>De<br>ber<br>20<br>21)<br>cem<br>Re<br>itin<br>(<br>Jan<br>cru<br>g<br>uar<br>y<br>20<br>18–<br>Jul<br>202<br>1)<br>y<br>Re<br>itin<br>cru<br>g<br>(<br>Ma<br>rch<br>20<br>19–<br>De<br>ber<br>23)<br>20<br>cem | Isra<br>el<br>US<br>A<br>UK<br>,<br>Ca<br>nad<br>a |\n|-------------------------------------------------------------------------------------------|----------------------------------------------------------------------------------------------------------------------------------|-----------------------------------------------------|-------------------------------------------------------------------------------|--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|----------------------------------------------------|\n| NC<br>T0<br>416<br>328<br>9                                                               | RC<br>C                                                                                                                          | Ph<br>I<br>ase                                      | 20<br>e ≥<br>18<br>; ag                                                       | FM<br>T c<br>ule<br>fro<br>m h<br>eal<br>thy<br>aps<br>do<br>rior<br>and<br>to<br>nt<br>nor<br>s: p<br>co<br>ncu<br>rre<br>wit<br>h a<br>nti-<br>CT<br>LA<br>and<br>i-P<br>D-1<br>-4<br>ant<br>the<br>rap<br>y                                                                                                                                                                                                                                                                                   | b/n<br>bro<br>lizu<br>ivo<br>lum<br>ab<br>pem<br>ma<br>Tre<br>atm<br>ent<br>: to<br>t<br>pre<br>ven<br>imm<br>-rel<br>d c<br>oliti<br>f<br>ate<br>une<br>s o<br>ip<br>ilim<br>ab/<br>nivo<br>lum<br>ab<br>um                                                                                                                                                                                                                                                                         | OR<br>R                                                                                                                                                                                         | Re<br>itin<br>cru<br>g<br>(<br>Feb<br>202<br>0–<br>rua<br>ry<br>Ma<br>rch<br>24)<br>20                                                                                                                                                                                          | UK                                                 |\n| NC<br>T0<br>413<br>076<br>3                                                               | GIT<br>can<br>cer<br>s                                                                                                           | Ph<br>I<br>ase                                      | 18<br>–70<br>5;<br>age                                                        | FM<br>T c<br>ule<br>fro<br>m h<br>eal<br>thy<br>aps<br>do<br>rior<br>and<br>to<br>nt<br>nor<br>s: p<br>co<br>ncu<br>rre<br>wit<br>h a<br>nti-<br>PD<br>-1                                                                                                                                                                                                                                                                                                                                        | Tre<br>imp<br>atm<br>ent<br>: to<br>rov<br>e<br>effi<br>in p<br>atie<br>wit<br>h<br>nts<br>cac<br>y<br>nt G<br>PD<br>-1-<br>ista<br>IT t<br>res<br>um<br>ors                                                                                                                                                                                                                                                                                                                         | OR<br>R                                                                                                                                                                                         | Re<br>itin<br>cru<br>g<br>(<br>Oc<br>tob<br>er 2<br>019<br>–<br>21)<br>De<br>ber<br>20<br>cem                                                                                                                                                                                   | Ch<br>ina                                          |\n| Pro<br>bio<br>tics                                                                        |                                                                                                                                  |                                                     |                                                                               |                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  |                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      |                                                                                                                                                                                                 |                                                                                                                                                                                                                                                                                 |                                                    |\n| NC<br>T0<br>382<br>91<br>11                                                               | Ad<br>ced<br>RC<br>C<br>van                                                                                                      | Ph<br>I<br>ase                                      | 30<br>e ≥<br>18<br>; ag                                                       | Clo<br>stri<br>diu<br>m b<br>uty<br>ricu<br>CB<br>M<br>m<br>588<br>ith<br>i-P<br>D-1<br>nt w<br>ant<br>: co<br>ncu<br>rre<br>and<br>i-C<br>TLA<br>-4<br>ant                                                                                                                                                                                                                                                                                                                                      | Tre<br>inc<br>atm<br>ent<br>: to<br>rea<br>se<br>effe<br>f ni<br>vol<br>ab/<br>ct o<br>um<br>ip<br>ilim<br>ab<br>um                                                                                                                                                                                                                                                                                                                                                                  | Co<br>itut<br>ion<br>al<br>nst<br>cha<br>in<br>nge<br>Bifi<br>dob<br>eriu<br>act<br>m                                                                                                           | Re<br>itin<br>(<br>Ap<br>ril<br>cru<br>g<br>20<br>19–<br>Jun<br>e 2<br>022<br>)                                                                                                                                                                                                 | US<br>A                                            |\n| NC<br>T0<br>363<br>780<br>3                                                               | Ad<br>ced<br>lid<br>van<br>so<br>tum<br>ors                                                                                      | Pha<br>I,<br>se<br>Pha<br>II<br>se                  | 132<br>; ag<br>e<br>≥1<br>8                                                   | MR<br>x05<br>18<br>(a<br>Liv<br>e b<br>io-l<br>hiliz<br>ed<br>yop<br>En<br>llina<br>):<br>tero<br>coc<br>cus<br>ga<br>rum<br>ith<br>i-P<br>D-1<br>t w<br>ant<br>con<br>cur<br>ren                                                                                                                                                                                                                                                                                                                | Tre<br>imp<br>atm<br>ent<br>: to<br>rov<br>e<br>imm<br>s in<br>une<br>res<br>po<br>nse<br>ien<br>esi<br>pat<br>ts r<br>sta<br>nt t<br>o<br>bro<br>lizu<br>b<br>pem<br>ma                                                                                                                                                                                                                                                                                                             | Saf<br>and<br>clin<br>ica<br>l<br>ety<br>ben<br>efit                                                                                                                                            | Re<br>itin<br>cru<br>g<br>(<br>Jan<br>20<br>19–<br>uar<br>y<br>Ma<br>rch<br>20<br>23)                                                                                                                                                                                           | US<br>A                                            |\n| NC<br>T0<br>38<br>171<br>25                                                               | Me<br>ic<br>tas<br>tat<br>lan<br>me<br>om<br>a                                                                                   | Pha<br>I<br>se                                      | 30<br>e ≥<br>18<br>; ag                                                       | SE<br>R-4<br>01<br>ior<br>and<br>to<br>: pr<br>ith<br>i-P<br>D-1<br>afte<br>t w<br>ant<br>con<br>cur<br>ren<br>r<br>ibio<br>tic<br>(va<br>cin<br>)<br>ant<br>nco<br>my<br>tre<br>atm<br>ent                                                                                                                                                                                                                                                                                                      | Tre<br>lua<br>atm<br>ent<br>: to<br>te<br>eva<br>saf<br>of t<br>wit<br>h<br>ety<br>tm<br>ent<br>rea<br>SE<br>R-4<br>01<br>mb<br>ine<br>d w<br>ith<br>co<br>niv<br>olu<br>b<br>ma                                                                                                                                                                                                                                                                                                     | Ad<br>nts<br>ver<br>se<br>eve                                                                                                                                                                   | Re<br>itin<br>cru<br>g<br>(<br>Jan<br>20<br>19–<br>uar<br>y<br>Feb<br>202<br>2)<br>rua<br>ry                                                                                                                                                                                    | US<br>A                                            |\n| NC<br>T0<br>368<br>620<br>2                                                               | So<br>lid<br>tum<br>ors                                                                                                          | Ph<br>I<br>ase                                      | 65<br>e ≥<br>18<br>; ag                                                       | Mic<br>rob<br>ial e<br>the<br>ics<br>yst<br>eut<br>cos<br>em<br>rap<br>(<br>ME<br>T-4<br>, de<br>fine<br>d m<br>ixtu<br>f pu<br>re o<br>re<br>live<br>cul<br>f gu<br>t ba<br>ria<br>ture<br>cte<br>s o<br>isol<br>d fr<br>ols<br>of h<br>ealt<br>hy<br>ate<br>sto<br>om<br>or):<br>ICB<br>don<br>t w<br>ith<br>con<br>cur<br>ren<br>s                                                                                                                                                            | Tre<br>atm<br>ent<br>: to<br>ass<br>ess<br>saf<br>lera<br>bilit<br>nd<br>ety<br>, to<br>y a<br>raft<br>f M<br>ET<br>in<br>nt o<br>-4<br>eng<br>me<br>bin<br>atio<br>ith<br>ICB<br>com<br>n w<br>s                                                                                                                                                                                                                                                                                    | Ch<br>f re<br>ang<br>e o<br>spo<br>nse<br>rela<br>ted<br>cie<br>to<br>spe<br>s<br>abu<br>nda<br>and<br>nce<br>bac<br>ial d<br>ive<br>rsit<br>ter<br>y;<br>and<br>adv<br>ts<br>ers<br>e e<br>ven | Re<br>itin<br>cru<br>g<br>(<br>No<br>ber<br>20<br>18–<br>vem<br>De<br>ber<br>20<br>20)<br>cem                                                                                                                                                                                   | Ca<br>nad<br>a                                     |\n| NC<br>T0<br>359<br>568<br>3                                                               | Ad<br>ced<br>van<br>lan<br>me<br>om<br>a                                                                                         | Pha<br>II<br>se                                     | 70<br>e ≥<br>18<br>; ag                                                       | ED<br>P1<br>503<br>(m<br>clo<br>nal<br>ono<br>mic<br>rob<br>ial<br>duc<br>ith<br>t w<br>pro<br>.):<br>Bifi<br>dob<br>act<br>eriu<br>m<br>s<br>pp<br>t w<br>ith<br>ant<br>i-P<br>D-1<br>con<br>cur<br>ren                                                                                                                                                                                                                                                                                         | Tre<br>enh<br>atm<br>ent<br>: to<br>anc<br>e<br>bro<br>lizu<br>b<br>to p<br>res<br>pon<br>se<br>em<br>ma                                                                                                                                                                                                                                                                                                                                                                             | Re<br>nd<br>rat<br>spo<br>nse<br>e a<br>adv<br>ts<br>ers<br>e e<br>ven                                                                                                                          | Re<br>itin<br>cru<br>g<br>(<br>Jul<br>20<br>18–<br>y<br>21)<br>No<br>ber<br>20<br>vem                                                                                                                                                                                           | US<br>A                                            |",
+      "rule": null
+    },
+    {
+      "project": "gut",
+      "pmid": "27019327",
+      "chunkId": "a12c5984c0ccb7ed114676a1acefe29a1b85a8537d06d642547b191c76519220",
+      "sectionPath": [
+        "**HHS Public Access**",
+        "**References**",
+        "**Figure 1.**"
+      ],
+      "sourceKind": "fulltext",
+      "text": "Intestinal microbiota alteration protects from MCAO. (**a**) Experimental design of AC treatment in 7 weeks old C57BL/6 mice. AC Res mice, co-housed with AC Res seeder mice, and AC Sens flora mice received antibiotic via drinking water for 2 weeks. Stool collection time points are indicated. MCAO is induced after 2 weeks of AC and brain infarct volume is quantified 3 days later. Other groups of mice are assessed for sensorimotor function. (**b**) Fecal r16S DNA copy numbers in AC Res and AC Sens mice (n = 5 per group). (**c**) Left, family-level phylogenetic classification of fecal 16S rDNA gene frequencies from AC Res and AC Sens mice treated for 2 weeks. Each bar represents an individual animal. Right, graph depicts Shannon α-diversity index of grouped data (n = 7 per group). Only families with a frequency > 1% were included. (**d**) Infarct volume of AC Res and AC Sens mice 3 days post MCAO (n = 8 per group; bar, 1 mm). (**e**) Sensorimotor function in AC Res and AC Sens mice. Graphs show time to contact and remove the tape off the contralateral forepaw 2 days prior, 3 and 7 days after MCAO (n = 11 per group). (**f**) Left, fecal transplant (FT) experimental design. Mice are pulse-treated with AC for 3 days and gavaged with cecal contents of either AC Res or AC Sens donors. After 2 weeks on H2O, FT recipient mice are subjected to MCAO and sacrificed 3 days after for infarct volume quantification. Right, graph shows infarct volumes (n = 8 per group). Columns represent mean ± s.e.m. \\*P < 0.05, \\*\\*P < 0.01, \\*\\*\\*P < 0.001 and \\*\\*\\*\\*P < 0.0001 (Student's t-test).",
+      "rule": null
+    },
+    {
+      "project": "gut",
+      "pmid": "32354259",
+      "chunkId": "1e68e799758b5d1d5ea47e52bea58c38d33cd081ec8356cc98563dc2dd8b7735",
+      "sectionPath": [
+        "**REFERENCES**",
+        "**Figure 4. Young FTG increases Treg cells and reduces IL-17 production of γδ T cells in the brain of aged stroke mice.**"
+      ],
+      "sourceKind": "fulltext",
+      "text": "**A**, Aging decreases the concentration of primary SCFAs in fecal samples of young (2-3 months) and aged (18-20 months) mice. Fecal samples were collected and analyzed using mass spectrometry. Graphs represent changes of individual SCFAs (young biome, n=9; aged biome, n=10). **B**, To examine the effect of inulin and SCFA-producers on stroke outcome, four separate groups of mice were orally gavaged with 1) vehicle, 2) inulin, 3) SCFA-producers and 4) inulin+SCFA-producers. For SCFA-producers, the cocktail of *Bifidobacterium longum* (1x10<sup>7</sup> ), *Clostridium symbiosum* (5x106 ), *Faecalibacterium prausnitzii* (1x106 ) and *Lactobacillus fermentum* (1x109 ) were freshly cultured and gavaged to mice. Neurological deficit score (NDS) (**C**), hangwire test (**D**) and TST (**E**) were performed at day 14 after MCAO (vehicle, n=5; inulin alone, n=3; SCFA-producers alone, n=4; inulin+SCFA-producers, n=5). For the TST, two mice from vehicle- and inulin-treated group (one for each group) which showed spinning due to severe neurological deficits were excluded. Overall *P* value for NDS, hangwire test and TST was 0.0001, 0.0004 and 0.0036, respectively. Throughout, error bars represent mean±SEM. For group comparisons, Mann-Whitney *U* test (**A**) and ordinary one-way ANOVA or Kruskal-Wallis test (**C**, **D** and **E**) were used based on the normality of data assessed by the Shapiro-Wilk normality test, followed by Dunnett's multiple comparison test.",
+      "rule": null
+    },
+    {
+      "project": "gut",
+      "pmid": "39628477",
+      "chunkId": "e7064b067e352414516bca3f381c14c66be5cf8c5ea989c95f53a2a18345638e",
+      "sectionPath": [
+        "[Chitooligosaccharides](https://www.frontiersin.org/articles/10.3389/fimmu.2024.1506991/full) [improves intestinal mucosal](https://www.frontiersin.org/articles/10.3389/fimmu.2024.1506991/full) [immunity and intestinal](https://www.frontiersin.org/articles/10.3389/fimmu.2024.1506991/full) [microbiota in blue foxes](https://www.frontiersin.org/articles/10.3389/fimmu.2024.1506991/full)",
+        "<span id=\"page-11-0\"></span>Supplementary material",
+        "References",
+        "SUPPLEMENTARY FIGURE 1"
+      ],
+      "sourceKind": "fulltext",
+      "text": "Differential enrichment analysis of dietary COS supplementation on phyla level of cecal microflora in growing blue foxes: BD vs COS1.",
+      "rule": null
+    },
+    {
+      "project": "gut",
+      "pmid": "39628477",
+      "chunkId": "af3258831306744f9e2bdddd6b9430110fd3bbe31b0696f2e717b05ab5865636",
+      "sectionPath": [
+        "[Chitooligosaccharides](https://www.frontiersin.org/articles/10.3389/fimmu.2024.1506991/full) [improves intestinal mucosal](https://www.frontiersin.org/articles/10.3389/fimmu.2024.1506991/full) [immunity and intestinal](https://www.frontiersin.org/articles/10.3389/fimmu.2024.1506991/full) [microbiota in blue foxes](https://www.frontiersin.org/articles/10.3389/fimmu.2024.1506991/full)",
+        "<span id=\"page-11-0\"></span>Supplementary material",
+        "References",
+        "SUPPLEMENTARY FIGURE 2"
+      ],
+      "sourceKind": "fulltext",
+      "text": "Differential enrichment analysis of dietary COS supplementation on phyla level of cecal microflora in growing blue foxes: COS1 vs COS2.",
+      "rule": null
+    },
+    {
+      "project": "gut",
+      "pmid": "41265660",
+      "chunkId": "45519e43e9a7ac54e95522c1d044404fe3b97aca1eb9bf1273f9d1392abf8064",
+      "sectionPath": [
+        "**Data availability**",
+        "**References**",
+        "**Fig. 2. Stroke leads to dysregulation of mucosal humoral immunity.**"
+      ],
+      "sourceKind": "fulltext",
+      "text": "(A-D) Flow cytometry analysis of Peyer's patches B cell compartment. See also Supplemental Fig. 2. A) Representative flow plots of GL7+Fas+ Germinal Centre (GC) B cells, including quantification of percentage of parental gate (pre-gated as; Live CD45+/ B220+CD19+; see also Fig. S2A), B) quantification of GC B cells as a percentage of total CD45+ cells, and cell number. C) Representative flow plots of IgA+ GC B cells, including quantification of percentage of parental gate and D) quantification as a percentage of total CD45+ cells, and cell number. E) Confocal immunofluorescence microscopy of IgD, GL7,",
+      "rule": null
+    },
+    {
+      "project": "gut",
+      "pmid": "30449315",
+      "chunkId": "2308590eec1f08ae4474fa7f356c80681c93b3287be1d28931f3326fea18395d",
+      "sectionPath": [
+        "Plant-Derived Exosomal MicroRNAs Shape the Gut Microbiota",
+        "Plant-Derived Exosomal MicroRNAs Shape the Gut Microbiota",
+        "<span id=\"page-15-1\"></span>REFERENCES"
+      ],
+      "sourceKind": "fulltext",
+      "text": "(C) Schematic diagram of the putative binding sites of ath-miR167a-5p in the WT SpaC gene. The ath-miR167a-5p seed matches in the SpaC gene are mutated at the positions indicated.",
+      "rule": null
+    },
+    {
+      "project": "gut",
+      "pmid": "30449315",
+      "chunkId": "b6596ab9b21aae7f2073fe1ae3e85888f52253e0d17b64ef3ec0e643eae5ff68",
+      "sectionPath": [
+        "Plant-Derived Exosomal MicroRNAs Shape the Gut Microbiota",
+        "Plant-Derived Exosomal MicroRNAs Shape the Gut Microbiota",
+        "<span id=\"page-15-1\"></span>REFERENCES"
+      ],
+      "sourceKind": "fulltext",
+      "text": "(D) LGG were treated with ath-miR167a and administered via oral gavage to mice supplemented with 2.5% DSS. Representative numbers of bacterial colonies in the diluted aliquots of blood cultured on MRS agar.",
+      "rule": null
+    },
+    {
+      "project": "gut",
+      "pmid": "30449315",
+      "chunkId": "e803a305589205b546d7992be92d3d636eb268cd107177132fa8ff9bdc629965",
+      "sectionPath": [
+        "Plant-Derived Exosomal MicroRNAs Shape the Gut Microbiota",
+        "Plant-Derived Exosomal MicroRNAs Shape the Gut Microbiota",
+        "<span id=\"page-15-1\"></span>REFERENCES"
+      ],
+      "sourceKind": "fulltext",
+      "text": "(H) Immunogold labeling and electron microscopy of LGG using SpaC antiserum with protein A-10-nm gold particles. The location of gold particles (black arrow) on the pilus structure is indicated.",
+      "rule": null
+    },
+    {
+      "project": "gut",
+      "pmid": "30449315",
+      "chunkId": "c96bd895a7c681213b341100a5d7f398aa9f4341209cce6e11551b3a7097b11d",
+      "sectionPath": [
+        "Plant-Derived Exosomal MicroRNAs Shape the Gut Microbiota",
+        "Plant-Derived Exosomal MicroRNAs Shape the Gut Microbiota",
+        "<span id=\"page-15-1\"></span>REFERENCES"
+      ],
+      "sourceKind": "fulltext",
+      "text": "(I) A portion of the sequence of the SpaC gene containing the potential miR-167a binding site was constructed into a GFP reporter vector to obtain pSpaC. A binding site mutant construct (pSpaCm-GFP) served as the control. The data are representative of three independent experiments (error bars, SD). Related to [Figures 2](#page-5-0) and S7.",
+      "rule": null
+    },
+    {
+      "project": "gut",
+      "pmid": "38565643",
+      "chunkId": "5c18541a8dcf96cc0e79b8fd1a713c542d2869f6b6a1584e1be5fec14fa2c5cb",
+      "sectionPath": [
+        "Production of short-chain fatty acids at extra-intestinal sites",
+        "**Conclusions**",
+        "**References**"
+      ],
+      "sourceKind": "fulltext",
+      "text": "**This study uncovers a long-lasting impairment of SCFA production in patients with severe SARS-CoV-2 infection, even after disease resolution.**",
+      "rule": null
+    },
+    {
+      "project": "gut",
+      "pmid": "38565643",
+      "chunkId": "74927834b86e73c8f6df4ffd56e2d7f9baa564683e4b4c4bb8d60be8ea25d6c1",
+      "sectionPath": [
+        "Production of short-chain fatty acids at extra-intestinal sites",
+        "**Conclusions**",
+        "**References**"
+      ],
+      "sourceKind": "fulltext",
+      "text": "**A landmark study showing that administration of SCFAs to mice via drinking water increases the number of Treg cells and protects against colitis in a GPR43-dependent manner.**",
+      "rule": null
+    },
+    {
+      "project": "gut",
+      "pmid": "38565643",
+      "chunkId": "8bf654eab613ef3b2cfc56d0056785dec2a7895941d62b2ec8c6c73fce20e0d0",
+      "sectionPath": [
+        "Production of short-chain fatty acids at extra-intestinal sites",
+        "**Conclusions**",
+        "**References**"
+      ],
+      "sourceKind": "fulltext",
+      "text": "**This multi-omics study provides longitudinal molecular proiles ofindividuals with IBD, reporting changes in microbial composition, microbialtranscription and microbial production of metabolites such as SCFAs.**",
+      "rule": null
+    },
+    {
+      "project": "gut",
+      "pmid": "38565643",
+      "chunkId": "323a5c2509c2ccb3b24e661d55059ecfda37ffe3785c3cee56acacf40ac9a71c",
+      "sectionPath": [
+        "Production of short-chain fatty acids at extra-intestinal sites",
+        "**Conclusions**",
+        "**References**"
+      ],
+      "sourceKind": "fulltext",
+      "text": "**This study shows that butyrate and propionate are depleted in the gut of children with allergies.**",
+      "rule": null
+    },
+    {
+      "project": "gut",
+      "pmid": "29468141",
+      "chunkId": "096ad7331477a226f858c35be0f9aaf0b88b11a93cc6aafb3dd8643d3760f62c",
+      "sectionPath": [
+        "FACTORS INFLUENCING TRP-MICROBIOME-HOST IMMUNITY INTERACTIONS IN THE GUT",
+        "REFERENCES"
+      ],
+      "sourceKind": "fulltext",
+      "text": "Effects on host immunity by factors such as aging, stress, probiotic intake, and several diseases are partially associated with Trp-microbiome-immunity interactions. The influence of the gut microbiota on Trp metabolism should be assessed when studying Trp nutritional supplementation or Trp therapeutic applications. Furthermore, feasibly designed therapies that target Trp absorption, Trp metabolites, the gut microbiota, or Trp-microbiome-immunity interactions are promising approaches for treating intestinal or extraintestinal inflammation. Moreover, the complex and variable gut microbiota may allow for identifying simple universal rules about bacterial Trp metabolites, and personalized gut microbiota analysis may be an effective approach for instituting clinical treatment. Similarly, further studies are required to determine which gut microbial species, the effective dose ranges of Trp metabolites, and which metabolite-targeted pathways may impact local and systemic inflammatory processes in the GI tract.",
+      "rule": null
+    },
+    {
+      "project": "gut",
+      "pmid": "29468141",
+      "chunkId": "dd5e736f9cb53cd3e78bd4a0148fd3b41b3b740c82e6adce81e272fac807d3a3",
+      "sectionPath": [
+        "FACTORS INFLUENCING TRP-MICROBIOME-HOST IMMUNITY INTERACTIONS IN THE GUT",
+        "REFERENCES"
+      ],
+      "sourceKind": "fulltext",
+      "text": "immune responses. In previous studies about Trp nutrition in conventional animals, some different or conflicting results have been reported. More attention was given to variation trends of endogenous host metabolites, whereas the effects of bacterial Trp metabolites were often overlooked. Thus, further comprehensive analyses of targeted Trp metabolites and associated genes are essential for experimental preciseness, which may explain the contradictory results in the literature.",
+      "rule": null
+    },
+    {
+      "project": "gut",
+      "pmid": "33674230",
+      "chunkId": "36cb12659d1ffcd6ad93acc9debbc5bd2ac52d4127c23ac9ffbd9b589615f6db",
+      "sectionPath": [
+        "Gut Microbiota in Cancer Immune Response and Immunotherapy",
+        "Trends in Cancer",
+        "Antibiotics and ICB Efficacy",
+        "References"
+      ],
+      "sourceKind": "fulltext",
+      "text": "assist clinicians to identify the host ecological imbalance associated with adverse outcomes of immunotherapy.",
+      "rule": null
+    },
+    {
+      "project": "gut",
+      "pmid": "34631603",
+      "chunkId": "e78c0611467d7b11020f853de72703f9a208edcf0eb06cdafa91875447cf5a15",
+      "sectionPath": [
+        "CONCLUSIONS",
+        "REFERENCES"
+      ],
+      "sourceKind": "fulltext",
+      "text": "recommendations for managements of microbiota-derived metabolites to alleviate IBS symptoms. Recommendations on metabolites based on studies lacking mechanism evidence may result in the adoption of metabolites therapy, leading to beneficial results, but equally may be detrimental after long-term adherence owing to lack of understanding of other biological mechanisms.",
+      "rule": null
+    },
+    {
+      "project": "gut",
+      "pmid": "35833129",
+      "chunkId": "984d5803191d3895f5fe3f87d69975342fbfd014f5a03fc5df5b2b5b0349cd9e",
+      "sectionPath": [
+        "Bacterial Metabolites",
+        "REFERENCES"
+      ],
+      "sourceKind": "fulltext",
+      "text": "properly design host-specific therapies. Furthermore, dietary interventions, such as a high fiber diet facilitating SCFAs may be promising due to research suggesting their ability to affect immune cell differentiation. Overall, the findings presented here on the contributions of the gut microbiota to SLE, T1D, and MS represent the great strides taken towards advancing the understanding of the role of the environment in autoimmunity. While much still needs to be discovered, current research is paving the way for novel clinical interventions to better manage or prevent these lifealtering conditions.",
+      "rule": null
+    },
+    {
+      "pmid": "33803407",
+      "text": "**Publisher's Note:** MDPI stays neutral with regard to jurisdictional claims in published maps and institutional affiliations.",
+      "sectionPath": [
+        "**1. Infections**",
+        "**2. Protection from Infections in the Gastro-Intestinal Tract: The Gut Microbiota and Epithelial Barrier**"
+      ],
+      "sourceKind": "fulltext",
+      "rule": "C02_publisher_disclaimer",
+      "project": "gut"
+    },
+    {
+      "pmid": "34062869",
+      "text": "**Publisher's Note:** MDPI stays neutral with regard to jurisdictional claims in published maps and institutional affiliations.",
+      "sectionPath": [
+        "*Review* **Diet–Microbiota Interactions in Inflammatory Bowel Disease**"
+      ],
+      "sourceKind": "fulltext",
+      "rule": "C02_publisher_disclaimer",
+      "project": "gut"
+    },
+    {
+      "pmid": "35892593",
+      "text": "**Publisher's Note:** MDPI stays neutral with regard to jurisdictional claims in published maps and institutional affiliations.",
+      "sectionPath": [
+        "**1. Introduction**"
+      ],
+      "sourceKind": "fulltext",
+      "rule": "C02_publisher_disclaimer",
+      "project": "gut"
+    },
+    {
+      "pmid": "36498975",
+      "text": "**Publisher's Note:** MDPI stays neutral with regard to jurisdictional claims in published maps and institutional affiliations.",
+      "sectionPath": [
+        "**1. Introduction**"
+      ],
+      "sourceKind": "fulltext",
+      "rule": "C02_publisher_disclaimer",
+      "project": "gut"
+    },
+    {
+      "project": "BD2026",
+      "pmid": "27351485",
+      "chunkId": "653961e03b550a1663a45ecb17468fc677a6387e44071b8ed4faa70979c0f8d7",
+      "sectionPath": [
+        "**Declaration of Interest**",
+        "**REFERENCES**"
+      ],
+      "sourceKind": "fulltext",
+      "text": "|                      | Year         | Cases      | Onset     | Onset     | Male       | Female     | Male/Female  |  |  |\n|----------------------|--------------|------------|-----------|-----------|------------|------------|--------------|--|--|\n|                      |              | No.        | Age       | Age       | %          | %          | Ratio        |  |  |\n|                      |              |            | Mean      | SD        |            |            |              |  |  |\n|                      |              |            | (Med)     |           |            |            |              |  |  |\n| Iran27               | 2010         | 6500       | 26        | 11.3      | 54.9       | 45.1       | 1.22         |  |  |\n| Japan16              | 1993         | 3316       | 35.7      | -         | 50.6       | 49.4       | 1.02         |  |  |\n| Turkey28-29          | 1997, 2003   | 2313       | 25.6      | -         | 50.9       | 49.1       | 1.03         |  |  |\n| China30              | 2006         | 1996       | 33.8      | 12.2      | 57.3       | 42.7       | 1.34         |  |  |\n| Korea31<br>Morocco33 | 2001         | 1527       | (33)      | -         | 36.4       | 63.6       | 0.57         |  |  |\n| Germany22            | 2006         | 1034       | 26.2      | -         | 70.6       | 29.4       | 2.4          |  |  |\n| Tunisia39            | 2014         | 861        | 28.1      | 12.0      | 57.5       | 42.5       | 1.4          |  |  |\n| Spain34              | 2006         | 519        | 28.7      | 9.3       | 73         | 27         | 2.7          |  |  |\n| England25            | 2014<br>1997 | 496<br>419 | 28.7<br>- | 12.6<br>- | 45.4<br>32 | 54.6<br>68 | 0.83<br>0.49 |  |  |\n| Egypt17              | 1997         | 274        | 26.2      | 9.9       | 84.3       | 15.7       | 5.4          |  |  |\n| Russia36             | 2015         | 250        | 21.8      | 9.6       | 70.8       | 29.2       | 2.4          |  |  |\n| Jordan45             | 2000         | 200        | 24.7      | 9.6       | 75         | 25         | 3.0          |  |  |\n| USA46                | 2000         | 164        | 27.0      | -         | 29.9       | 70.1       | 0.43         |  |  |\n| Italy55              | 1991         | 155        | 34        | -         | 71         | 29         | 2.4          |  |  |\n| Saudi                | 1994         | 119        | 29.3      | -         | 77.3       | 22.7       | 3.4          |  |  |\n| Arabia48             |              |            |           |           |            |            |              |  |  |\n| Israel14             | 2007         | 112        | 30.6      | 10.7      | 52.7       | 47.3       | 1.1          |  |  |\n| Greece42             | 2000         | 101        | -         | -         | 68.3       | 31.7       | 2.2          |  |  |\n| Iraq43               | 2003         | 100        | 27.5      | 9.3       | 72         | 28         | 2.6          |  |  |\n| Lebanon49            | 2006         | 90         | 25.4      | -         | 74.4       | 25.6       | 2.9          |  |  |\n| Brazil37             | 2012         | 87         | 28.0      | 7.6       | 46         | 54         | 0.85         |  |  |\n| France19             | 2008         | 79         | 27.6      | 10.6      | 57         | 43         | 1.3          |  |  |\n| Taiwan56             | 2006         | 67         | (22.5)    | -         | 46.3       | 53.7       | 0.86         |  |  |\n| Algeria41            | 2000         | 58         | -         | -         | 81         | 19         | 4.3          |  |  |\n| India50              | 1995         | 58         | 33.1      | -         | 63.8       | 36.2       | 1.8          |  |  |\n| Romania52            | 2004         | 56         | -         | -         | 62.5       | 37.5       | 1.7          |  |  |\n| Sweden23             | 2013         | 40         | (27.8)    | -         | 67.5       | 32.5       | 2.1          |  |  |\n| Hong Kong53          | 2004         | 37         | 36        | 10        | 49         | 51         | 0.96         |  |  |\n| Singapore53          | 2004         | 37         | 33        | 11        | 49         | 51         | 0.96         |  |  |\n| Tadjikistan54        | 2000         | 36         | 32.9      | -         | 69.4       | 30.6       | 2.3          |  |  |\n| Portugal24           | 1991         | 29         | 22.0      | 9.4       | 37.9       | 62.1       | 0.61         |  |  |\n| Australia53          | 2004         | 29         | 29        | 11        | 26         | 74         | 0.35         |  |  |\n| Thailand51           | 2006         | 23         | 30.8      | -         | 60.9       | 39.1       | 1.6          |  |  |",
+      "rule": null
+    },
+    {
+      "project": "BD2026",
+      "pmid": "27351485",
+      "chunkId": "6d19e12561de05bd3d55533a7d8b86e7b65502c84cb698300872e406cdcdb400",
+      "sectionPath": [
+        "**Declaration of Interest**",
+        "**REFERENCES**"
+      ],
+      "sourceKind": "fulltext",
+      "text": "| Japan16<br>Turkey29<br>China30<br>Morocco33<br>Germany22<br>Tunisia40<br>Algeria40<br>England25<br>Iraq43<br>Egypt17 | 1993<br>2003<br>2006<br>2006<br>2014<br>2009<br>2009<br>1997<br>2008 | 3316<br>2313<br>1996<br>1034<br>861<br>674<br>552<br>419<br>330 | 98.2<br>100<br>98.4<br>100<br>98<br>100<br>100<br>100<br>100 | 73.2<br>88.1<br>76.3<br>85.6<br>63.4<br>85.8<br>75<br>89<br>83 | 87.1<br>54*<br>69<br>-<br>78.6<br>69.3*<br>69.2*<br>86<br>-   | 69.1<br>29.1<br>34.8<br>64.7<br>45.3<br>32.8<br>45.8<br>68<br>42 | 56.9<br>11.6<br>30<br>51.8<br>54.3<br>56.5<br>51.6<br>93<br>- | 11<br>2.3<br>6.5<br>17.2<br>3.5<br>12.8<br>10.9<br>31<br>- | 15.5<br>1.4<br>8.8<br>11.1<br>12.6<br>-<br>-<br>7<br>- | 8.9<br>7<br>7.7<br>19.8<br>13<br>26.7<br>27.2<br>22*<br>-  | 6<br>-<br>-<br>3.1<br>10<br>-<br>-<br>-<br>-    |  |\n|----------------------------------------------------------------------------------------------------------------------|----------------------------------------------------------------------|-----------------------------------------------------------------|--------------------------------------------------------------|----------------------------------------------------------------|---------------------------------------------------------------|------------------------------------------------------------------|---------------------------------------------------------------|------------------------------------------------------------|--------------------------------------------------------|------------------------------------------------------------|-------------------------------------------------|--|\n| Russia36<br>Jordan45<br>USA46<br>Italy55<br>Portugal48<br>Saudi Arabia48<br>Israel14<br>Brazil38                     | 1997<br>2015<br>2000<br>2000<br>1991<br>1991<br>1994<br>2007<br>2009 | 274<br>250<br>200<br>164<br>155<br>154<br>119<br>112<br>106     | 92<br>100<br>99.5<br>98<br>98<br>100<br>100<br>100<br>100    | 75.9<br>81.2<br>86.5<br>80<br>73<br>93<br>87<br>67.9<br>92.5   | 39.4<br>88.8<br>90.5<br>66<br>86<br>60<br>57<br>41.1<br>59.4* | 75.9<br>54<br>42<br>#50<br>93<br>50<br>65<br>52.7<br>47.2        | 49.6<br>73.2<br>47<br>41<br>77<br>64<br>37<br>69.6<br>35.8    | 25.9<br>8<br>38.5<br>23<br>17<br>5<br>44<br>11.6<br>17.9   | 10.2<br>25.2<br>17<br>8<br>34<br>20<br>4<br>-<br>6.6   | 23.4<br>25.2*<br>24<br>-<br>18<br>18*<br>25<br>15.2*<br>16 | 15.7<br>10<br>27<br>2<br>19<br>-<br>4<br>-<br>- |  |\n| Greece42<br>Lebanon49<br>France19<br>Spain35<br>Taiwan56<br>India50<br>Romania52                                     | 2000<br>2006<br>2008<br>2006<br>2006<br>1995<br>2004                 | 101<br>90<br>79<br>74<br>67<br>58<br>56                         | 100<br>100<br>100<br>98.5<br>100<br>89.7<br>96.4             | 78<br>72.2<br>80<br>82.4<br>67.2<br>77.6<br>51.7               | 75<br>83.3<br>90<br>64.2<br>74.6<br>63.8<br>-                 | 73<br>53.9<br>51<br>42.5<br>35.8<br>43<br>26.8                   | 54<br>59.1<br>59<br>50.7<br>70.7<br>5.3                       | 20<br>24.1<br>10<br>16.7<br>19.4<br>1.7<br>17.8            | 4<br>6.9<br>-<br>18.2<br>17.9<br>5.2<br>28.5           | 11<br>36.8<br>30<br>21.6<br>7.5<br>10.3*<br>50             | 13<br>-<br>15.6<br>-<br>3.2<br>0<br>-           |  |\n| Sweden23<br>Hong Kong53<br>Singapore53<br>Tadjikistan54<br>Australia53<br>Thailand51                                 | 2013<br>2004<br>2004<br>2000<br>2004<br>2006                         | 40<br>37<br>37<br>36<br>31<br>23                                | 100<br>100<br>100<br>100<br>90<br>100                        | 80<br>81<br>73<br>71<br>68<br>69.6                             | 88<br>73<br>73<br>79<br>84<br>60.9                            | 53<br>35<br>41<br>49<br>66<br>52.2                               | 40<br>54<br>62<br>44<br>87<br>34.8                            | 0<br>5<br>5<br>14<br>29<br>8.7                             | -<br>14<br>35<br>-<br>38<br>8.7                        | 20<br>11<br>5<br>14*<br>19<br>8.7                          | -<br>-<br>-<br>-<br>0<br>-                      |  |",
+      "rule": null
+    },
+    {
+      "project": "BD2026",
+      "pmid": "27351485",
+      "chunkId": "4502ac5358e4a4f6d5197d126ae2768c04463e11e56186f5c5151d7d51d636fb",
+      "sectionPath": [
+        "**Declaration of Interest**",
+        "**REFERENCES**"
+      ],
+      "sourceKind": "fulltext",
+      "text": "Decimals were rounded to the nearest integer for figures superior to 9 No.: Number of cases. OA: Oral aphthosis. GA: Genital aphthosis. CNS: Central nervous system involvement. GI: Gastrointestinal manifestations. Vasc: Vasculitis. Epid: Epididymitis. PF : Pseudofolliculitis. Phl : Phlebitis\n",
+      "rule": null
+    },
+    {
+      "project": "BD2026",
+      "pmid": "32222123",
+      "chunkId": "731f118b501c38bb0bc399d56d822fe9800d15e9791ea2e75a7be9e3a135ac89",
+      "sectionPath": [
+        "**References**"
+      ],
+      "sourceKind": "fulltext",
+      "text": "know the cause(s) of Bsy. Here, I humbly suggest that we give much more attention in our research efforts to what earlier I mentioned as the strong elements. In this line, I am gratified to see that recently 2 separate, one from ours, groups reported that venous wall is diseased among Bsy patients even when they have no clinical vascular disease [10,11]. However this is obviously quite preliminary. We need to know much more about the pathology in the venous wall in greater depth, in its biochemical, inflammatory/immunologic and genetic aspects soberly reminding ourselves that the venous wall has always been the stepchild of the basic researchers as compared to the arterial wall.",
+      "rule": null
+    },
+    {
+      "project": "BD2026",
+      "pmid": "32222123",
+      "chunkId": "2f9831e6bd47d4cbc654462a7b97a34dcd3d3b01c13b7d89cad01e39cc04fd1e",
+      "sectionPath": [
+        "**References**"
+      ],
+      "sourceKind": "fulltext",
+      "text": "Finally, we should in general aim at deciphering how Bsy syndrome *differs* from other nosologic entities rather than how it goes cozy with them [12,13]. This is why in this short communication I initially gave a somewhat boring emphasis on semantics. I simply wanted to emphasize that our admitted ignorance should be our semantic stimulus to understand Bsy better.\n",
+      "rule": null
+    },
+    {
+      "project": "BD2026",
+      "pmid": "34690278",
+      "chunkId": "6130f3a48646bbab80439e42c683229949081331918fdde412fb85e3040c7d4d",
+      "sectionPath": [
+        "REFERENCES AND RECOMMENDED READING"
+      ],
+      "sourceKind": "fulltext",
+      "text": "This is an excellent review that discusses diversity of clinical presentations, the etiology and the pathogenesis, and current progression of treatment in Behc¸et's syndrome.",
+      "rule": null
+    },
+    {
+      "project": "BD2026",
+      "pmid": "34690278",
+      "chunkId": "ce7be3655edc1967e07693dedbd105c5de3ed48fb9d1cc51f363263ccd6cdc77",
+      "sectionPath": [
+        "REFERENCES AND RECOMMENDED READING"
+      ],
+      "sourceKind": "fulltext",
+      "text": "The detail genetic study shows HLA-B- 51 is primarily associated with Behc¸et's disease. Moreover, subsequent analysis suggests molecular interaction between MHC-class I molecule and the antigenic peptide is critical.",
+      "rule": null
+    },
+    {
+      "project": "BD2026",
+      "pmid": "34690278",
+      "chunkId": "b619a5f3f1f8596a4fe55fe208e4b0809465950daf63f1c4d3e2fb379b05f24b",
+      "sectionPath": [
+        "REFERENCES AND RECOMMENDED READING"
+      ],
+      "sourceKind": "fulltext",
+      "text": "213–220. This study suggests involvement of HLA-B- 51 in the geographic clustering of patients with Behc¸et's syndrome.",
+      "rule": null
+    },
+    {
+      "project": "BD2026",
+      "pmid": "34690278",
+      "chunkId": "0dd3fe189d3dc7a503158a00687ca3bc17f074ac2dbd8fd3db894ae5f986306d",
+      "sectionPath": [
+        "REFERENCES AND RECOMMENDED READING"
+      ],
+      "sourceKind": "fulltext",
+      "text": "This study suggests HLA-B-51 is one of the important factors to determine subtypes of clinical clusters.",
+      "rule": null
+    },
+    {
+      "project": "BD2026",
+      "pmid": "34690278",
+      "chunkId": "01bf36754d8fd061b4a86edf73dbda95e07f0df88243ce0d1fd0721d79654910",
+      "sectionPath": [
+        "REFERENCES AND RECOMMENDED READING"
+      ],
+      "sourceKind": "fulltext",
+      "text": "This study shows the Behc¸et's syndrome-associated ERAP1 variant codes Hap10 allotype that has low trimming activity of the MHC-class I biding peptides.\n",
+      "rule": null
+    },
+    {
+      "project": "BD2026",
+      "pmid": "36945965",
+      "chunkId": "a61f6e337697765447594ceb0d46b18b22cf53b3b0bdff0461fc16589bc2e718",
+      "sectionPath": [
+        "KONAK et al. / Turk J Med Sci",
+        "**References**"
+      ],
+      "sourceKind": "fulltext",
+      "text": "BD patients, knowledge regarding smoking status of the subjects, which is a major risk factor for obstructive lung disease, is absent.",
+      "rule": null
+    },
+    {
+      "project": "BD2026",
+      "pmid": "36945965",
+      "chunkId": "4d61c438756d1f8becc3393de8d0d70b901af1f6b7957bebad797f9b68b394fb",
+      "sectionPath": [
+        "KONAK et al. / Turk J Med Sci",
+        "**References**"
+      ],
+      "sourceKind": "fulltext",
+      "text": "In conclusion, our results imply that breastfeeding during infancy may have some beneficial effects on the course of the disease in BD. However, there is a need for multicenter studies with a larger number of patients with better elimination of possible confounders to further elucidate the relationship between breastfeeding and BD.",
+      "rule": null
+    },
+    {
+      "project": "BD2026",
+      "pmid": "40481130",
+      "chunkId": "3f0b54acdb95aa955d9e788378f50fd710e901acca63bca1940da9f74717d38c",
+      "sectionPath": [
+        "**Identification of immuneassociated genes and single-cell sequencing analysis in diagnosing Behçet's disease**",
+        "**Materials and methods**",
+        "**Data availability**"
+      ],
+      "sourceKind": "fulltext",
+      "text": "The datasets selected in our research can be found and downloaded for free online, while the databases we searched and accession number(s) are all provided in article or supplement materials. GEO Database accession number: bulk-seq: GSE198533, GSE17114, GSE209567, GSE69063, GSE205962, GSE66407; Non-coding: GSE145191; single-cell: GSE198616. The usage of KEGG image was permitted by Kanehisa Lab, Ref: 251500.",
+      "rule": null
+    },
+    {
+      "project": "BD2026",
+      "pmid": "40897707",
+      "chunkId": "caa7e963a3cd146ef6b682ef246c17e011d322557234b2520518bbe7d24e5164",
+      "sectionPath": [
+        "Methods",
+        "Exosome isolation and identification",
+        "Data availability"
+      ],
+      "sourceKind": "fulltext",
+      "text": "All data are included in the Supplementary Information or available from the authors, as are unique reagents used in this article. The raw numbers for charts and graphs are available in the Source Data file whenever possible. The raw data and metadata of RNA-sequencing data have been deposited in the Gene Expression Omnibus (GEO) database (accession no. GSE252885, the website hyperlink: [https://](https://www.ncbi.nlm.nih.gov/geo/query/acc.cgi?acc=GSE252885) [www.ncbi.nlm.nih.gov/geo/query/acc.cgi?acc=GSE252885\\)](https://www.ncbi.nlm.nih.gov/geo/query/acc.cgi?acc=GSE252885), and the miRNA sequencing data has been deposited in the National Genomics Data Center (NGDC) database (accession no. HRA007352, the website hyperlink: [https://ngdc.cncb.ac.cn/gsa-human/browse/HRA007352\\)](https://ngdc.cncb.ac.cn/gsa-human/browse/HRA007352).",
+      "rule": null
+    },
+    {
+      "project": "BD2026",
+      "pmid": "41367023",
+      "chunkId": "b08b94cfe7bc7707dca8daf6dbd56551d22fac9e3648e1ffa10a3ef840bf9bee",
+      "sectionPath": [
+        "Behçet's disease unraveled Insights into clinical manifestations, diagnosis, and management",
+        "Abstract"
+      ],
+      "sourceKind": "fulltext",
+      "text": "Abbreviations: 5-ASA = 5-aminosalicylic acid, CI = confidence interval, DH = delayed hypersensitivity, DVT = deep vein thrombosis, EN = erythema nodosum, EULAR = European Alliance of Associations for Rheumatology, HLA-B\\*51 = human leukocyte antigen B\\*51, HSS = Hughes-Stovin syndrome, ICBD = International Criteria for Behçet's Disease, IFN-α2a = interferon alfa-2a, IFN-γ = interferon-gamma, IL-17 = interleukin-17, IL-1β = interleukin-1β, IL-6 = interleukin-6, ISG = International Study Group, MEFV = Mediterranean FeVer gene, NBD = Neuro-Behçet's disease, NETosis = neutrophil extracellular trap formation, NLRP3 = NOD-, LRR-, and pyrin domain-containing protein 3 inflammasome, PAAs = pulmonary-artery aneurysms, ROS = reactive oxygen species, Th = T helper, TNF-alpha = tumor necrosis factor-alpha, Tregs = regulatory T-cells.",
+      "rule": null
+    },
+    {
+      "project": "BD2026",
+      "pmid": "41367023",
+      "chunkId": "1bdd7d58799dcc7974a83826a3b9d0cf8756fe933f8e5a121dcf1bffa29b45cb",
+      "sectionPath": [
+        "Behçet's disease unraveled Insights into clinical manifestations, diagnosis, and management",
+        "Abstract"
+      ],
+      "sourceKind": "fulltext",
+      "text": "Keywords: Behçet's disease, clinical manifestations, diagnostic criteria, epidemiology, management, pathogenesis",
+      "rule": null
+    },
+    {
+      "pmid": "33238371",
+      "text": "**Publisher's Note:** MDPI stays neutral with regard to jurisdictional claims in published maps and institutional affiliations.",
+      "sectionPath": [
+        "**References**"
+      ],
+      "sourceKind": "fulltext",
+      "rule": "C02_publisher_disclaimer",
+      "project": "BD2026"
+    },
+    {
+      "pmid": "34615825",
+      "text": "The Internal Medicine is an Open Access journal distributed under the Creative Commons Attribution-NonCommercial-NoDerivatives 4.0 International License. To view the details of this license, please visit (https://creativecommons.org/licenses/ by-nc-nd/4.0/).\n",
+      "sectionPath": [
+        "**Spectrum Disorder**",
+        "**References**"
+      ],
+      "sourceKind": "fulltext",
+      "rule": "C10_complete_license_variant",
+      "project": "BD2026"
+    },
+    {
+      "pmid": "38518008",
+      "text": "*Copyright © 2024 the Author(s). Published by Wolters Kluwer Health, Inc. This is an open access article distributed under the [Creative Commons](http://creativecommons.org/licenses/by/4.0/)  [Attribution License 4.0 \\(CCBY\\),](http://creativecommons.org/licenses/by/4.0/) which permits unrestricted use, distribution, and reproduction in any medium, provided the original work is properly cited.*",
+      "sectionPath": [
+        "2. Patients and method"
+      ],
+      "sourceKind": "fulltext",
+      "rule": "C10_complete_license_variant",
+      "project": "BD2026"
+    },
+    {
+      "pmid": "41367023",
+      "text": "*Copyright © 2025 the Author(s). Published by Wolters Kluwer Health, Inc. This is an open access article distributed under the [Creative Commons](http://creativecommons.org/licenses/by/4.0/)  [Attribution License 4.0 \\(CCBY\\),](http://creativecommons.org/licenses/by/4.0/) which permits unrestricted use, distribution, and reproduction in any medium, provided the original work is properly cited.*",
+      "sectionPath": [
+        "2. Epidemiology"
+      ],
+      "sourceKind": "fulltext",
+      "rule": "C10_complete_license_variant",
+      "project": "BD2026"
+    },
+    {
+      "project": "BD202602",
+      "pmid": "29241760",
+      "chunkId": "cad78f0e51679ef0cb3b8bf2b9b933c623c4648c757625d1fb54f769ddbf1795",
+      "sectionPath": [
+        "Introduction"
+      ],
+      "sourceKind": "fulltext",
+      "text": "<https://doi.org/10.1016/j.clindermatol.2017.09.016> 0738-081X/© 2018 Elsevier Inc. All rights reserved. and hidradenitis suppurativa, there is a paucity of studies confirming an association between MetS and other dermatologic diseases. In this review, we summarize what is known about MetS and its relationship with other dermatologic diseases, including vitiligo, scleredema, recurrent aphthous stomatitis, Behçet disease, rosacea, necrobiosis lipoidica, granuloma annulare, skin tags, knuckle pads, and eruptive xanthomas ([Table 1](#page-1-0)).",
+      "rule": null
+    },
+    {
+      "project": "BD202602",
+      "pmid": "29890348",
+      "chunkId": "9769aad1cdc075a67f9840205eec38ccc8c4fded32b4d8ee888728095f28a55d",
+      "sectionPath": [
+        "Accepted Manuscript",
+        "*ABSTRACT:*"
+      ],
+      "sourceKind": "fulltext",
+      "text": "ACCEPTED MANUSCRIPT *Systematic Review***:** Our review of the 45 cases of HA20 from literature highlights the similarities and the differences between this genetic auto-inflammatory disease and classical BD. HA20 looks like BD if we consider recurrent oral (87%) and genital (67%) ulcers, arthralgia or arthritis (42%), skin involvement (53%) such as erythema nodosum or abdominal symptoms (60%) such as abdominal pain, digestive ulcers or diarrhea. However, HA20 differs from classical BD because its geographical distribution is ubiquitous, sex ratio is inversed (one man for two women), first symptoms occur in early childhood (median age = 5.5 years; interquartile range: 1-10) instead of adulthood, recurrent fever is common (62%) unlike classical BD, HLA B51 antigen is uncommon and abdominal symptoms are over-represented compared to classical BD. In addition, response to colchicine in HA20 is inconstant (24%) unlike classical BD.",
+      "rule": null
+    },
+    {
+      "project": "BD202602",
+      "pmid": "29890348",
+      "chunkId": "cf1d9a4e44488af8e4e4c6d8795c78861caec820c55156e883850f2ff1fb1ac0",
+      "sectionPath": [
+        "Accepted Manuscript",
+        "1. Introduction"
+      ],
+      "sourceKind": "fulltext",
+      "text": "ACCEPTED MANUSCRIPT Mostly found in populations from the ancient Silk Road connecting Far East to Mediterranean Sea, this disease is typically associated with HLA B51 antigen. Research data published 30 years ago highlighted possible Mendelian transmission in some families with early onset BD [6-8]. The first description of mutations in the *TNFAIP3* gene involved in regulation of NF-κB pathway was reported by Zhou *and al* in 2016 [9]. A20, also called TNFα Induced Protein 3 (TNF/AIP3), is a protein including 790 amino acids coded by the *TNFAIP3* gene, located on chromosome 6 [10] (**figure 1**), which plays an important role in the negative regulation of inflammation and immunity [11]. Loss of function mutation in *TNFAIP3* gene leads to haploinsufficiency of A20 (HA20) and to an auto-inflammatory or to an auto-immune disease.",
+      "rule": null
+    },
+    {
+      "project": "BD202602",
+      "pmid": "29890348",
+      "chunkId": "a558994ac36ac3ea24375419951c874209852b5d0e9968a57b58bb64eeb17a43",
+      "sectionPath": [
+        "Accepted Manuscript",
+        "3. Systematic Review"
+      ],
+      "sourceKind": "fulltext",
+      "text": "ACCEPTED MANUSCRIPT 31 of 45 patients (69%) met the ICBD. Among them, 39/45 (87%) had oral ulcers and 30/45 (67%) had genital ulcers. Skin involvement was reported in 24/45 (53%) cases but only 13 (29%) were BD-like (erythema nodosum or pseudofolliculitis) as described by Davatchi *and al*. [5]. Pathergy test is mentioned positive only in five patients among 45. Among classical ICBD, the less frequent manifestations were six ophthalmological features (13%) including four BD-like (9%), three neurological manifestations (6, 7 %) and two vascular features (4%).",
+      "rule": null
+    },
+    {
+      "project": "BD202602",
+      "pmid": "29890348",
+      "chunkId": "20271bfabb449b6291fa92431c243d5863b88f1340ed6adb36fd8e03da50a39a",
+      "sectionPath": [
+        "Accepted Manuscript",
+        "4. Discussion"
+      ],
+      "sourceKind": "fulltext",
+      "text": "ACCEPTED MANUSCRIPT Finally, we observed that colchicine, the main first-line therapy in classical BD, is reported not or inadequately efficient in 59% of patients, which have required corticosteroids or immunosuppressive agents (methotrexate, ciclosporin …). Biotherapies as second-line treatment are frequently used, mostly anti-TNFα (infliximab, adalimumab, etanercept, certolizumab) used in 17 cases, anti-Il-1 (anakinra, canakinumab) in seven cases and anti-Il-6 (tocilizumab) in three cases. Some other immunotherapies have been tested like rituximab (anti-CD20) in three cases and tofacitinib (JAK 1 and 3 inhibitors) once. Some patients had even gained from autologous or heterologous stem cell transplantation. To date, therapeutic data suggest a lack of understanding in mechanisms involved in this pathology and illustrate the difficulty to manage successfully the patients' clinical features.",
+      "rule": null
+    },
+    {
+      "project": "BD202602",
+      "pmid": "29890348",
+      "chunkId": "7474399e1ae432a4c521a504f1f7810084e46c500d754d3f8915593ef449534b",
+      "sectionPath": [
+        "Accepted Manuscript",
+        "4. Discussion"
+      ],
+      "sourceKind": "fulltext",
+      "text": "ACCEPTED MANUSCRIPT The first series of familial early BD cases associated with TNF/AIP3 mutations were described in 2016 by Zhou *and al* [9]. These authors described autosomal dominance as mode of transmission (**figure 2**). Five over six families had a mutation on OTU domain resulting in a truncated protein quickly degraded. The sixth family had a mutation on ZnF4 domain in charge of ubiquitin E3 ligase activity (**figure 1**). Therefore, one single mutation in the *TNFAIP3* gene leads to a decrease in functional A20 enzymatic pool, so called HA20. This condition results in an early pro-inflammatory state beginning in childhood and leads to a BD phenotype [12]. A complete deficiency in A20, never described in humans, would probably result in more severe or not viable phenotypes.",
+      "rule": null
+    },
+    {
+      "project": "BD202602",
+      "pmid": "30850197",
+      "chunkId": "0c33d2db7002122ab02f250178aea4b8df4b26c6e0a5f8d05da8e37cd4c4c418",
+      "sectionPath": [
+        "**Treatment**",
+        "**Immunosuppressant therapy**",
+        "*Tumor necrosis factor alpha (TNF-*-*) inhibitors*"
+      ],
+      "sourceKind": "fulltext",
+      "text": "*Golimumab (Simponi*©*).* This is a new, totally humanized anti-TNF alpha antibody, administered subcutaneously at a dose of 50 mg/month. It appears to have promising efficacy for Behc¸et's uveitis [\\[74\\].](#page-13-0) Additional studies are necessary to better evaluate the efficacy of this drug on the ocular involvement.",
+      "rule": null
+    },
+    {
+      "project": "BD202602",
+      "pmid": "31164292",
+      "chunkId": "515936e3114ff21aca8055bfff01da04b45c7af25dcaed2b48e1f60883fd93e0",
+      "sectionPath": [
+        "REVUE GÉNÉRALE **Œil et maladie de Behc¸et**-"
+      ],
+      "sourceKind": "fulltext",
+      "text": "**Résumé** La maladie de Behc¸et est une affection inflammatoire systémique, de pathogénie inconnue, dont le substratum histopathologique est une vasculite occlusive. Elle est fréquente dans les pays du bassin méditerranéen, au Moyen et en Extrême Orient. Elle est caractérisée par des ulcérations orales et génitales, une atteinte inflammatoire oculaire, des lésions cutanées, une atteinte vasculaire ainsi que de nombreuses atteintes viscérales. L'uvéite est la manifestation oculaire de loin la plus fréquente de la maladie de Behc¸et. Elle constitue, avec ses particularités cliniques, un critère diagnostique majeur. Il s'agit le plus souvent d'une panuvéite avec vasculite rétinienne qui évolue par poussées itératives pouvant conduire à la cécité. Le traitement de l'uvéite associée à la maladie de Behc¸et repose sur la corticothérapie, les immunosuppresseurs conventionnels et les agents biologiques, qui constituent une avancée thérapeutique majeure ayant permis une amélioration significative du pronostic visuel des patients. La prise en charge du patient dans la globalité de ses atteintes oculaires et extraoculaires requiert une étroite collaboration entre l'ophtalmologiste et l'interniste. Une meilleure connaissance des phénomènes d'auto-inflammation et du rôle des cytokines impliquées dans la physiopathogénie de la maladie Behc¸et et des uvéites en général permettra d'envisager de nouvelles approches thérapeutiques mieux ciblées et plus efficaces. © 2019 Elsevier Masson SAS. Tous droits reserv ´ es. ´",
+      "rule": null
+    },
+    {
+      "project": "BD202602",
+      "pmid": "31164292",
+      "chunkId": "011d1ebf4b636d53232ea665bafbc77b080c027341d170f9a903ec518267dcf9",
+      "sectionPath": [
+        "*Immunosuppresseurs conventionnels*",
+        "*Inhibiteurs du Tumor Necrosis Factor alpha (TNF-*-*)*"
+      ],
+      "sourceKind": "fulltext",
+      "text": "*Golimumab (Simponi*©*).* C'est un nouvel anticorps anti-TNF alpha totalement humanisé, administré en sous-cutané à la dose de 50 mg/mois. Il semble avoir un effet prometteur sur l'uvéite liée à la maladie de Behc¸et [\\[75\\].](#page-14-0) D'autres études sont nécessaires pour mieux évaluer l'efficacité de ce produit sur l'atteinte oculaire.",
+      "rule": null
+    },
+    {
+      "project": "BD202602",
+      "pmid": "36414220",
+      "chunkId": "db0a187024b5c4451e807ed817f8aeb6e816d9a0def98d592bfca7f027012542",
+      "sectionPath": [
+        "Autoimmunity Reviews",
+        "The role of bacteria and viruses in Behçet syndrome: Should we move towards new paradigms?",
+        "**1. Introduction**"
+      ],
+      "sourceKind": "fulltext",
+      "text": "Available online 19 November 2022 1568-9972/© 2022 Elsevier B.V. All rights reserved. <https://doi.org/10.1016/j.autrev.2022.103237> Received 22 October 2022; Accepted 17 November 2022 *Mycobacterium tubercolosis*, which may cause a cross-reactive immunological response in people with certain genetic predispositions [3].",
+      "rule": null
+    },
+    {
+      "project": "BD202602",
+      "pmid": "38937151",
+      "chunkId": "6b58019b9c44b34c1919042afa03458920114bbbf814f84c3663feedfe491490",
+      "sectionPath": [
+        "Neuro-Behc¸ et's disease: A review",
+        "a b s t r a c t"
+      ],
+      "sourceKind": "fulltext",
+      "text": "Behcet disease (BD) is a systemic vasculitis which can involve many different organ systems. Neurological involvement (NBD) occurs in 5.3% to 59% of BD patients. The diagnosis is challenging especially in case of inaugural neurological presentation, and is based on a constellation of clinical, laboratory, and neuroimaging findings. NBD can be subdivided into parenchymal NBD through an immune medi ated meningoencephalitis with a predilection to the brainstem, basal ganglia, thalamus, cranial nerves, and spinal cord involvement, and extraparenchymal NBD encompassing cerebral veinous thrombosis and intracranial arterial involvement. Brain magnetic resonance showsill-defined areas of oedema with high signal intensity on T2-FLAIR images, isointense or hypointense in T1-weighted images in the basal ganglia area or in the brainstem, which may extend to the diencephalic structures. Swelling might be noticed. Hemorrhages can be seen, such as contrast enhancement (blood brain barrier disruption). Magnetic resonance venography and computerized tomographic angiography can be used to diagnose extraparenchymal NBD. Treatment ofparenchymatous forms is based on glucocorticoidsassociated with oral immunosuppressants (azathioprine, mycophenolate mofetil or methotrexate) in mild forms, and intravenous cyclophosphamide or infliximab in severe forms. Themanagement of cerebral thrombosis consists ofsteroids course associated withan oral anticoagulation.An early recognitionof this condition is mandatory to initiate adequate therapies in order to improve outcomes and limit the risk ofsequelae, relapses, or death. The aim of this review is to summarize a comprehensive review on the various neurologicalpresentations of BD withemphasizes on diagnostictools, prognosis, and therapeutic issues. © 2024 Socie ´t´ e Nationale Franc¸ aise deMe ´decine Interne (SNFMI). Published by Elsevier Masson",
+      "rule": null
+    },
+    {
+      "project": "BD202602",
+      "pmid": "29076891",
+      "chunkId": "e02664779caa74c74c1fad4ce6cf72898e70ba3bc6960351faf1d89bf5a9f1c3",
+      "sectionPath": [
+        "Cyclophosphamide",
+        "REFERENCES AND RECOMMENDED READING"
+      ],
+      "sourceKind": "fulltext",
+      "text": "Investigated mechanism of thrombus formation in Behc¸et's disease patients, highlighting altered fibrinogen structure and its relationship with neutrophil-dependent ROS production.",
+      "rule": null
+    },
+    {
+      "project": "BD202602",
+      "pmid": "29890348",
+      "chunkId": "3e9a757f8101018d4cde955bd410817417f5bf88021e1ec445eefe71081cd035",
+      "sectionPath": [
+        "Accepted Manuscript",
+        "REFERENCES"
+      ],
+      "sourceKind": "fulltext",
+      "text": "*Figure 1 : Schematic representation of the TNFAIP3/A20 protein domains and mutations. Blue arrows = BD cases previously described; green arrows = non BD-like cases reported; red arrow = present mutation. ZnF4 domain is in charge of E3 ligase activity.*",
+      "rule": null
+    },
+    {
+      "project": "BD202602",
+      "pmid": "29890348",
+      "chunkId": "ebea5f1f3a87b9bc06d4f3938cd565db2c30e7bf255fc2775f7be2e384309cd7",
+      "sectionPath": [
+        "Accepted Manuscript",
+        "REFERENCES"
+      ],
+      "sourceKind": "fulltext",
+      "text": "*Figure 2: Pedigrees of 19 families described with HA20 associated with TNFAIP3 mutations. Hatched cases are suspect probands which haven't been tested. Arrows signals index cases in each family.*",
+      "rule": null
+    },
+    {
+      "project": "BD202602",
+      "pmid": "29916847",
+      "chunkId": "f42fdf8a3b55a621bb99c057990ed6bc934735786a3553ee6875d073b626d1e0",
+      "sectionPath": [
+        "Behc¸et disease",
+        "REFERENCES AND RECOMMENDED READING"
+      ],
+      "sourceKind": "fulltext",
+      "text": "This study extends on shared susceptibility genes for Behc¸et disease and Crohn disease and reports a number of immune-related loci, thereby providing novel insights into the pathogenesis of Behc¸et disease.",
+      "rule": null
+    },
+    {
+      "project": "BD202602",
+      "pmid": "32222123",
+      "chunkId": "8ace89dc28756b9cb1e2c4d17fd986f30ed62db05efb1692b26e45b2a6dfdd43",
+      "sectionPath": [
+        "**References**"
+      ],
+      "sourceKind": "fulltext",
+      "text": "know the cause(s) of Bsy. Here, I humbly suggest that we give much more attention in our research efforts to what earlier I mentioned as the strong elements. In this line, I am gratified to see that recently 2 separate, one from ours, groups reported that venous wall is diseased among Bsy patients even when they have no clinical vascular disease [10,11]. However this is obviously quite preliminary. We need to know much more about the pathology in the venous wall in greater depth, in its biochemical, inflammatory/immunologic and genetic aspects soberly reminding ourselves that the venous wall has always been the stepchild of the basic researchers as compared to the arterial wall.",
+      "rule": null
+    },
+    {
+      "project": "BD202602",
+      "pmid": "32222123",
+      "chunkId": "373ccefcb7426452131dd8af31395c7e332358db98e692d820bb1aadcc100145",
+      "sectionPath": [
+        "**References**"
+      ],
+      "sourceKind": "fulltext",
+      "text": "Finally, we should in general aim at deciphering how Bsy syndrome *differs* from other nosologic entities rather than how it goes cozy with them [12,13]. This is why in this short communication I initially gave a somewhat boring emphasis on semantics. I simply wanted to emphasize that our admitted ignorance should be our semantic stimulus to understand Bsy better.\n",
+      "rule": null
+    },
+    {
+      "project": "BD202602",
+      "pmid": "32436006",
+      "chunkId": "b7624ec78bc7641bcc63ef7aca85ee5776878843f8a8a1a71024c556fb0c3edd",
+      "sectionPath": [
+        "ANCA-Associated Vasculitis",
+        "Conclusion",
+        "References"
+      ],
+      "sourceKind": "fulltext",
+      "text": "<span id=\"page-8-0\"></span>and the major differences between these phenotypes in relatively large number of patients.",
+      "rule": null
+    },
+    {
+      "project": "BD202602",
+      "pmid": "34093536",
+      "chunkId": "f36cba21ee6c5e690b959264430d1e8911dba2c8c2ae032ba40b4821694cddd0",
+      "sectionPath": [
+        "Interleukin-23",
+        "Fucosyltransferase-2",
+        "REFERENCES"
+      ],
+      "sourceKind": "fulltext",
+      "text": "In conclusion, while it is clear that dysbiosis of the gut microbiome is associated with Behceţ 's disease and a role for known genetic mutations can be linked to these changes ([Figure 1](#page-5-0)), further research is required to understand the combinations involved in the manifestations of this complex disease.",
+      "rule": null
+    },
+    {
+      "pmid": "29076891",
+      "text": "Copyright © 2017 Wolters Kluwer Health, Inc. Unauthorized reproduction of this article is prohibited.",
+      "sectionPath": [
+        "CURRENT OPINION A review of current management of vasculo-Behcet's",
+        "CLINICAL PICTURE AND PATHOGENESIS OF VASCULAR-BEHCET"
+      ],
+      "sourceKind": "fulltext",
+      "rule": "C09_complete_publisher_copyright_footer",
+      "project": "BD202602"
+    },
+    {
+      "pmid": "29076891",
+      "text": "1040-8711 Copyright -2017 Wolters Kluwer Health, Inc. All rights reserved. www.co-rheumatology.com 3",
+      "sectionPath": [
+        "Anticoagulation and antiplatelet agents"
+      ],
+      "sourceKind": "fulltext",
+      "rule": "C09_complete_publisher_copyright_footer",
+      "project": "BD202602"
+    },
+    {
+      "pmid": "29076891",
+      "text": "Copyright © 2017 Wolters Kluwer Health, Inc. Unauthorized reproduction of this article is prohibited.",
+      "sectionPath": [
+        "Anticoagulation and antiplatelet agents"
+      ],
+      "sourceKind": "fulltext",
+      "rule": "C09_complete_publisher_copyright_footer",
+      "project": "BD202602"
+    },
+    {
+      "pmid": "29076891",
+      "text": "Copyright © 2017 Wolters Kluwer Health, Inc. Unauthorized reproduction of this article is prohibited.",
+      "sectionPath": [
+        "Cyclophosphamide",
+        "Biologic agents and monoclonal therapy"
+      ],
+      "sourceKind": "fulltext",
+      "rule": "C09_complete_publisher_copyright_footer",
+      "project": "BD202602"
+    },
+    {
+      "pmid": "29076891",
+      "text": "1040-8711 Copyright -2017 Wolters Kluwer Health, Inc. All rights reserved. www.co-rheumatology.com 7\n",
+      "sectionPath": [
+        "Cyclophosphamide",
+        "REFERENCES AND RECOMMENDED READING"
+      ],
+      "sourceKind": "fulltext",
+      "rule": "C09_complete_publisher_copyright_footer",
+      "project": "BD202602"
+    },
+    {
+      "pmid": "29916847",
+      "text": "1040-8711 Copyright -2018 Wolters Kluwer Health, Inc. All rights reserved. www.co-rheumatology.com 513\n",
+      "sectionPath": [
+        "Behc¸et disease",
+        "REFERENCES AND RECOMMENDED READING"
+      ],
+      "sourceKind": "fulltext",
+      "rule": "C09_complete_publisher_copyright_footer",
+      "project": "BD202602"
+    },
+    {
+      "pmid": "33238371",
+      "text": "**Publisher's Note:** MDPI stays neutral with regard to jurisdictional claims in published maps and institutional affiliations.",
+      "sectionPath": [
+        "**References**"
+      ],
+      "sourceKind": "fulltext",
+      "rule": "C02_publisher_disclaimer",
+      "project": "BD202602"
+    },
+    {
+      "pmid": "34615825",
+      "text": "The Internal Medicine is an Open Access journal distributed under the Creative Commons Attribution-NonCommercial-NoDerivatives 4.0 International License. To view the details of this license, please visit (https://creativecommons.org/licenses/ by-nc-nd/4.0/).\n",
+      "sectionPath": [
+        "**Spectrum Disorder**",
+        "**References**"
+      ],
+      "sourceKind": "fulltext",
+      "rule": "C10_complete_license_variant",
+      "project": "BD202602"
+    },
+    {
+      "pmid": "37775123",
+      "text": "© Author(s) (or their employer(s)) 2023. No commercial re-use. See rights and permissions. Published by BMJ.",
+      "sectionPath": [
+        "Desmond Patrick Kidd",
+        "**Abstract**"
+      ],
+      "sourceKind": "fulltext",
+      "rule": "C09_complete_publisher_copyright_footer",
+      "project": "BD202602"
+    },
+    {
+      "pmid": "40866267",
+      "text": "The Internal Medicine is an Open Access journal distributed under the Creative Commons Attribution-NonCommercial-NoDerivatives 4.0 International License. To view the details of this license, please visit (https://creativecommons.org/licenses/ by-nc-nd/4.0/).",
+      "sectionPath": [
+        "**Nasal Mucosal Manifestation of Behçet's Disease**",
+        "**Discussion**",
+        "**References**"
+      ],
+      "sourceKind": "fulltext",
+      "rule": "C10_complete_license_variant",
+      "project": "BD202602"
+    },
+    {
+      "pmid": "41367023",
+      "text": "*Copyright © 2025 the Author(s). Published by Wolters Kluwer Health, Inc. This is an open access article distributed under the [Creative Commons](http://creativecommons.org/licenses/by/4.0/)  [Attribution License 4.0 \\(CCBY\\),](http://creativecommons.org/licenses/by/4.0/) which permits unrestricted use, distribution, and reproduction in any medium, provided the original work is properly cited.*",
+      "sectionPath": [
+        "2. Epidemiology"
+      ],
+      "sourceKind": "fulltext",
+      "rule": "C10_complete_license_variant",
+      "project": "BD202602"
+    },
+    {
+      "pmid": "41620945",
+      "text": "*This is an open-access article distributed under the terms of the Creative Commons Attribution 4.0 Public License (CC BY) (https://creativecommons.org/licenses/by/4.0/). The use, distribution or reproduction in other forums is permitted, provided the original author(s) and the copyright owner(s) are credited and that the original publication in this journal is cited, in accordance with accepted academic practice. No use, distribution or reproduction is permitted which does not comply with these terms.*",
+      "sectionPath": [
+        "**Introduction**"
+      ],
+      "sourceKind": "fulltext",
+      "rule": "C10_complete_license_variant",
+      "project": "BD202602"
+    },
+    {
+      "project": "gut",
+      "pmid": "36630917",
+      "text": "- <sup>d</sup> GATA4 prevents small intestinal inflammation by restricting bacterial colonization\n- <sup>d</sup> GATA4 regulates bacterial colonization in part by regulating IgA and retinol metabolism\n- <sup>d</sup> GATA4 deficiency, SFB, and Citrobacter rodentium synergize to drive immunopathology\n- <sup>d</sup> Th17 immunity is found in celiac patients with GATA4 deficiency and Actinobacillus",
+      "sectionPath": [],
+      "sourceKind": "fulltext",
+      "rule": null
+    },
+    {
+      "project": "BD2026",
+      "pmid": "35894066",
+      "text": "- A large dataset from the United States showed an almost four-fold higher frequency of women among patients with BS. Biologic and immunosuppressive use was similar between men and women, with an overall 29% TNF inhibitor use (3).\n- No patients with BS were detected among 2000 Zoroastrian individuals from Iran, a country with a high BS prevalence (4).",
+      "sectionPath": [],
+      "sourceKind": "fulltext",
+      "rule": null
+    },
+    {
+      "project": "BD2026",
+      "pmid": "35894066",
+      "text": "- Two novel susceptibility loci were identified in a group of patients with BS who were recruited from 7 different regions: IFNGR1, a sub-unit of a receptor that plays a role in the activation of the JAK-STAT pathway and LNCAROD/DKK1, a regulator of DKK1 and Wnt signalling (18).\n- A study showed deregulation of 3 micro RNAs (miR-224-5p, miR-206 and miR-653-5p) in BS and suggested that it was related to thromboembolic disease (21).\n- A review of microbiome data in BS emphasised a significant reduction in the alpha diversity and depletion of butyrate producing bacteria in the gut microbiome and a parallel finding of a reduction of butyrate levels in faecal samples leading to gut inflammation (22).",
+      "sectionPath": [],
+      "sourceKind": "fulltext",
+      "rule": null
+    },
+    {
+      "project": "BD2026",
+      "pmid": "41133359",
+      "text": "- Growing data indicate that neutrophils may have a pathogenetic role in BS (10).\n- IL-6 seems to be associated with the presence of major organ involvement in general and may play role in the pathogenesis of neuro-BS (12).\n- BS patients with arterial aneurysms had CLA+ Treg cell deficiency, while the proportion of CLA+ Tregs increases with corticosteroids and immunosuppressants (17).",
+      "sectionPath": [],
+      "sourceKind": "fulltext",
+      "rule": null
+    },
+    {
+      "project": "gut",
+      "pmid": "29171095",
+      "text": "105. Walker AW, Lawley TD. Therapeutic modulation of intestinal dysbiosis. Pharmacol Res 2013;69:75–86.",
+      "sectionPath": [
+        "The Gastrointestinal Microbiome: A Review",
+        "Footnotes",
+        "References"
+      ],
+      "sourceKind": "fulltext",
+      "rule": "C01_complete_bibliographic_entry"
+    },
+    {
+      "project": "gut",
+      "pmid": "28743984",
+      "text": "Springer Nature remains neutral with regard to jurisdictional claims in published maps and institutional affiliations.",
+      "sectionPath": [
+        "Gut microbiota and IBD: causation or correlation?",
+        "**Author contributions**",
+        "**Publisher's note**"
+      ],
+      "sourceKind": "fulltext",
+      "rule": "C02_publisher_disclaimer"
+    },
+    {
+      "project": "gut",
+      "pmid": "32235316",
+      "text": "© 2020 by the authors. Licensee MDPI, Basel, Switzerland. This article is an open access article distributed under the terms and conditions of the Creative Commons Attribution (CC BY) license (http://[creativecommons.org](http://creativecommons.org/licenses/by/4.0/.)/licenses/by/4.0/).\n",
+      "sectionPath": [
+        "**References**"
+      ],
+      "sourceKind": "fulltext",
+      "rule": "C03_complete_copyright_license"
+    },
+    {
+      "project": "gut",
+      "pmid": "40943409",
+      "text": "Received: 5 August 2025 Revised: 28 August 2025 Accepted: 29 August 2025 Published: 1 September 2025",
+      "sectionPath": [
+        "**1. Introduction**"
+      ],
+      "sourceKind": "fulltext",
+      "rule": "C05_publication_dates"
+    },
+    {
+      "project": "gut",
+      "pmid": "37380774",
+      "text": "[C](http://crossmark.crossref.org/dialog/?doi=10.1038/s41586-023-06265-4&domain=pdf)heck for updates",
+      "sectionPath": [
+        "**Gut microbial fatty acid isomerization modulates intraepithelial T cells**"
+      ],
+      "sourceKind": "fulltext",
+      "rule": "C06_publisher_navigation"
+    },
+    {
+      "project": "gut",
+      "pmid": "31460832",
+      "text": "Downloaded from www.physiology.org/journal/physrev at Stockholms Universtitet (130.237.165.040) on August 29, 2019.",
+      "sectionPath": [
+        "**A. Germ-Free Models**",
+        "**B. Antibiotics**"
+      ],
+      "sourceKind": "fulltext",
+      "rule": "C04_isolated_download_footer"
+    },
+    {
+      "project": "gut",
+      "pmid": "32340570",
+      "text": "| Immunology<br>in<br>the<br>Era<br>of<br>Single-Cell<br>Technologies<br>Mirjana Efremova, Roser Vento-Tormo, Jong-Eun Park,                                                              |  |\n|-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|--|\n| Sarah A. Teichmann, and Kylie R. James<br>♣♣♣♣♣♣♣♣♣♣♣♣♣♣♣♣♣♣♣♣♣♣♣♣♣♣♣♣♣♣♣♣♣♣♣♣♣♣♣♣♣♣♣♣♣♣ 727                                                                                            |  |\n| Finding<br>a<br>Way<br>Out:<br>S1P<br>Signaling<br>and<br>Immune<br>Cell<br>Migration<br>Audrey A.L. Baeyens and Susan R. Schwab<br>♣♣♣♣♣♣♣♣♣♣♣♣♣♣♣♣♣♣♣♣♣♣♣♣♣♣♣♣♣♣♣♣♣♣♣♣♣♣♣♣♣♣♣♣♣♣♣ 759 |  |\n| Primary<br>Atopic<br>Disorders<br>Joshua D. Milner<br>♣♣♣♣♣♣♣♣♣♣♣♣♣♣♣♣♣♣♣♣♣♣♣♣♣♣♣♣♣♣♣♣♣♣♣♣♣♣♣♣♣♣♣♣♣♣♣♣♣♣♣♣♣♣♣♣♣♣♣♣♣♣♣♣♣♣♣♣♣♣♣♣♣♣♣♣ 785                                                  |  |\n| Indexes                                                                                                                                                                                 |  |\n| Cumulative<br>Index<br>of<br>Contributing<br>Authors,<br>Volumes<br>28–38<br>♣♣♣♣♣♣♣♣♣♣♣♣♣♣♣♣♣♣♣♣♣♣♣♣♣♣♣ 809                                                                            |  |",
+      "sectionPath": [
+        "Contents"
+      ],
+      "sourceKind": "fulltext",
+      "rule": "C07_journal_contents"
+    },
+    {
+      "project": "BD2026",
+      "pmid": "31902306",
+      "text": "AM Sediq http://orcid.org/0000-0003-1371-2595 MM Esawy http://orcid.org/0000-0002-2198-258X HM Hassanin http://orcid.org/0000-0002-9548-652X MA Salama http://orcid.org/0000-0003-2211-3383 SM Abdelwahab http://orcid.org/0000-0002-5939-0862",
+      "sectionPath": [
+        "*TNFSF15* **(rs3810936) in Behçet's disease**",
+        "TNFSF15 (rs3810936) in Behçet's disease",
+        "ORCID"
+      ],
+      "sourceKind": "fulltext",
+      "rule": "C08_orcid_name_directory"
+    },
+    {
+      "project": "BD202602",
+      "pmid": "40866267",
+      "text": "The Internal Medicine is an Open Access journal distributed under the Creative Commons Attribution-NonCommercial-NoDerivatives 4.0 International License. To view the details of this license, please visit (https://creativecommons.org/licenses/ by-nc-nd/4.0/).",
+      "sectionPath": [
+        "**Nasal Mucosal Manifestation of Behçet's Disease**",
+        "**Discussion**",
+        "**References**"
+      ],
+      "sourceKind": "fulltext",
+      "rule": "C10_complete_license_variant"
+    },
+    {
+      "project": "BD202602",
+      "pmid": "29076891",
+      "text": "1040-8711 Copyright -2017 Wolters Kluwer Health, Inc. All rights reserved. www.co-rheumatology.com 3",
+      "sectionPath": [
+        "Anticoagulation and antiplatelet agents"
+      ],
+      "sourceKind": "fulltext",
+      "rule": "C09_complete_publisher_copyright_footer"
+    }
+  ]
+}

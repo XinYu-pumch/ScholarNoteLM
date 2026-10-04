@@ -1,0 +1,91 @@
+{
+  "version": "0.5.3",
+  "verifiedAt": "2026-09-19 16:28:25",
+  "unitTests": {
+    "passed": 42,
+    "output": "tmp/download-tests-v053.txt"
+  },
+  "httpFixture": {
+    "passed": true,
+    "version": "0.5.3",
+    "fixture": "/Users/yuxin/AI_developing/ScholarNoteLM/tmp/scheduler-http-b8avpbgd",
+    "transport": "real curl_cffi and httpx -> local HTTP servers",
+    "articles": 38,
+    "bloomHits": 17,
+    "bloomFirstEntryRequests": 34,
+    "bloomRetrySuccess": 17,
+    "nonBloomRequestsOnlyAfterBloom": true,
+    "perMirrorPeak": {
+      "62695": 1,
+      "62696": 1
+    },
+    "crossMirrorPeak": 2,
+    "slowStreamCancelled": true,
+    "slowStreamRequests": [
+      {
+        "role": "file",
+        "url": "http://127.0.0.1/slow.pdf",
+        "attempt": 1,
+        "status": 200,
+        "finalUrl": "http://127.0.0.1/slow.pdf",
+        "finalHost": "127.0.0.1",
+        "redirects": 0,
+        "headersSeconds": 0.003,
+        "firstByteSeconds": 0.003,
+        "kind": "interrupted",
+        "bytes": 500,
+        "seconds": 0.101,
+        "averageBytesPerSecond": 4950.5
+      }
+    ],
+    "externalRequests": 0,
+    "summary": {
+      "hits": 17,
+      "firstSuccess": 0,
+      "retrySuccess": 17,
+      "otherRecovery": 0,
+      "failed": 0,
+      "deferred": 0,
+      "pending": 0
+    }
+  },
+  "ui": {
+    "chromium": {
+      "passed": true,
+      "fixture": "/Users/yuxin/AI_developing/ScholarNoteLM/tmp/retry-ui-5cAnRY",
+      "checks": [
+        "real RPC manual retry filters current corpus, skips valid PDF and nonhit",
+        "bounded recovery report",
+        "waiting status, request count, active-batch button guard (UI fixture)",
+        "light and dark at 1440 and 1000px",
+        "enhanced remains opt-in"
+      ],
+      "errors": []
+    },
+    "webkit": {
+      "passed": true,
+      "fixture": "/Users/yuxin/AI_developing/ScholarNoteLM/tmp/retry-ui-jKk1P4",
+      "checks": [
+        "real RPC manual retry filters current corpus, skips valid PDF and nonhit",
+        "bounded recovery report",
+        "waiting status, request count, active-batch button guard (UI fixture)",
+        "light and dark at 1440 and 1000px",
+        "enhanced remains opt-in"
+      ],
+      "errors": []
+    }
+  },
+  "macOS": {
+    "built": true,
+    "installed": "dist/macos/ScholarNoteLM.app",
+    "signatureVerified": true,
+    "nativeVersionObserved": "0.5.3",
+    "corpusCountObserved": 38
+  },
+  "projectArtifacts": {
+    "hashesChecked": 73,
+    "changed": 0
+  },
+  "realProjectDownloadRun": false,
+  "windowsTested": false
+}

@@ -1,0 +1,566 @@
+
+.literature-workflow {
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  overflow: visible;
+  background: var(--panel);
+  display: grid;
+  grid-template-columns: minmax(0,1fr) auto;
+  grid-template-areas: "metrics action" "status tools";
+  gap: 4px 16px;
+  padding: 12px 16px;
+  margin: 0 0 14px
+}
+.workflow-top,.workflow-main-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px
+}
+.workflow-top h2 {
+  margin: 0;
+  font-size: 14px
+}
+.workflow-top p {
+  font-size: 12px;
+  color: var(--muted);
+  margin: 6px 0 0;
+  display: none
+}
+.workflow-main-actions .button {
+  white-space: nowrap
+}
+.workflow-steps {
+  padding: 0;
+  margin: 20px 0 16px;
+  list-style: none;
+  display: grid;
+  grid-template-columns: 1fr 20px 1fr;
+  align-items: center;
+  gap: 14px
+}
+.workflow-steps>div {
+  padding: 15px 16px;
+  background: var(--bg);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 0
+}
+.workflow-steps>div.current {
+  border-color: var(--accent);
+  background: var(--accent-soft)
+}
+.workflow-number {
+  color: var(--muted);
+  font-size: 12px;
+  letter-spacing: 1px
+}
+.workflow-step-title {
+  min-width: 0
+}
+.workflow-step-title strong {
+  display: flex;
+  gap: 7px;
+  align-items: center;
+  font-size: 13px
+}
+.workflow-step-title>span {
+  display: block;
+  margin-top: 6px;
+  font-size: 12px;
+  color: var(--muted)
+}
+.workflow-count {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  text-align: right;
+  margin-left: auto;
+  white-space: nowrap
+}
+.workflow-count b {
+  font-size: 22px;
+  font-weight: 500;
+  line-height: 1.2;
+  color: var(--accent)
+}
+.workflow-count span {
+  font-size: 12px;
+  color: var(--muted)
+}
+.workflow-arrow {
+  color: var(--muted)
+}
+.workflow-status {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  border-top: 1px solid var(--line);
+  padding: 12px 0;
+  font-size: 12px;
+  color: var(--muted)
+}
+.workflow-status>div {
+  display: flex;
+  gap: 12px;
+  flex-shrink: 0
+}
+.workflow-progress {
+  display: block;
+  width: 100%;
+  height: 4px;
+  border: 0;
+  accent-color: var(--accent);
+  margin-bottom: 12px
+}
+.workflow-progress::-webkit-progress-bar {
+  background: var(--line);
+  border-radius: 4px
+}
+.workflow-progress::-webkit-progress-value {
+  background: var(--accent);
+  border-radius: 4px
+}
+.workflow-maintenance {
+  border-top: 1px solid var(--line);
+  padding: 16px 0
+}
+.workflow-maintenance h3 {
+  font-size: 12px;
+  margin: 0 0 12px
+}
+.workflow-maintenance .project-file-tools {
+  margin: 12px 0;
+  padding: 12px 0;
+  flex-wrap: wrap
+}
+.workflow-maintenance .project-file-tools>div:first-child {
+  display: none
+}
+.workflow-maintenance>p {
+  margin-bottom: 0
+}
+.library-page .page-heading {
+  margin-bottom: 14px
+}
+.library-page .page-heading h1 {
+  margin-top: 0;
+  font-size: 26px;
+  line-height: 34px
+}
+.library-page .paper-meta>span:first-child {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 28%;
+  flex-shrink: 1
+}
+.library-page .paper-main>div:last-child {
+  min-width: 0
+}
+.library-page .paper-pdf-cell {
+  min-width: 0;
+  gap: 3px
+}
+.paper-file-links {
+  display: flex;
+  gap: 10px
+}
+.paper-file-links .text-button {
+  font-size: 12px
+}
+.library-page .paper-row {
+  padding-top: 10px;
+  padding-bottom: 10px
+}
+@media(max-width:1100px){
+.workflow-step-title>span {
+  display: none
+}
+.workflow-steps {
+  gap: 9px
+}
+.workflow-steps>div {
+  padding: 13px 10px;
+  gap: 8px
+}
+.workflow-number {
+  display: none
+}
+.workflow-status {
+  flex-wrap: wrap
+}}
+@media(max-width:650px){
+.workflow-top {
+  align-items: flex-start;
+  flex-wrap: wrap
+}
+.workflow-main-actions {
+  margin-left: auto
+}
+.workflow-steps {
+  grid-template-columns: 1fr;
+  gap: 8px
+}
+.workflow-arrow {
+  display: none
+}
+.workflow-count {
+  flex-direction: row;
+  align-items: baseline;
+  gap: 6px
+}
+.workflow-step-title>span {
+  display: block
+}
+.literature-workflow {
+  padding: 16px 16px 0
+}}
+.workflow-steps.has-index.has-xml {
+  grid-template-columns: 1fr 12px 1fr 12px 1fr 12px 1fr;
+  gap: 6px
+}
+.has-xml .workflow-step-title strong {
+  font-size: 12px
+}
+.has-xml .workflow-step-title>.artifact-state {
+  display: inline-block;
+  margin-top: 7px
+}
+.artifact-state {
+  font-size: 12px;
+  font-weight: 400;
+  border-radius: 5px;
+  padding: 3px 6px;
+  white-space: nowrap;
+  color: var(--muted);
+  background: var(--bg);
+  border: 1px solid var(--line)
+}
+.artifact-state[data-state=latest] {
+  color: var(--muted);
+  background: var(--subtle);
+  border-color: transparent
+}
+.artifact-state[data-state=outdated],.artifact-state[data-state=invalid] {
+  color: var(--ochre);
+  background: var(--ochre-tint)
+}
+.artifact-tags {
+  display: flex;
+  gap: 4px;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  max-width: 230px
+}@media(max-width:1250px){
+.workflow-steps.has-index.has-xml {
+  grid-template-columns: 1fr 1fr
+}
+.has-xml .workflow-arrow {
+  display: none
+}
+.has-xml .workflow-step-title>span {
+  display: block
+}}@media(max-width:650px){
+.workflow-steps.has-index.has-xml {
+  grid-template-columns: 1fr
+}}
+.preparation-grid {
+  display: grid;
+  grid-template-columns: repeat(4,minmax(0,1fr));
+  align-items: stretch;
+  gap: 12px;
+  margin: 12px 0 16px
+}
+.preparation-card {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  min-width: 0;
+  border: 1px solid var(--line);
+  padding: 12px;
+  border-radius: 7px;
+  background: var(--surface)
+}
+.preparation-card.current {
+  border-color: var(--accent);
+  box-shadow: none
+}
+.preparation-card header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  font-size: 13px
+}
+.preparation-card header>svg {
+  color: var(--accent);
+  flex-shrink: 0
+}
+.preparation-card header>span {
+  margin-left: auto;
+  font-size: 12px;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums
+}
+.preparation-metric {
+  display: flex;
+  gap: 8px;
+  align-items: baseline;
+  flex-wrap: wrap;
+  margin-top: 20px;
+  margin: 12px 0 0;
+  min-height: 28px
+}
+.preparation-metric b {
+  line-height: 1.2;
+  font-weight: 500;
+  letter-spacing: -1px;
+  font-variant-numeric: tabular-nums;
+  font-size: 24px;
+  color: var(--text)
+}
+.preparation-metric span {
+  font-size: 12px;
+  color: var(--muted)
+}
+.preparation-card>p {
+  font-size: 12px;
+  line-height: 1.7;
+  color: var(--muted);
+  margin: 6px 0 10px;
+  min-height: 0
+}
+.preparation-card>.artifact-state {
+  font-size: 12px;
+  margin-bottom: 12px
+}
+.preparation-card footer {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  border-top: 1px solid var(--line);
+  margin-top: auto;
+  width: 100%;
+  gap: 8px;
+  min-height: 34px;
+  padding-top: 10px
+}
+.preparation-card .button.compact {
+  padding: 7px 10px;
+  font-size: 12px;
+  min-height: 32px
+}
+.preparation-card .text-button {
+  font-size: 12px;
+  white-space: nowrap
+}
+.preparation-card footer svg {
+  flex-shrink: 0
+}
+.library-page .artifact-tags {
+  justify-items: stretch;
+  display: flex;
+  justify-content: flex-start;
+  min-width: 0;
+  text-align: left
+}
+.library-page .artifact-tags .artifact-state {
+  padding: 1px 4px;
+  font-size: 11px
+}
+.library-page .paper-pdf-cell {
+  min-width: 130px
+}@media(max-width:1250px){
+.preparation-grid {
+  grid-template-columns: repeat(2,minmax(0,1fr))
+}
+.preparation-card>p {
+  min-height: 19px
+}}@media(max-width:650px){
+.preparation-grid {
+  grid-template-columns: 1fr
+}
+.preparation-card {
+  padding: 16px
+}}
+.literature-workflow>.project-file-tools {
+  margin: 0 0 14px;
+  padding: 0;
+  border: 0
+}
+.preparation-card footer {
+  flex-wrap: wrap
+}
+.workflow-status>div {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap
+}
+.conversion-engine-control {
+  display: flex;
+  align-items: end;
+  gap: 16px;
+  margin: 12px 0
+}
+.conversion-engine-control label {
+  display: grid;
+  gap: 6px;
+  min-width: 220px;
+  font-size: 12px
+}
+.workflow-summary {
+  display: grid;
+  grid-template-columns: repeat(4,minmax(0,1fr));
+  grid-area: metrics;
+  margin: 0;
+  gap: 12px
+}
+.workflow-summary>div {
+  min-width: 0;
+  border-right: 1px solid var(--line);
+  padding-right: 12px
+}
+.workflow-summary>div:last-child {
+  border: 0
+}
+.workflow-summary strong {
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+  display: inline-block;
+  font-size: 24px;
+  line-height: 28px;
+  margin: 3px 0
+}
+.workflow-summary span,.workflow-summary small {
+  font-size: 12px;
+  color: var(--muted);
+  display: block
+}
+.workflow-summary span {
+  display: flex;
+  align-items: center;
+  gap: 6px
+}
+.workflow-controls {
+  border-top: 1px solid var(--line);
+  grid-area: tools;
+  border: 0
+}
+.workflow-controls>summary {
+  cursor: pointer;
+  font-size: 12px;
+  color: var(--muted);
+  padding: 4px 0;
+  text-align: right
+}
+.workflow-controls .project-file-tools {
+  margin: 0;
+  padding: 8px 0;
+  border: 0
+}
+.literature-workflow .workflow-status {
+  border-top: 0;
+  flex-wrap: wrap;
+  grid-area: status;
+  padding: 4px 0;
+  gap: 8px
+}
+.literature-workflow .vector-inline-note {
+  padding: 6px 0 12px;
+  font-size: 12px
+}
+.literature-workflow>p.quiet {
+  font-size: 12px;
+  margin: 4px 0
+}@media(max-width:650px){
+.workflow-summary {
+  grid-template-columns: 1fr 1fr;
+  gap: 16px
+}
+.workflow-summary>div:nth-child(2) {
+  border: 0
+}
+.workflow-top {
+  flex-wrap: wrap
+}
+.literature-workflow {
+  padding: 12px 14px 0
+}}.workflow-top {
+  grid-area: action;
+  justify-content: flex-end
+}.workflow-top>div {
+  display: none
+}.workflow-summary strong small {
+  display: inline;
+  font-size: 12px;
+  font-weight: 400
+}.workflow-summary>div>small {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis
+}.workflow-controls[open] {
+  grid-area: auto;
+  grid-column: 1 / -1;
+  grid-row: 3;
+  border: 0;
+  border-top: 1px solid var(--line)
+}.workflow-controls[open]>summary {
+  text-align: left;
+  padding: 10px 0
+}.literature-workflow>.wb-inline-error {
+  grid-column: 1 / -1
+}.library-page .paper-meta .journal {
+  max-width: 40%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap
+}.library-page .paper-tags {
+  display: inline-flex;
+  margin: 0 0 0 auto;
+  white-space: nowrap;
+  font-size: 12px
+}.library-page .paper-tags>span {
+  display: none
+}.library-page .paper-file-links .text-button {
+  min-height: 22px;
+  padding: 1px 0
+}.library-page .table-header,.library-page .paper-row {
+  grid-template-columns: 18px minmax(0,1fr) 44px 190px 32px
+}.library-page .heading-count {
+  line-height: 18px;
+  padding: 2px 6px
+}@media(max-width:700px){.literature-workflow{grid-template-areas:"metrics metrics" "status status" "tools action"}.workflow-summary{grid-template-columns:repeat(2,minmax(0,1fr))}.workflow-controls[open]{grid-row:4}.workflow-controls>summary{text-align:left}.library-page .table-header,.library-page .paper-row{grid-template-columns:18px minmax(0,1fr) 32px}.library-page .paper-meta>span:first-child{max-width:45%}.library-page .paper-meta .journal{max-width:45%}.library-page .paper-tags{margin-left:0}.library-page .paper-grid .paper-row{grid-template-columns:18px 1fr 32px}}
+
+
+
+/* Keep metrics, primary actions and secondary menus in stable, equal columns. */
+.literature-workflow {
+  grid-template-columns:minmax(0,1fr) auto;
+  grid-template-areas:"metrics metrics" "status action";
+  gap:16px 20px;
+  padding:20px;
+  overflow:visible;
+  container-type:inline-size;
+}
+.workflow-summary {gap:20px}
+.workflow-summary>div {display:flex;flex-direction:column;gap:4px;padding-right:20px}
+.workflow-summary>div:last-child {padding-right:0}
+.workflow-summary>div>strong {height:34px;line-height:34px;flex-shrink:0}
+.workflow-summary>div>footer {display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:8px;margin-top:auto;padding-top:14px}
+.workflow-summary>div>footer>.button {min-height:36px;flex:0 0 auto;font-size:12px;white-space:nowrap}
+.workflow-summary .project-file-tools {display:grid;gap:2px;margin:0;padding:0;border:0}
+.literature-workflow .workflow-status {margin:0}
+.literature-workflow>p {grid-column:1/-1}
+@media(max-width:700px){.literature-workflow{grid-template-areas:"metrics metrics" "status status" "action action"}.workflow-top{justify-content:flex-start}}
+@container(max-width:720px){
+ .workflow-summary{grid-template-columns:repeat(2,minmax(0,1fr));gap:20px 16px}
+ .workflow-summary>div:nth-child(2){border-right:0;padding-right:0}
+}
+
+
+.literature-workflow>.index-live-progress{grid-column:1/-1;padding:16px 0 0}

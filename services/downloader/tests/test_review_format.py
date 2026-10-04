@@ -1,0 +1,41 @@
+import json,sys,tempfile,unittest,zipfile
+from pathlib import Path
+sys.path.insert(0,str(Path(__file__).resolve().parents[1]))
+import review_format as f,review_export as x
+class FormatTests(unittest.TestCase):
+ def setUp(self):
+  self.nodes=[{'id':'a'*32,'serial':'1','title':'机制'},{'id':'b'*32,'serial':'1.1','title':'肠道菌群'},{'id':'c'*32,'serial':'1.2','title':'免疫调节'}]
+  self.unit={**self.nodes[0],'nodes':self.nodes,'leaves':self.nodes[1:],'ancestors':[],'siblings':[]}
+  self.evidence={n['id']:{'query':n['title'],'chunks':[{'id':'debug-id','text':n['title']+' evidence','metadata':{'pmid':'12345678','sourceKind':'fulltext','title':'Not in prompt','secretMeta':'omit'}}]} for n in self.nodes[1:]}
+  self.snapshot={'topic':'研究主题','config':{'language':'中文','requirements':'谨慎措辞'}}
+ def test_human_prompt_serial_ids_and_minimal_materials(self):
+  p=f.prompt(self.snapshot,self.unit,self.evidence)[1]['content']
+  for label in ('综述主题:','父级节点:','当前写作单元:','当前单元包含节点:','引用作用域:','文献素材:','写作要求:'):self.assertIn(label,p)
+  for excluded in ('debug-id','secretMeta','Not in prompt','b'*32,'chunk_id','source_kind'):self.assertNotIn(excluded,p)
+  shape=json.JSONDecoder().raw_decode(p.split('JSON output shape:')[1].strip())[0]
+  self.assertEqual(shape['unit_id'],'1');self.assertEqual([r['node_id'] for r in shape['sections']],['1','1.1','1.2'])
+ def test_public_json_round_trip_and_scopes(self):
+  response={'unit_id':'1','sections':[{'node_id':n['serial'],'title':n['title'],'markdown':'正文'} for n in self.nodes]}
+  internal=f.decode(response,self.unit)['sections'];out=f.public_part(self.unit,internal,self.evidence)
+  self.assertEqual(set(out),{'unit_id','sections','citation_validation','citation_scopes','reference_materials','markdown_content'})
+  self.assertEqual(out['citation_scopes']['1'],[]);self.assertEqual(out['reference_materials']['1.1']['12345678'],['肠道菌群 evidence']);self.assertNotIn('a'*32,json.dumps(out))
+  self.assertIn('## 1.2 免疫调节',out['markdown_content'])
+  response['sections'][1]['title']='wrong'
+  with self.assertRaises(ValueError):f.decode(response,self.unit)
+ def test_abstract_limitation_without_chunk_metadata(self):
+  self.evidence['b'*32]['chunks'][0]['metadata']['sourceKind']='pubmed_abstract'
+  p=f.prompt(self.snapshot,self.unit,self.evidence)[1]['content'];self.assertIn('仅有摘要',p);self.assertNotIn('sourceKind',p)
+ def test_html_markdown_and_script_escape(self):
+  text='**加粗**，*斜体* (PMID: 12345678)。\n\n<script>alert(1)</script>\n\n[bad](javascript:alert(1))'
+  html=x.html_document('Title',self.nodes,{'1.1':text},{'1.1':{'12345678':['</script><script>bad</script>']}},False)
+  self.assertIn('<strong>加粗</strong>',html);self.assertIn('<em>斜体</em>',html);self.assertNotIn('href="javascript:',html);self.assertNotIn('</script><script>bad</script>',html)
+  self.assertIn('data-scope="1.1"',html);self.assertIn('data-pmid="12345678"',html)
+ def test_word_headings_bold_lists_and_pmid_links(self):
+  import xml.etree.ElementTree as ET
+  with tempfile.TemporaryDirectory(dir=Path(__file__).resolve().parents[3]/'tmp') as tmp:
+   p=Path(tmp)/'test.docx';x.word_document(p,'Title',self.nodes,{'1.1':'**粗体**与*斜体* (PMID: 12345678)\n\n- 一\n- 二'},False)
+   with zipfile.ZipFile(p) as z:
+    xml=z.read('word/document.xml').decode();ET.fromstring(xml)
+    self.assertIn('Heading2',xml);self.assertIn('ListBullet',xml);self.assertIn('<w:b',xml);self.assertIn('<w:i',xml)
+    self.assertIn('https://pubmed.ncbi.nlm.nih.gov/12345678/',z.read('word/_rels/document.xml.rels').decode())
+if __name__=='__main__':unittest.main()

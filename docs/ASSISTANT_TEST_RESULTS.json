@@ -1,0 +1,15 @@
+{
+  "passed": true,
+  "checks": [
+    "True SSE updates before completion; reasoning; canonical MeSH verification; no PubMed probing or token caps",
+    "Independent conversations, branch snapshots, edited/regenerated branches preserve originals",
+    "Connection test rejects reasoning-only output; chat still preserves received reasoning",
+    "12-second reasoning stream survives configured 10-second idle timeout",
+    "Cancellation promptly releases chat lock; partial reasoning preserved; immediate resend works",
+    "Truncated stream persists partial answer and exposes recoverable error",
+    "200 rapid SSE deltas coalesced; final text and final update exact; transport timestamps included",
+    "Query saved while stream is still running; no chat-wide database lock"
+  ],
+  "requests": 10,
+  "model": "Local controlled SSE fixture; no user credentials used"
+}

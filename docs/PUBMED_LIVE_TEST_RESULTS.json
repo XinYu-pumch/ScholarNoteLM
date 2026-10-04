@@ -1,0 +1,11 @@
+{
+  "passed": true,
+  "checks": [
+    "Live ESearch + EFetch, 3 records, complete PMID/title/XML metadata",
+    "Invalid PubMed field fails without replacing the successful run",
+    "Successful zero-hit search replaces current collection; old snapshot retained",
+    "Full retrieval mode with an exact PMID completes without truncation"
+  ],
+  "matched": 6102,
+  "sampleTitle": "Microglia replacement halts the progression of microgliopathy in mice and humans."
+}

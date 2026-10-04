@@ -1,0 +1,34 @@
+{
+  "fixture": "/Users/yuxin/AI_developing/ScholarNoteLM/tmp/source-cache-live-1789853749332257000",
+  "report": "/Users/yuxin/AI_developing/ScholarNoteLM/tmp/source-cache-live-1789853749332257000/workspace/Sample/logs/dd087b55ae4e42d2bd6d2110773bea84/download_report.json",
+  "wallSeconds": 40.061,
+  "counts": {
+    "success": 14,
+    "failed": 6
+  },
+  "sourceCacheSuccess": 14,
+  "scihubSuccessByBloom": {
+    "hit": 9,
+    "nonHit": 5
+  },
+  "sources": {
+    "Sci-Hub": 9,
+    "Sci-Net": 5
+  },
+  "verified": [
+    "28956703",
+    "20566854",
+    "31221858",
+    "29716793",
+    "31551115",
+    "31460832",
+    "31777065",
+    "32340570",
+    "33674230",
+    "36630917",
+    "35176228",
+    "40745056",
+    "40811558",
+    "37380774"
+  ]
+}

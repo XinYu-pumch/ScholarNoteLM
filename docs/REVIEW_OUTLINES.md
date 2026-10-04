@@ -1,0 +1,94 @@
+# 综述工作区：大纲与正文
+
+综述工作台以独立工作区管理综述，工作区内部通过「综述大纲 / 综述撰写」标签切换。每个工作区只有一份当前大纲，无需管理版本；标题深度仍不限。
+
+## 大纲
+
+- 工作区名称为 1–64 个英文字母或数字，不区分大小写，不接受 Windows 保留名。描述可以中文填写。
+- 沿用 BADR 大纲提示词，向当前启用的 LLM 发送主题、额外要求和当前 XML 中所有可用标题、摘要。
+- 完整提示词可单独导出；生成支持取消、推理活动计数及严格 CSV 校验。
+- CSV 为 `Serial,Title` 两列，父节点先于子节点，同级从 1 连续编号；最多 1000 个标题，不限制深度。
+- 支持编辑、增加、移动、删除标题分支。内部稳定节点 ID 独立于显示编号，避免插入或重排标题后正文错位。
+- 重新生成成功才替换当前大纲，失败或取消保留已有大纲。“恢复默认”恢复本工作区最初的 `generated.csv`。
+- 旧版工作区首次打开时将最后版本的大纲文件复制到工作区根目录。`versions/` 原文件以及其中的检索实验保留，不再显示版本管理入口。
+
+## 检索与两步撰写（2026-09-28 更新）
+
+1. 完整树确定终末标题，中文原文直接用于 query，不翻译、不拼接父标题。
+2. 复用现有段落分块，全文优先；没有 PDF 的文章使用 PubMed 摘要，有 PDF 但 Markdown 尚未就绪的文章等待转换。参考文献在 Markdown 清洗阶段移除；召回排除少于 100 字符的 heading，保留长 heading、短正文和图注。
+3. 召回使用已保存且验证成功的 Embedding API（例如 BGE-M3），按余弦相似度排序。复用 `vectors/chunks.sqlite3` 中同模型、同输入的已有向量，只请求缺失向量与 query。不提供重排。
+4. Embedding 只接收 chunk 原文，不拼接论文标题或章节路径。完整表格、图片及邻近文字按位置关联补入材料池，按 ID 去重。
+5. 每个终末标题直接召回撰写页设置的 topK 块，不设置额外候选池；不足时不重复填数。
+6. 按 BADR 混合深度规则分配写作单元：同一父节点的直接子标题全部为终末节点时合并；混合深度的独立终末节点单独处理。所有叶节点只分配一次。
+
+### 第一步：准备综述提示词
+
+- 只做召回、关联图表收集与提示词装配；不调用撰写 LLM，也不要求先配置撰写模型。
+- 每个写作单元保存 `review_parts/prompt_section_<标题编号>.json` 共享材料包；TXT 仅作阅读预览，图表保存在 `review_parts/resources/`。
+- 每个终末标题独立检索，在单元内按 chunk ID 和资源 ID 去重；所有终末标题共享证据池。检索来源、排名、文献版本和位置明确记录，来源关系不限制其他子标题使用。
+- 单次请求字符预算默认关闭。主动开启后，超预算要求提高或关闭预算，保持联合撰写，不自动拆分或截断材料。
+- `prompts/<稳定节点ID>.json` 保存证据、文件清单、校验值和输入指纹。重复点击复用最新结果，取消后可继续。
+
+### 第二步：生成综述
+
+- 检查所有所需提示词是否已准备且最新；从 JSON 材料包读取并校验结构和外置资源指纹，发送前补入完整内容。不再次召回或加载重排模型。
+- 默认 LLM 并发 3，允许任意正整数，不设置人工上限；实际活跃请求不超过待生成写作单元数。每个终末标题默认最多 7 块证据。
+- 返回 JSON 按大纲编号和标题校验，并映射回内部稳定节点 ID；检查缺失、重复、越界和引用范围。父标题引导段不分配独立 PMID 引用。输出使用证据 ID，经程序校验后转换为 PMID；结构或引用失败时用同一共享池联合修复一次，仍失败不发布。
+- 保存 `review_parts/section_<标题编号>.json`，含去重证据池、图表池、检索来源，以及各节点原始证据 ID 引用和转换后的 PMID 正文。详见 [共享写作材料包](review-shared-pool.md)。
+- 大纲、源文献、相关参数或召回模型变化后提示词标记为待更新，需先执行第一步；仅修改并发数不使内容过期。正式 JSON 或外置资源被改动时要求重新准备；编辑 TXT 预览不改变实际请求。
+- 正文始终按完整大纲顺序装配，不按异步完成顺序拼接。取消或失败保留已完成正文，旧正文显示其当时的证据。
+- 两步均支持取消和继续；进行期间禁止 app 修改大纲。源文献在生成中变化时，不发布受影响结果。
+
+## API 配置、验证和限速
+
+- 设置 → Embedding 模型：配置服务地址、模型、密钥，发送一次真实请求验证非空、有限、维度一致的向量。成功验证绑定地址/模型/版本/密钥；改动这些字段需要重新验证。测试草稿不会代替保存配置。
+- 设置 → Embedding 模型 → 高级请求参数：设置 RPM / TPM；在同页启用已验证的配置。索引和查询使用同一个活动配置，不再有“召回与重排”页面。
+- 查询和批量文献向量化共享跨进程限速数据库，按服务/模型/凭据隔离。默认 60 RPM / 120000 估算 TPM 是应用保守值，不代表账号配额。输入 UTF-8 字节数加少量开销作为保守估计，响应有 usage 时按实际用量修正。
+- 保持完整文本，将批次按估算预算拆成多个请求，不改变文本块。429 遵循 Retry-After，并指数退避；其他服务端临时错误和网络故障有限重试。等待与 HTTP 请求可取消。
+- BADR 的对应实现按批次串行请求；这里补充跨任务共享限速。硅基流动 Embedding 同时受 RPM、TPM 约束，具体模型/账号配额以控制台为准：[官方限速说明](https://api-docs.siliconflow.cn/docs/userguide/faqs/rate-limit-and-upgradation)。
+- BGE-M3 输入上限是 8192 tokens，不能把字符数当 token 数；超限明确报错，不请求自动截断：[官方 Embedding 接口](https://api-docs.siliconflow.cn/docs/api/embeddings-post)。
+
+引用范围校验不保证每个论断都被材料充分支持，研究者仍需核对。
+
+## 文件与导出
+
+```text
+项目/review/GutReview2026/
+  review.json                 # 工作区描述与迁移信息
+  outline-state.json          # 主题、要求、生成状态与编辑修订号
+  outline.csv                 # 当前完整大纲
+  generated.csv               # 最初生成的大纲，用于恢复
+  nodes.json                  # 稳定节点 ID
+  source.xml / abstracts.txt  # 大纲生成的摘要来源
+  prompt.txt / prompt.json    # 大纲完整提示词
+  response.txt                # 大纲原始响应
+  writing-settings.json       # 正文参数
+  writing-job.json            # 任务进度
+  retrieval/                  # 原始标题 query 与各终末标题的选中文本块
+  prompts/                    # 提示词文件清单、校验值、准备状态
+  review_parts/               # prompt_section_*.json、TXT 预览、resources 与 section_*.json
+  sections/                   # 写作单元正文、证据、输入指纹
+  logs/<任务ID>/              # 冻结输入、完整提示词、模型响应、修复记录、日志
+  exports/                    # Markdown、Word、HTML
+  versions/                   # 若从旧版迁移，保留原目录；不再创建新版本
+```
+
+导出沿用 BADR 的完整大纲装配。HTML 采用目录、正文、引用详情三栏，支持 Markdown 排版，点击 PMID 显示该小节素材和 PubMed 链接；同一单元的终末小节可查看整个共享池中该 PMID 的素材和关联图表，其他单元的材料不混入。Word 使用 python-docx，封面标题与生成时间、分页、层级标题、粗斜体、列表和表格；参考文献仅使用实际引用的 PMID 与 PubMed 链接。HTML 与 Word 读取同一份规范化章节。未完成或过期内容导出时明确标记为草稿。删除工作区会移至项目 `metadata/review-trash/`。
+
+## 验证命令
+
+```sh
+runtimes/retrieval/bin/python -m unittest discover -s services/downloader/tests -p 'test_review*.py'
+runtimes/retrieval/bin/python scripts/test-review-integration.py
+runtimes/retrieval/bin/python scripts/test-review-writing-integration.py
+PLAYWRIGHT_BROWSERS_PATH="$PWD/runtimes/playwright" TMPDIR="$PWD/tmp" runtimes/node/bin/node scripts/test-review-writing-ui.mjs
+scripts/npm-local.sh run build
+```
+
+集成测试使用独立临时项目、本机 Embedding 和 LLM fixture，不使用用户 API 密钥，验证两步流程、原文 query、提示词文件与实际请求一致性、取消和装配。当前代码不再包含本地重排测试或模型。界面测试读取现有 gut 大纲，不发起实际撰写。Windows 尚未实机验证。
+
+## BADR 格式对齐验证
+
+使用用户提供的 `zmj0606/review_parts_cn/section_1.json` 作为样例生成 HTML 和 Word，完成浏览器 PMID 点击验证及 Word → PDF 排版检查。自动化测试覆盖面向用户的 JSON 精简结构、数字章节编号、严格节点/标题校验、引用作用域、HTML 安全转义、Word 层级/样式/链接以及完整的两阶段流程。
+
+提示词格式版本改变会将旧提示词标记为待更新；再次准备会复用仍匹配的检索缓存。既有正文与文件保留，不在升级时自动覆盖用户结果。BADR 原实现将单块素材截到 3000 字符；这里保留当前完整素材与字符预算检查，避免无提示丢失证据。

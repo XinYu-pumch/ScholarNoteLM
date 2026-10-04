@@ -1,0 +1,116 @@
+import { chromium, expect } from '@playwright/test';
+import { readFile, writeFile, mkdir, rm, readdir } from 'node:fs/promises';
+import ts from 'typescript';
+
+const stateFile = 'data/prototype/state.json';
+const original = await readFile(stateFile, 'utf8').catch(() => null);
+const source = await readFile('apps/desktop/src/data.ts', 'utf8');
+const code = ts.transpileModule(source, { compilerOptions: { module: ts.ModuleKind.ESNext, target: ts.ScriptTarget.ES2022 } }).outputText;
+const { seedState } = await import('data:text/javascript;base64,' + Buffer.from(code).toString('base64'));
+await mkdir('data/prototype', { recursive: true });
+await writeFile(stateFile, JSON.stringify(seedState));
+const browser = await chromium.launch({ headless: true });
+const page = await browser.newPage({ viewport: { width: 1440, height: 1000 }, acceptDownloads: true });
+const errors = [];
+const checks = [];
+page.setDefaultTimeout(10000);
+page.on('pageerror', e => errors.push(e.message));
+const nav = label => page.getByRole('navigation', { name: '主导航' }).getByRole('button', { name: label, exact: true });
+const saved = () => expect(page.locator('.save-state')).toContainText('已保存到本地');
+try {
+  await page.goto('http://127.0.0.1:1420');
+  await expect(page.getByRole('heading', { name: '文献库' })).toBeVisible();
+  await page.getByRole('textbox', { name: '搜索文献', exact: true }).fill('TREM2');
+  await expect(page.locator('.paper-row')).toHaveCount(1);
+  await page.getByRole('combobox', {name:'文献状态',exact:true}).click();
+  await page.getByRole('option', {name:'仅摘要',exact:true}).click();
+  await expect(page.getByText('没有找到匹配的文献', { exact: true })).toBeVisible();
+  await page.getByRole('button', { name: '清除筛选' }).click();
+  await expect(page.locator('.paper-row')).toHaveCount(12);
+  await page.getByRole('button', { name: '收藏 DEMO-002', exact: true }).click();
+  await saved(); await page.reload();
+  await expect(page.getByRole('button', { name: '取消收藏 DEMO-002', exact: true })).toBeVisible();
+  checks.push('文献搜索、状态筛选、收藏与刷新持久化');
+
+  await nav('文献问答').click();
+  await page.getByRole('textbox', { name: '研究问题' }).fill('目前的证据还缺少哪些部分？');
+  await page.getByRole('button', { name: '发送问题' }).click();
+  await expect(page.locator('.message.assistant')).toContainText('当前资料不足以形成可靠结论');
+  await page.locator('.citation-list button').first().click();
+  await expect(page.locator('.quote-preview')).toBeVisible();
+  await page.locator('.quote-preview').getByRole('button', { name: '打开阅读器' }).click();
+  await page.getByRole('textbox', { name: '阅读笔记' }).fill('Smoke test: source-linked note');
+  await saved();
+  checks.push('演示问答、引用证据、来源阅读与笔记保存');
+
+  await nav('综述工作台').click();
+  await page.getByRole('textbox', { name: '章节正文' }).fill('保留我的人工编辑');
+  await page.getByRole('button', { name: '演示生成', exact: true }).click();
+  await page.getByRole('textbox', { name: '章节正文' }).fill('生成期间继续编辑');
+  await expect(page.getByRole('textbox', { name: '章节正文' })).toHaveValue(/生成期间继续编辑[\s\S]*演示生成/);
+  await page.getByRole('button', { name: '编辑大纲', exact: true }).click();
+  await page.getByRole('button', { name: '添加章节', exact: true }).click();
+  await page.getByRole('textbox', { name: '大纲标题 7', exact: true }).fill('测试新增章节');
+  await page.getByRole('button', { name: '保存大纲', exact: true }).click();
+  await expect(page.getByRole('navigation', { name: '文章章节' }).getByText('测试新增章节')).toBeVisible();
+  const beforeExports = await readdir('data/prototype/exports').catch(() => []);
+  await page.getByRole('button', { name: '导出草稿', exact: true }).click();
+  await expect(page.getByRole('status')).toContainText('已导出到项目');
+  const exportedName = (await readdir('data/prototype/exports')).find(n => !beforeExports.includes(n));
+  expect(exportedName).toBeTruthy();
+  const exported = await readFile('data/prototype/exports/' + exportedName, 'utf8');
+  expect(exported).toContain('生成期间继续编辑');
+  expect(exported).toContain('测试新增章节');
+  await saved();
+  checks.push('综述编辑、大纲调整、生成并发保护与真实 Markdown 导出');
+
+  await nav('文献库').click();
+  await page.getByRole('checkbox', { name: '选择 DEMO-007', exact: true }).check();
+  await page.getByRole('button', { name: '演示处理', exact: true }).click();
+  await page.locator('.sidebar-bottom').getByRole('button', { name: '任务中心' }).click();
+  await page.getByRole('button', { name: '取消', exact: true }).click();
+  await expect(page.locator('.task-body')).toContainText('已取消');
+  await page.getByRole('button', { name: '重试', exact: true }).click();
+  await expect(page.locator('.task-body')).toContainText('演示完成', { timeout: 10000 });
+  checks.push('后台模拟任务取消、重试、完成');
+
+  await page.getByRole('button', { name: '创建项目', exact: true }).click();
+  await page.getByLabel('项目名称', { exact: true }).fill('验证项目隔离');
+  await page.getByRole('dialog').getByRole('button', { name: '创建项目', exact: true }).click();
+  await expect(page.getByText('新的研究，从第一篇文献开始', { exact: true })).toBeVisible();
+  await nav('综述工作台').click();
+  await expect(page.getByRole('textbox', { name: '章节正文' })).toHaveValue('');
+  await nav('文献库').click();
+  await page.getByRole('button', { name: '检索文献', exact: true }).click();
+  await page.getByRole('button', { name: '搜索示例', exact: true }).click();
+  await page.locator('.search-result input').first().check();
+  await page.getByRole('button', { name: '添加到文献库', exact: true }).click();
+  await expect(page.locator('.paper-row')).toHaveCount(1);
+  await page.locator('input[type=file]').setInputFiles({ name: 'sample.xml', mimeType: 'text/xml', buffer: Buffer.from('<PubmedArticleSet><PubmedArticle><MedlineCitation><PMID>123456789</PMID><Article><ArticleTitle>Imported metadata check</ArticleTitle><Abstract><AbstractText>Local metadata only.</AbstractText></Abstract><Journal><Title>Example Journal</Title><JournalIssue><PubDate><Year>2025</Year></PubDate></JournalIssue></Journal></Article></MedlineCitation></PubmedArticle></PubmedArticleSet>') });
+  await expect(page.locator('.paper-row')).toHaveCount(2);
+  await saved();
+  checks.push('项目创建与隔离、示例检索添加、真实 XML 元数据导入');
+
+  await page.getByRole('button', { name: '切换主题', exact: true }).click();
+  await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark');
+  await saved(); await page.reload();
+  await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark');
+  await saved();
+  await page.screenshot({ path: 'docs/screenshots/dark.png' });
+  await page.getByRole('button', { name: '切换主题', exact: true }).click();
+  await page.setViewportSize({ width: 390, height: 844 });
+  await expect(page.getByRole('button', { name: '打开导航', exact: true })).toBeVisible();
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+  await page.getByRole('button', { name: '打开导航', exact: true }).click();
+  await nav('文献问答').click();
+  await expect(page.getByRole('textbox', { name: '研究问题' })).toBeVisible();
+  await expect(page.locator('.sidebar')).toHaveCSS('left', '-230px');
+  await page.screenshot({ path: 'docs/screenshots/mobile.png' });
+  checks.push('深色主题持久化与窄窗口导航/布局');
+  expect(errors).toEqual([]);
+  await saved();
+  console.log(JSON.stringify({ passed: checks, pageErrors: errors }, null, 2));
+} finally {
+  await browser.close();
+  if (original) { await writeFile(stateFile, original); } else { await rm(stateFile, { force: true }); }
+}

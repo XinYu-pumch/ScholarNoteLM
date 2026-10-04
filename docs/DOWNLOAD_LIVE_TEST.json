@@ -1,0 +1,89 @@
+{
+  "passed": true,
+  "batch": {
+    "config": {
+      "attempts": 3,
+      "bloom": "data/reference/download/scihub.bloom",
+      "email": "",
+      "enhanced": false,
+      "fastOa": true,
+      "mirrors": [],
+      "pmcConcurrency": 5,
+      "timeout": 20,
+      "unpaywallConcurrency": 10
+    },
+    "control": "",
+    "counts": {
+      "success": 1
+    },
+    "created": 1789788865.160467,
+    "elapsed": 4.051024583168328,
+    "error": "",
+    "id": "9f8a393d7cc24a9988d88fdcc022bf09",
+    "items": [
+      {
+        "bytes": 2111028,
+        "error": "",
+        "pmid": "27019327",
+        "source": "PMC S3",
+        "stage": "pmc_s3",
+        "state": "success",
+        "title": "Commensal microbiota affects ischemic stroke outcome by regulating intestinal γδT cells"
+      }
+    ],
+    "owner": 0,
+    "project": "pdf-verification",
+    "reportPath": "/Users/yuxin/AI_developing/ScholarNoteLM/tmp/pdf-live-verification/data/projects/pdf-verification/downloads/9f8a393d7cc24a9988d88fdcc022bf09/download_report.txt",
+    "snapshot": "1789788864457952000-71518",
+    "state": "done"
+  },
+  "asset": {
+    "batch": "9f8a393d7cc24a9988d88fdcc022bf09",
+    "bytes": 2111028,
+    "downloaded": 1789788869.389499,
+    "exists": true,
+    "expectedMd5": "8a84a83ba61a0aa6ae43ca0d1a20ea69",
+    "isManuscript": true,
+    "isRetracted": false,
+    "key": "PMC4860105.1/PMC4860105.1.pdf",
+    "license": "TDM",
+    "md5": "8a84a83ba61a0aa6ae43ca0d1a20ea69",
+    "metadata": {
+      "citation": "Nat Med. Author manuscript; Available in PMC 2016 Sep 28.",
+      "doi": "10.1038/nm.4068",
+      "is_historical_ocr": false,
+      "is_manuscript": true,
+      "is_pmc_openaccess": true,
+      "is_retracted": false,
+      "license_code": "TDM",
+      "media_urls": [
+        "s3://pmc-oa-opendata/PMC4860105.1/NIHMS761041-supplement-Supplementary_Data.xlsx?md5=8674d4d667da650a25442be4376d4510",
+        "s3://pmc-oa-opendata/PMC4860105.1/NIHMS761041-supplement-Supplementary_Information_Titles.docx?md5=6165de6cd955cfa67ce49a7d30947a7f",
+        "s3://pmc-oa-opendata/PMC4860105.1/NIHMS761041-supplement-Supplementary_Text_and_Figures.pdf?md5=ba3992c3a6dc4869c9d4b33404562e01",
+        "s3://pmc-oa-opendata/PMC4860105.1/nihms761041f1.jpg?md5=46b80467cb4d7c1fa96abdf5923d5424",
+        "s3://pmc-oa-opendata/PMC4860105.1/nihms761041f2.jpg?md5=68026f5e080c1acd517888c90983a305",
+        "s3://pmc-oa-opendata/PMC4860105.1/nihms761041f3.jpg?md5=0f6c51c922232086f5d0f3d11c919789",
+        "s3://pmc-oa-opendata/PMC4860105.1/nihms761041f4.jpg?md5=ed9b0a4181a95164c2ed1c99e58ab4cf",
+        "s3://pmc-oa-opendata/PMC4860105.1/nihms761041f5.jpg?md5=ecaa794a7f07617f83a0c6915ac8fdc0",
+        "s3://pmc-oa-opendata/PMC4860105.1/nihms761041f6.jpg?md5=39415f852f63fa1ae495a264c4e3881a"
+      ],
+      "mid": "NIHMS761041",
+      "pdf_url": "s3://pmc-oa-opendata/PMC4860105.1/PMC4860105.1.pdf?md5=8a84a83ba61a0aa6ae43ca0d1a20ea69",
+      "pmcid": "PMC4860105",
+      "pmid": 27019327,
+      "text_url": "s3://pmc-oa-opendata/PMC4860105.1/PMC4860105.1.txt?md5=0e33f6b3313ed9ae3585c232846d6512",
+      "title": "Commensal microbiota affects ischemic stroke outcome by regulating intestinal γδT cells",
+      "version": 1,
+      "xml_url": "s3://pmc-oa-opendata/PMC4860105.1/PMC4860105.1.xml?md5=4e5cfedacbb6379a1b852fa2a5946e3b"
+    },
+    "pages": 27,
+    "path": "data/projects/pdf-verification/papers/27019327/27019327.pdf",
+    "pmcid": "PMC4860105",
+    "pmid": "27019327",
+    "selectionReason": "唯一可用版本",
+    "sha256": "fba7e241a44f9b447368f4f284e49b9c3ea1460cbcd6aa108349f52777360811",
+    "source": "PMC S3",
+    "url": "https://pmc-oa-opendata.s3.amazonaws.com/PMC4860105.1/PMC4860105.1.pdf",
+    "version": 1
+  }
+}

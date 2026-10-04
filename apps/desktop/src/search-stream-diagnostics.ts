@@ -1,0 +1,10 @@
+/** Bounded, in-memory timing data only. Never stores prompts, replies or credentials. */
+type Trace={streamId:string;startedAt:number;received:number;rendered:number;lastReceivedAt:number;lastRenderedAt:number;maxReceiveGapMs:number;maxTransportMs:number;maxRenderDelayMs:number;state:'streaming'|'done'|'failed';samples:{sequence:number;receivedAt:number;transportMs:number;renderDelayMs?:number}[]};
+const traces=new Map<string,Trace>();
+export function beginSearchTrace(streamId:string){traces.set(streamId,{streamId,startedAt:Date.now(),received:0,rendered:0,lastReceivedAt:0,lastRenderedAt:0,maxReceiveGapMs:0,maxTransportMs:0,maxRenderDelayMs:0,state:'streaming',samples:[]});while(traces.size>20)traces.delete(traces.keys().next().value!);}
+export function receiveSearchTrace(streamId:string,emittedAt?:number){const t=traces.get(streamId);if(!t)return 0;const now=Date.now();if(t.lastReceivedAt)t.maxReceiveGapMs=Math.max(t.maxReceiveGapMs,now-t.lastReceivedAt);const transportMs=emittedAt?Math.max(0,now-emittedAt):0;t.maxTransportMs=Math.max(t.maxTransportMs,transportMs);t.lastReceivedAt=now;t.received++;t.samples.push({sequence:t.received,receivedAt:now,transportMs});if(t.samples.length>120)t.samples.shift();return t.received;}
+export function renderSearchTrace(streamId:string,sequence:number){const t=traces.get(streamId),sample=t?.samples.find(s=>s.sequence===sequence);if(!t||!sample||sample.renderDelayMs!==undefined)return;sample.renderDelayMs=Date.now()-sample.receivedAt;t.rendered++;t.lastRenderedAt=Date.now();t.maxRenderDelayMs=Math.max(t.maxRenderDelayMs,sample.renderDelayMs);}
+export function endSearchTrace(streamId:string,failed=false){const t=traces.get(streamId);if(t)t.state=failed?'failed':'done';}
+export function searchStreamDiagnostics(){return structuredClone([...traces.values()]);}
+// Read on demand from desktop devtools; timing metadata stays on this computer.
+if(typeof window!=='undefined')Object.defineProperty(window,'scholarSearchStreamDiagnostics',{value:searchStreamDiagnostics,configurable:true});

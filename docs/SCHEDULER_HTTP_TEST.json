@@ -1,0 +1,44 @@
+{
+  "passed": true,
+  "version": "0.5.3",
+  "fixture": "/Users/yuxin/AI_developing/ScholarNoteLM/tmp/scheduler-http-qurt92cc",
+  "transport": "real curl_cffi and httpx -> local HTTP servers",
+  "articles": 38,
+  "bloomHits": 17,
+  "bloomFirstEntryRequests": 34,
+  "bloomRetrySuccess": 17,
+  "nonBloomRequestsOnlyAfterBloom": true,
+  "perMirrorPeak": {
+    "61037": 1,
+    "61036": 1
+  },
+  "crossMirrorPeak": 2,
+  "slowStreamCancelled": true,
+  "slowStreamRequests": [
+    {
+      "role": "file",
+      "url": "http://127.0.0.1/slow.pdf",
+      "attempt": 1,
+      "status": 200,
+      "finalUrl": "http://127.0.0.1/slow.pdf",
+      "finalHost": "127.0.0.1",
+      "redirects": 0,
+      "headersSeconds": 0.003,
+      "firstByteSeconds": 0.003,
+      "kind": "interrupted",
+      "bytes": 500,
+      "seconds": 0.101,
+      "averageBytesPerSecond": 4950.5
+    }
+  ],
+  "externalRequests": 0,
+  "summary": {
+    "hits": 17,
+    "firstSuccess": 0,
+    "retrySuccess": 17,
+    "otherRecovery": 0,
+    "failed": 0,
+    "deferred": 0,
+    "pending": 0
+  }
+}

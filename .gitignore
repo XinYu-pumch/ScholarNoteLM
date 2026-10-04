@@ -1,0 +1,25 @@
+node_modules/
+runtimes/
+environments/
+cache/
+tmp/
+logs/
+dist/
+models/
+packages/
+installers/
+data/
+backups/
+apps/desktop/src-tauri/target/
+apps/desktop/src-tauri/gen/
+.DS_Store
+__pycache__/
+*.pyc
+
+# Local settings contain API keys; project data lives in the user's workspace.
+config/
+workspace/
+
+# Local reference captures and personal notes
+ref/
+未命名文件夹/

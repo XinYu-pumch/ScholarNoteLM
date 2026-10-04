@@ -1,0 +1,90 @@
+
+.turn-index {
+  position: relative;
+  flex-shrink: 0
+}
+.turn-index-panel {
+  position: absolute;
+  right: 0;
+  top: calc(100% + 8px);
+  z-index: 100;
+  width: min(320px,75vw);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--surface);
+  box-shadow: var(--shadow);
+  padding: 12px;
+  color: var(--text);
+  text-align: left
+}
+.turn-index-panel header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 13px;
+  margin-bottom: 8px
+}
+.turn-index-panel>input {
+  width: 100%;
+  box-sizing: border-box;
+  margin-bottom: 8px
+}
+.turn-index-panel nav {
+  max-height: min(420px,50vh);
+  overflow: auto
+}
+.turn-index-panel nav button {
+  display: flex;
+  gap: 10px;
+  text-align: left;
+  width: 100%;
+  padding: 10px 8px;
+  border-radius: 6px;
+  color: inherit;
+  font-size: 12px;
+  line-height: 1.5
+}
+.turn-index-panel nav button>span {
+  color: var(--muted);
+  font-variant-numeric: tabular-nums
+}
+.turn-index-panel nav button>div {
+  min-width: 0;
+  overflow-wrap: anywhere
+}
+.turn-index-panel small {
+  display: block;
+  color: var(--muted);
+  font-size: 12px;
+  margin-top: 3px
+}
+.turn-index-panel nav button:hover,.turn-index-panel nav button[aria-current] {
+  background: var(--accent-soft);
+  color: var(--accent)
+}
+.turn-latest {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  width: 100%;
+  border-top: 1px solid var(--line);
+  margin-top: 8px;
+  padding: 10px 0 0;
+  color: var(--accent);
+  font-size: 12px
+}
+.turn-located {
+  animation: turn-locate 1.6s ease-out
+}@keyframes turn-locate{
+from {
+  background-color: var(--accent-soft)
+}
+to {
+  background-color: transparent
+}}@media(prefers-reduced-motion:reduce){
+.turn-located {
+  animation: none;
+  outline: 1px solid var(--accent)
+}}
+

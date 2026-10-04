@@ -1,0 +1,31 @@
+import assert from 'node:assert/strict';
+import {readFile} from 'node:fs/promises';
+import ts from 'typescript';
+const source=await readFile(new URL('../apps/desktop/src/query-cache.ts',import.meta.url),'utf8');
+const js=ts.transpileModule(source,{compilerOptions:{module:ts.ModuleKind.ESNext,target:ts.ScriptTarget.ES2022}}).outputText;
+const cache=await import('data:text/javascript;base64,'+Buffer.from(js).toString('base64'));
+const defer=()=>{let resolve;const promise=new Promise(r=>resolve=r);return {promise,resolve};};
+const key=(name,project='a')=>cache.queryKey(name,{project});
+let calls=0;const gate=defer();const load=()=>{calls++;return gate.promise;};
+const a=cache.read(key('same'),load),b=cache.read(key('same'),load);gate.resolve({value:1});
+assert.deepEqual(await a,await b);assert.equal(calls,1,'identical in-flight reads coalesce');
+let old=defer(),fresh=defer(),index=0;const race=()=>++index===1?old.promise:fresh.promise;
+const first=cache.read(key('race'),race);cache.invalidate('a',['race']);const second=cache.read(key('race'),race);
+old.resolve('obsolete');fresh.resolve('current');assert.equal(await first,'current');assert.equal(await second,'current');assert.equal(cache.peek('race',{project:'a'}),'current');
+await cache.read(key('isolation','a'),async()=>1);await cache.read(key('isolation','b'),async()=>2);
+cache.invalidate('a',['isolation'],true);assert.equal(cache.peek('isolation',{project:'a'}),undefined);assert.equal(cache.peek('isolation',{project:'b'}),2);
+let rejectOld;const oldFailure=new Promise((_,reject)=>rejectOld=reject);let failureCalls=0;const loadAfterFailure=()=>++failureCalls===1?oldFailure:Promise.resolve('recovered');
+const outdatedFailure=cache.read(key('error-race'),loadAfterFailure);cache.invalidate('a',['error-race']);rejectOld(new Error('obsolete failure'));assert.equal(await outdatedFailure,'recovered');
+const same=await cache.read(key('stable'),async()=>({list:[1,2]}));const again=await cache.read(key('stable'),async()=>({list:[1,2]}));assert.equal(same,again,'unchanged results preserve references');
+await assert.rejects(cache.read(key('stable'),async()=>{throw new Error('offline');}));assert.equal(cache.peek('stable',{project:'a'}),same,'refresh failure preserves last successful content');
+let refreshes=0;const stop=cache.subscribe(key('notify'),()=>{});cache.setRefresh(key('notify'),()=>refreshes++);cache.invalidate('a',['notify']);assert.equal(refreshes,1);stop();
+const originalSet=globalThis.setTimeout,originalClear=globalThis.clearTimeout;const timers=new Map();let serial=0;
+globalThis.setTimeout=fn=>{timers.set(++serial,fn);return serial;};globalThis.clearTimeout=id=>timers.delete(id);
+try{
+ const stop1=cache.polling(key('poll'),async()=>{},()=>2000),stop2=cache.polling(key('poll'),async()=>{},()=>2000);
+ assert.equal(timers.size,1,'two consumers share one timer');stop1();assert.equal(timers.size,1);stop2();assert.equal(timers.size,0);
+}finally{globalThis.setTimeout=originalSet;globalThis.clearTimeout=originalClear;}
+for(let i=0;i<90;i++)await cache.read(key('bounded-'+i),async()=>i);
+assert.equal(cache.peek('bounded-0',{project:'a'}),undefined,'inactive entries are bounded');
+assert.equal(cache.peek('bounded-89',{project:'a'}),89);
+console.log('Query cache: coalescing, racing invalidation, isolation, stable data, recovery, subscriptions, shared polling and eviction passed.');

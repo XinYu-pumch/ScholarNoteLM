@@ -1,0 +1,16 @@
+{
+  "passed": true,
+  "checks": [
+    "Inline creation without dialog; one row; default 30; independent date/JCR settings; double-click details",
+    "XML existence status, import, dedup and archive retain shared PMID",
+    "Model dropdown, compact controls, reasoning-only connection test, no token cap",
+    "Assistant response and full query copied to clipboard",
+    "Streaming visible before completion, auto-collapsed reasoning, Enter newline, Command+Enter send, pinned composer during long answers",
+    "Regenerate and edit resend create independent branches; original preserved and selectable",
+    "Explicit branch, new conversation, Ctrl+Enter, cancel and partial persistence",
+    "Light/dark message bubbles and 1000×720 chat without outer scroll",
+    "Legacy query bodies restored, strategy explanation foldable, no fabricated reasoning",
+    "Custom menus including dialog top layer, keyboard navigation, theme colors and bounded settings fields"
+  ],
+  "errors": []
+}

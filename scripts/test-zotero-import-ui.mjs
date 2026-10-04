@@ -1,0 +1,92 @@
+/** Isolated UI acceptance; all RPCs are fixtures and no user projects are touched. */
+import {chromium,expect} from '@playwright/test';
+import {createServer} from 'vite';
+import {mkdtemp,writeFile,rm,mkdir} from 'node:fs/promises';
+import path from 'node:path';
+const root=process.cwd(),tmp=await mkdtemp(path.join(root,'tmp/zotero-ui-'));let server,browser;
+try{
+ await writeFile(path.join(tmp,'index.html'),'<div id="root"></div><script type="module" src="/main.jsx"></script>');
+ await writeFile(path.join(tmp,'main.jsx'),`import React from 'react';import {createRoot} from 'react-dom/client';import Workbench from '/@fs/${root}/apps/desktop/src/SearchWorkbench.tsx';import '/@fs/${root}/apps/desktop/src/styles.css';import '/@fs/${root}/apps/desktop/src/workbench.css';
+window.calls=[];window.notices=[];window.job=null;
+const collection={key:'COLLECT1',name:'Membranous nephropathy',path:'Membranous nephropathy'};
+const outside={key:'OUTSIDE1',name:'IL-17 and respiratory system',path:'IL-17 and respiratory system'};
+const allCollections=[collection,{key:'COLLECT2',name:'Trials',path:collection.path+' / Trials',parentCollection:'COLLECT1'},{key:'COLLECT3',name:'2026',path:collection.path+' / Trials / 2026',parentCollection:'COLLECT2'},outside,{key:'OUTSIDE2',name:'Trials',path:outside.path+' / Trials',parentCollection:'OUTSIDE1'}];
+const filters={start:'',end:'',sort:'relevance',mode:'explore',limit:30,jcr:false,quartiles:[],unknown:'keep'};
+const manual={id:'manual',name:'PubMed 来源',text:'kidney',source:'manual',enabled:true,archived:false,revision:1,error:'',filters,xmlExists:true,run:{id:'manualrun',created:1790755200,fetched:1,count:1}};
+window.data={queries:[manual],chats:[],conversation:[],corpus:{papers:[],included:0,excluded:0,snapshot:'fixture'}};
+const realFetch=window.fetch.bind(window);window.fetch=async(url,options)=>{
+ if(!String(url).startsWith('/__research'))return realFetch(url,options);
+ const {action,args}=JSON.parse(options.body);window.calls.push({action,args});let result;
+ if(action==='workspace')result=window.data;
+ else if(action==='zotero.status')result=window.job;
+ else if(action==='zotero.collections')result={collections:allCollections};
+ else if(action==='zotero.preview')result={id:'preview',total:260,withDoi:253,uniqueDois:253,collections:allCollections,selectedCollections:[collection,outside]};
+ else if(action==='zotero.start'){window.job={id:'job1',sourceId:'source1',state:'running',stage:'匹配 DOI：第 1 / 6 批',created:1790755200,collection:{...collection,path:'Membranous nephropathy、IL-17（2 个文件夹）'},selectedCollections:[collection,outside],total:260,processed:0,matched:0,pdfImported:0,pdfReused:0,rows:[]};window.data.sourceBusy=true;window.data.queries.unshift({id:'source1',name:'Membranous nephropathy、IL-17',text:'',source:'zotero',enabled:true,archived:false,revision:1,error:'',filters,zoteroJob:window.job});result=window.job;}
+ else if(action==='zotero.report')result=window.job;
+ else if(action==='query.save'){Object.assign(window.data.queries.find(q=>q.id===args.id),args);result=window.data;}
+ else if(action==='query.toggle'||action==='query.archive'){window.data.queries[0][action==='query.toggle'?'enabled':'archived']=args.value;result=window.data;}
+ else if(action==='zotero.cancel'){window.job.state='cancelled';window.job.stage='导入已取消';window.data.sourceBusy=false;result=window.job;}
+ else throw Error('Unexpected RPC '+action);
+ return new Response(JSON.stringify({ok:true,data:structuredClone(result)}),{headers:{'Content-Type':'application/json'}});
+};
+window.finish=()=>{window.data.sourceBusy=false;window.job={...window.job,state:'completed',stage:'导入完成',sourceId:'source1',processed:260,matched:253,pdfImported:200,pdfReused:40,rows:[{key:'ITEM0001',title:'Imported paper',doi:'10.1234/paper',status:'matched',pmids:['123'],pdf:{state:'imported',message:'已复制 PDF'}},{key:'ITEM0002',title:'No DOI',doi:'',status:'missing_doi'},{key:'ITEM0003',title:'Ambiguous',doi:'10.1234/ambiguous',status:'ambiguous',pmids:['456','789']}]};window.data.queries=[{id:'source1',name:'Zotero · Membranous nephropathy · 2026-09-30',text:'',source:'zotero',enabled:true,archived:false,revision:1,error:'',filters,xmlExists:true,run:{id:'run1',created:1790755200,fetched:253,count:253,zotero:{job:'job1',collection}},zoteroJob:window.job},manual];};
+createRoot(document.getElementById('root')).render(<div className="main-content" style={{height:'100vh',display:'flex',flexDirection:'column'}}><Workbench/></div>);`);
+ server=await createServer({configFile:false,root:tmp,cacheDir:path.join(tmp,'cache'),esbuild:{jsx:'automatic'},optimizeDeps:{include:['react','react-dom/client','react/jsx-runtime','react/jsx-dev-runtime','lucide-react','@tauri-apps/api/core','react-markdown','remark-gfm']},server:{host:'127.0.0.1',port:0,fs:{allow:[root]}},plugins:[{name:'mocks',enforce:'pre',resolveId(src,importer){if(importer?.startsWith(root+'/apps/desktop/src/')){if(src==='./context')return '\0ctx';if(src==='./download-api')return '\0download';}},load(id){if(id==='\0ctx')return `export const useApp=()=>({notify:text=>window.notices.push(text),setPage:()=>{},project:{id:'test',name:'测试项目',papers:[]}});`;if(id==='\0download')return `export const useDownloads=()=>({data:{batches:[],assets:{}}});export const startDownload=async()=>({count:0});`;}}]});await server.listen();
+ browser=await chromium.launch({headless:true,channel:'chrome'});const page=await browser.newPage({viewport:{width:1500,height:1000}});const errors=[];page.on('pageerror',e=>errors.push(e.message));
+ await page.route('**/*',r=>new URL(r.request().url()).hostname==='127.0.0.1'?r.continue():r.abort());await page.goto(`http://127.0.0.1:${server.httpServer.address().port}`);
+ await expect(page.getByRole('tab',{name:'文献来源',exact:true})).toBeVisible();await expect(page.getByRole('button',{name:'导入 XML',exact:true})).toHaveCount(0);
+ await page.getByRole('button',{name:'导入自 Zotero',exact:true}).click();
+ const dialog=page.getByRole('dialog'),tree=dialog.getByRole('tree',{name:'Zotero 文件夹'}),folder=(path)=>tree.getByRole('checkbox',{name:`选择 ${path}`,exact:true});
+ await expect(folder('Membranous nephropathy')).toBeEnabled();
+ await expect(folder('Membranous nephropathy / Trials')).toHaveCount(0);
+ await dialog.getByRole('textbox',{name:'搜索 Zotero 文件夹'}).fill('Trials');
+ await expect(folder('Membranous nephropathy / Trials')).toBeVisible();await expect(folder('IL-17 and respiratory system / Trials')).toBeVisible();
+ await folder('Membranous nephropathy / Trials').check();await expect(folder('Membranous nephropathy')).toBeChecked({indeterminate:true});
+ await dialog.getByRole('button',{name:'清除文件夹搜索'}).click();
+ await tree.getByRole('button',{name:'展开 Membranous nephropathy',exact:true}).click();
+ await folder('Membranous nephropathy').check();await expect(folder('Membranous nephropathy / Trials')).toBeChecked();await expect(folder('Membranous nephropathy / Trials')).toBeDisabled();
+ await expect(dialog.getByRole('button',{name:'移除 Membranous nephropathy / Trials',exact:true})).toHaveCount(0);
+ await folder('IL-17 and respiratory system').check();
+ await expect(dialog.getByText('包含子文件夹后共 5 个文件夹。重复文献只导入一次。')).toBeVisible();
+ await dialog.getByRole('button',{name:'读取所选文献',exact:true}).click();
+ expect(await page.evaluate(()=>window.calls.filter(c=>c.action==='zotero.preview').at(-1).args.collections)).toEqual(['COLLECT1','OUTSIDE1']);
+ await expect(dialog.getByText('5 个文件夹 · 260 个文献条目')).toBeVisible();await expect(dialog.getByRole('button',{name:'开始导入',exact:true})).toBeEnabled();
+ await dialog.getByRole('button',{name:'移除 IL-17 and respiratory system',exact:true}).click();await expect(dialog.getByRole('button',{name:'开始导入',exact:true})).toBeDisabled();
+ await folder('IL-17 and respiratory system').check();
+ await dialog.getByRole('button',{name:'取消',exact:true}).click();await page.getByRole('button',{name:'导入自 Zotero',exact:true}).click();
+ await expect(folder('IL-17 and respiratory system')).toBeChecked();await expect(folder('Membranous nephropathy / Trials')).toBeVisible();
+ await dialog.getByRole('button',{name:'读取所选文献',exact:true}).click();await expect(dialog.getByText(/有效 DOI 253 条/)).toBeVisible();
+ await mkdir(path.join(root,'docs/gui-copy-20261002/zotero'),{recursive:true});await page.screenshot({animations:'disabled',path:path.join(root,'docs/gui-copy-20261002/zotero/preview.png')});
+ await page.setViewportSize({width:650,height:850});await expect(dialog.getByRole('button',{name:'开始导入',exact:true})).toBeVisible();expect(await dialog.evaluate(el=>el.scrollWidth<=el.clientWidth)).toBe(true);await page.screenshot({animations:'disabled',path:path.join(root,'docs/gui-copy-20261002/zotero/narrow.png')});await page.setViewportSize({width:1500,height:1000});
+ await page.getByRole('button',{name:'开始导入',exact:true}).click();
+ const row=page.locator('tr.zotero-source-row');
+ await expect(row).toHaveCount(1);await expect(row.getByText('导入中',{exact:true})).toBeVisible();
+ await expect(row.getByText('正在准备文献')).toBeVisible();await expect(row.getByText('XML 缺失')).toHaveCount(0);
+ await expect(page.locator('tbody tr').last()).toHaveClass(/zotero-source-row/);
+ await expect(page.getByRole('button',{name:'导入自 Zotero',exact:true})).toBeDisabled();
+ await expect(page.getByRole('button',{name:'执行 PubMed 来源',exact:true})).toBeDisabled();
+ await expect(page.getByRole('checkbox',{name:'启用 PubMed 来源',exact:true})).toBeDisabled();
+ await expect(page.getByRole('button',{name:'归档 PubMed 来源',exact:true})).toBeDisabled();
+ await expect(row.getByRole('button',{name:'取消导入',exact:true})).toBeEnabled();
+ await row.getByRole('button',{name:'导入详情',exact:true}).click();
+ await expect(page.getByRole('button',{name:'导出来源 XML',exact:true})).toBeDisabled();
+ await page.getByRole('button',{name:'关闭弹窗',exact:true}).click();
+ await page.screenshot({animations:'disabled',path:path.join(root,'docs/gui-copy-20261002/zotero/running.png')});
+ await page.evaluate(()=>window.finish());await expect(row.getByText('已完成',{exact:true})).toBeVisible({timeout:10000});
+ await expect(page.getByRole('button',{name:'导入自 Zotero',exact:true})).toBeEnabled();
+ await expect(row.getByRole('button',{name:/执行|更新/})).toHaveCount(0);
+ await expect(page.locator('tbody tr').last()).toHaveClass(/zotero-source-row/);
+ await row.getByRole('button',{name:'导入详情',exact:true}).click();await expect(page.getByRole('cell',{name:'多个精确匹配，待核对 456, 789',exact:true})).toBeVisible();await expect(page.getByText('无有效 DOI，已跳过',{exact:true})).toBeVisible();
+ await page.screenshot({animations:'disabled',path:path.join(root,'docs/gui-copy-20261002/zotero/report.png')});
+ await page.getByRole('button',{name:'关闭弹窗',exact:true}).click();
+ await page.getByRole('textbox',{name:'来源名称'}).fill('My Zotero snapshot');await row.getByRole('button',{name:'保存名称',exact:true}).click();await expect(page.getByRole('textbox',{name:'来源名称'})).toHaveValue('My Zotero snapshot');
+ await expect(page.getByRole('button',{name:'导入自 Zotero',exact:true})).toBeEnabled();await page.screenshot({animations:'disabled',path:path.join(root,'docs/gui-copy-20261002/zotero/sources.png')});
+ await page.evaluate(()=>{window.job={...window.job,state:'running',stage:'导入本地 PDF：1 / 253'};window.dispatchEvent(new Event('focus'));});
+ await expect(row.getByRole('button',{name:'取消导入',exact:true})).toBeVisible({timeout:10000});
+ await row.getByRole('button',{name:'取消导入',exact:true}).click();
+ await expect(row.getByText('已取消',{exact:true})).toBeVisible({timeout:10000});
+ await expect(row.getByText('253 篇 · 已保存')).toBeVisible();
+ await expect(page.getByRole('button',{name:'执行 PubMed 来源',exact:true})).toBeEnabled();
+ expect(errors).toEqual([]);expect(await page.evaluate(()=>window.calls.some(c=>c.action==='query.run'))).toBe(false);
+ console.log('PASS: searchable folder tree, multi-selection, inherited coverage, overlap normalization, selection memory, stale preview invalidation, narrow layout, immediate persistent source, ordering, source operation locks, pending XML export guard, report, cancellation and import flow; zero page errors');
+}finally{await browser?.close();await server?.close();await rm(tmp,{recursive:true,force:true});}

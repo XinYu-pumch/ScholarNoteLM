@@ -1,0 +1,83 @@
+{
+  "included": 287,
+  "pendingQueries": 0,
+  "targets": [
+    {
+      "name": "基础检索：原发性膜性肾病发病机制（宽范围）",
+      "qualified": 30,
+      "target": 30,
+      "exhausted": false
+    },
+    {
+      "name": "补充检索 1：自身抗原与自身抗体机制（PLA2R/THSD7A）",
+      "qualified": 30,
+      "target": 30,
+      "exhausted": false
+    },
+    {
+      "name": "补充检索 2：补体激活与足细胞损伤机制",
+      "qualified": 30,
+      "target": 30,
+      "exhausted": false
+    },
+    {
+      "name": "补充检索 3：遗传易感性与免疫遗传学机制",
+      "qualified": 30,
+      "target": 30,
+      "exhausted": false
+    },
+    {
+      "name": "补充检索 1：免疫复合物、IgG4 优势与表位扩展",
+      "qualified": 30,
+      "target": 30,
+      "exhausted": false
+    },
+    {
+      "name": "补充检索 2：补体途径与补体调节蛋白",
+      "qualified": 25,
+      "target": 30,
+      "exhausted": true
+    },
+    {
+      "name": "补充检索 3：扩展靶抗原谱",
+      "qualified": 30,
+      "target": 30,
+      "exhausted": true
+    },
+    {
+      "name": "补充检索 4：免疫细胞、细胞因子与免疫耐受",
+      "qualified": 30,
+      "target": 30,
+      "exhausted": false
+    },
+    {
+      "name": "补充检索 5：足细胞应激、程序性死亡与信号通路",
+      "qualified": 30,
+      "target": 30,
+      "exhausted": true
+    },
+    {
+      "name": "补充检索 8：组学与单细胞机制发现",
+      "qualified": 30,
+      "target": 30,
+      "exhausted": true
+    },
+    {
+      "name": "补充检索 9：实验动物模型与 Heymann 肾炎",
+      "qualified": 30,
+      "target": 30,
+      "exhausted": false
+    }
+  ],
+  "pdfCount": 107,
+  "indexed": 116,
+  "eligible": 287,
+  "newMissingIndex": 171,
+  "chunks": 11101,
+  "readyChunks": 10611,
+  "backup": "backups/PrimaryMN-before-abstract-policy-20260930",
+  "archiveCount": 32,
+  "retained": 118,
+  "removed": 112,
+  "added": 169
+}
