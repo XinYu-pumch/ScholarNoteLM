@@ -1,5 +1,5 @@
 import { createContext, useContext, useEffect, useRef, useState, type ReactNode } from 'react';
-import { seedState, type AppState, type Page, type Project, type Paper } from './data';
+import { emptyState, type AppState, type Page, type Project, type Paper } from './data';
 import { readState, writeState } from './storage';
 import {rpc,type WorkbenchData} from './research-api';
 
@@ -15,7 +15,7 @@ type Context = {
 const Context = createContext<Context | null>(null);
 export function useApp() { const value = useContext(Context); if (!value) throw new Error('Missing app provider'); return value; }
 export function Provider({ children }: { children: ReactNode }) {
-  const [state, setState] = useState<AppState>(structuredClone(seedState));
+  const [state, setState] = useState<AppState>(structuredClone(emptyState));
   const [loaded, setLoaded] = useState(false);
   const [loadError, setLoadError] = useState('');
   const [page, setPageRaw] = useState<Page>('overview');
@@ -23,7 +23,7 @@ export function Provider({ children }: { children: ReactNode }) {
   const canLeave=()=>{if(leaveDecision.current!==null)return leaveDecision.current;const allowed=window.dispatchEvent(new Event('app-before-navigate',{cancelable:true}));leaveDecision.current=allowed;queueMicrotask(()=>{leaveDecision.current=null;});return allowed;};
   const setPage=(next:Page)=>{if(next===page||canLeave())setPageRaw(next);};
   const [settingsTab,setSettingsTab]=useState('models');
-  const [paperId, setPaperId] = useState('DEMO-001');
+  const [paperId, setPaperId] = useState('');
   const [toast, setToast] = useState('');
   const [persistedState, setPersistedState] = useState<AppState | null>(null);
   const [saveFailure, setSaveFailure] = useState(false);
@@ -36,7 +36,7 @@ export function Provider({ children }: { children: ReactNode }) {
   const project = state.projects.find(p => p.id === state.active)!;
   useEffect(() => {
     let alive = true;
-    readState().then(value => { if (alive) { setState(value); setLoaded(true); } }).catch(() => { if (alive) setLoadError('无法读取本地原型数据。请检查本地服务后刷新，现有数据不会被覆盖。'); });
+    readState().then(value => { if (alive) { setState(value); setLoaded(true); } }).catch(() => { if (alive) setLoadError('无法读取本地项目数据。请检查本地服务后刷新，现有数据不会被覆盖。'); });
     return () => { alive = false; };
   }, []);
   useEffect(() => {
