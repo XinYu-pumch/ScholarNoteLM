@@ -23,3 +23,9 @@ workspace/
 # Local reference captures and personal notes
 ref/
 未命名文件夹/
+
+# Test scripts write screenshots and result JSON into docs/; these are run artifacts.
+docs/screenshots/
+docs/*.json
+docs/*-20[0-9][0-9][0-9][0-9][0-9][0-9]/
+!docs/pipeline-run-20261004/

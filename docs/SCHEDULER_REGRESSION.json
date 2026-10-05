@@ -1,6 +1,0 @@
-{
-  "oldVersion": "0.5.1",
-  "oldRegressionReproduced": true,
-  "test": "17 Bloom hits + 21 nonhits; article coverage and priority barrier",
-  "oldFailure": "Traceback (most recent call last):\n  File \"/Users/yuxin/AI_developing/ScholarNoteLM/runtimes/python/cpython-3.12.9-macos-aarch64-none/lib/python3.12/asyncio/runners.py\", line 118, in run\n    return self._loop.run_until_complete(task)\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/Users/yuxin/AI_developing/ScholarNoteLM/runtimes/python/cpython-3.12.9-macos-aarch64-none/lib/python3.12/asyncio/base_events.py\", line 691, in run_until_complete\n    return future.result()\n           ^^^^^^^^^^^^^^^\n  File \"/Users/yuxin/AI_developing/ScholarNoteLM/services/downloader/tests/test_scihub_retry.py\", line 273, in test_38_article_regression_bloom_group_finishes_before_nonhits\n    self.assertEqual(set(first),{str(p) for p in range(100,117)})\nAssertionError: Items in the second set but not the first:\n'114'\n'115'\n'107'\n'103'\n'102'\n'106'\n'110'\n'104'\n'108'\n'109'\n'116'\n'105'\n'112'\n'113'\n'111'\n"
-}

@@ -48,4 +48,4 @@ Marker 转换后固定内置“仅清洗参考文献”，无需选择或启用�
 
 本次未批量重写用户的项目 MD，也未调用付费 Embedding 或 LLM。107 篇 HUSandgene / HLH 样本从原稿进行只读实验：10,363 个块，保留 3,988 个不足 100 字符的块；386 个表格、393 张图片；41 个表格跨多个块。所有清洗稿非空白字符均保留于分块，每个图表覆盖的所有 chunk 均关联到完整资源。214 个原稿与现有清洗稿文件哈希保持不变。
 
-报告：[corpus-verification.json](../experiments/positional-resources/corpus-verification.json)。复验脚本：`scripts/test-positional-resources-corpus.py`。173 项相关后端测试通过，覆盖实际重新清洗 worker、SQLite 索引、关键词召回、图片版本、共享图片清理、问答和综述请求及引用修复；模型调用使用本地 mock，不代表真实模型生成质量评测。上述为 9 月 25 日的语料验证记录。当前界面回归使用 `scripts/test-evidence-resources-ui.mjs` 和 `scripts/test-app-simplification-ui.mjs`；旧清洗选项与 Paddle 设置测试已移除。9 月 28 日完整验证见 [精简记录](APP_SIMPLIFICATION_20260928.md)。
+复验脚本：`scripts/test-positional-resources-corpus.py`。173 项相关后端测试通过，覆盖实际重新清洗 worker、SQLite 索引、关键词召回、图片版本、共享图片清理、问答和综述请求及引用修复；模型调用使用本地 mock，不代表真实模型生成质量评测。上述为 9 月 25 日的语料验证记录。当前界面回归使用 `scripts/test-evidence-resources-ui.mjs` 和 `scripts/test-app-simplification-ui.mjs`；旧清洗选项与 Paddle 设置测试已移除。

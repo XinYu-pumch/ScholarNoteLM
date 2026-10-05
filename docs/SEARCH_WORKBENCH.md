@@ -27,12 +27,11 @@
 - 检索式保存草稿与正式执行分离。执行成功且修订号未变化才切换当前执行版本；失败保留原结果。成功的零命中会替换原结果。
 - 归档/停用检索式只移除当前来源贡献；其他检索式仍命中的 PMID 保留。历史 XML、快照、原型笔记与移出文献缓存保留。
 - 所有筛选条件属于单条检索式。修改检索式、日期、数量、排序后仅该条标记待更新，仍保留旧 XML，重新执行成功后替换。JCR 是取得 XML 后的本地筛选，保存后立即重筛该来源。批量执行只使用已保存且非空的启用策略，按条提交。
-- XML 导入作为独立固定批次，原始检索式标记未知；要求 PubmedArticleSet / PubmedArticle 及有效 PMID。当前不解析 PubmedBookArticle；网络 EFetch 缺少任何请求 PMID 都阻止提交。
+- XML 导入作为独立固定批次，原始检索式标记未知；要求 PubmedArticleSet / PubmedArticle 及有效 PMID。PubmedBookArticle（书籍章节）与期刊文章同样按主体 PMID 解析；网络 EFetch 缺少任何请求 PMID 都阻止提交。
 - 总 XML 是数据库的派生输出，不能通过直接删除磁盘上的 XML 文件改变文献集合。请在工作台归档检索式。
 - 检索助手使用一次流式模型请求，输出可读的策略说明和 PubMed 代码块；完成后提取可添加的检索式，并在本地核验 MeSH 名称。不做 PubMed 试检索，不生成命中数；未核验 MeSH 会显示提示。需要点击「加入检索式」才建立草稿。
 - PubMed 有时会静默忽略未知字段。程序额外检查常见官方字段名称/别名、括号与引号；保留实际 QueryTranslation 与警告供查看。核验成功不等于检索策略已查全。
 - 模型高级参数只保留温度和等待新数据超时；温度留空不发送该字段。不发送 max_tokens 或 max_completion_tokens，旧配置中的输出上限也不会参与请求。支持兼容 Chat Completions 的 SSE；原生 Anthropic / Gemini 专有协议尚未实现。
-- 真实文献禁止使用旧的“演示处理”伪装为已索引；PDF 下载、MD 转换、RAG 问答和真实综述生成尚未接入。
 
 ## 对话、分支与快捷键
 
@@ -96,16 +95,17 @@ ISSN/eISSN/ISSNLinking 优先匹配，期刊规范化名称用于无歧义回退
 
 | 内容 | 位置 |
 |---|---|
-| 检索式、执行记录、来源关联、集合版本、对话、模型配置 | `data/research/research.sqlite3` |
+| 模型服务配置等全局设置 | `data/research/research.sqlite3` |
+| 本项目检索式、执行记录、来源关联、集合版本、助手对话 | `<工作目录>/<项目>/metadata/research.sqlite3` |
 | JCR 默认文件与内容版本 | `data/reference/jcr/` |
 | MeSH 原始压缩文件、清单与 SQLite FTS5 索引 | `data/reference/mesh/<版本>/` |
-| 每次检索的原始响应与合并原文 | `data/projects/<项目>/search/queries/<检索式>/runs/<执行>/` |
-| 不可变集合快照及清单 | `data/projects/<项目>/search/snapshots/<版本>/` |
-| 当前集合 XML（可重建输出） | `data/projects/<项目>/search/current.xml` |
-| 导出的 XML | `data/projects/<项目>/exports/` |
-| 保留的原型笔记等 | `data/prototype/state.json` |
+| 每次检索的原始响应与合并原文 | `<工作目录>/<项目>/pubmed/queries/` |
+| 不可变集合快照及清单 | `<工作目录>/<项目>/pubmed/snapshots/` |
+| 当前集合 XML（可重建输出） | `<工作目录>/<项目>/pubmed/current.xml` |
+| 导出的 XML | `<工作目录>/<项目>/pubmed/exports/` |
+| 项目列表、当前项目、主题等界面状态 | `data/prototype/state.json`（文件名沿用早期命名，内容是现行状态） |
 
-模型密钥保存在研究数据库中；常规设置响应只返回“是否已保存”，不返回密钥。macOS/Linux 下研究目录权限为当前用户独占。数据库未做应用层加密，请将含凭据的数据库视作个人配置，勿分享。项目默认 `.gitignore` 已排除 data/。没有读取或复制 BADR 的模型凭据。
+模型密钥保存在研究数据库中；常规设置响应只返回“是否已保存”，不返回密钥。macOS/Linux 下研究目录权限为当前用户独占。数据库未做应用层加密，请将含凭据的数据库视作个人配置，勿分享。项目 `.gitignore` 已排除 `data/`、`config/` 和 `workspace/`。没有读取或复制 BADR 的模型凭据。
 
 ## 开发与测试
 

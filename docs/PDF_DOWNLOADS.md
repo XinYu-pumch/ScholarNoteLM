@@ -51,7 +51,7 @@ Sci-Hub 发布继续使用 batch staging、PDF 校验、`publish()`、原子替�
 
 运行时要求：`runtimes/node/bin/node`（Windows 分支为 `runtimes/node/node.exe`）、项目安装的 `@playwright/test` 及其 `playwright-core`、版本匹配的 `runtimes/playwright/` Chromium。沿用本机已有 Node/Playwright/Chromium，不在运行时自动安装或下载浏览器。Python 仍使用原 downloader 环境。源码修改后下一次下载 worker 启动生效；已有 worker 不会热替换，先让任务结束或暂停，再启动新 worker。本次不修改前端/Rust，也不重新打包旧桌面应用。
 
-验证细节、平台范围与真实小样本结果见 [浏览器传输验证](SCIHUB_BROWSER_VALIDATION.md)。历史实验只作为参考，其初版额外 DOI 文本门槛和早期 `invalid_pdf` 数字不作为正式成功标准。
+历史实验只作为参考，其初版额外 DOI 文本门槛和早期 `invalid_pdf` 数字不作为正式成功标准。
 
 ## 候选、身份与有限补救（2026-09-21 增强）
 
@@ -70,7 +70,7 @@ Sci-Hub 发布继续使用 batch staging、PDF 校验、`publish()`、原子替�
 
 仅成功验证后捕获该 origin 的 Cookie 到批次 sidecar 内存，新文章 context 按原 Cookie 属性导入。进程内共享，不写应用配置/数据库，不加载或保存长期浏览器登录档案；Chromium 自身使用临时目录，批次/取消/异常收尾沿既有清理路径删除。不同项目进程不共享 Cookie，但共用原入口互斥锁。单纯状态/设置查询不会启动浏览器或验证。
 
-独立模块、真实 Chromium 本地服务、正式 RPC → 独立 worker 的测试与平台范围见 [增强验证记录](SCIHUB_ENHANCEMENTS_VALIDATION.md)。历史实验的 120/120 是文件下载口径，不作为正式成功率承诺；其 identity 脚本原本未接入下载成功判定。
+历史实验的 120/120 是文件下载口径，不作为正式成功率承诺；其 identity 脚本原本未接入下载成功判定。
 
 ## 持久化与文件
 
@@ -217,7 +217,7 @@ Zotero 是最后的可选补充来源：常规网络下载阶段结束后，才�
 - macOS 已实际验证。Windows 的文件 URL 驱动器解码、隐藏辅助进程与终止分支已实现，Windows/Linux 尚未实机验证；不支持远程 UNC 文件 URL。
 - 不重新打包桌面应用。重新打开开发版后，在设置中保留默认地址即可；服务不可用时正常结束。
 
-本轮结果：全量后端 195 项通过（含 Zotero 专项 34 项），独立下载 worker 离线集成测试通过，前端 TypeScript/Vite 构建通过（保留已有 >500 kB 体积提示）。见 [Zotero 验证记录](ZOTERO_VALIDATION.json)。
+本轮结果：全量后端 195 项通过（含 Zotero 专项 34 项），独立下载 worker 离线集成测试通过，前端 TypeScript/Vite 构建通过（保留已有 >500 kB 体积提示）。
 
 ## 项目级 PDF 来源报告
 

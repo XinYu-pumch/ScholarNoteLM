@@ -60,7 +60,7 @@ app 证据面板展示单元共享池、局部证据 ID 和检索来源小节；
 
 旧 TXT 输入不会被误当成新材料包；升级后需再次“准备综述提示词”。仍匹配的逐子标题检索缓存可以复用。旧生成正文继续可查看、导出，并标记待更新；不自动覆盖。正式 JSON 或任何资源变动后，材料包失效。TXT 仅是预览，其修改不影响正式输入。
 
-本次使用 HUSandgene/review2 的 23 个已有检索快照进行隔离重打包：105 个 query、735 次召回，在各单元内去重为 678 个 chunk；关联资源在各单元内共 135 个，其中 63 次图片输入。所有原始 chunk 和完整图表保留，46 个项目输入/提示词文件未修改，没有调用真实 Embedding 或 LLM。样本材料包位于 [experiments/review2-shared-pool](../experiments/review2-shared-pool/)，报告见 [verification.json](../experiments/review2-shared-pool/verification.json)。
+本次使用 HUSandgene/review2 的 23 个已有检索快照进行隔离重打包：105 个 query、735 次召回，在各单元内去重为 678 个 chunk；关联资源在各单元内共 135 个，其中 63 次图片输入。所有原始 chunk 和完整图表保留，46 个项目输入/提示词文件未修改，没有调用真实 Embedding 或 LLM。当时的样本材料包和报告已随 `experiments/` 归档到 `backups/history-20261002.tar.gz`。
 
 验证覆盖共享引用、跨单元/导语越界拒绝、节点结构校验、资源篡改和路径拒绝、视觉开关、联合修复、检索与写作分阶段、并发/取消/恢复、旧正文兼容、Markdown 表格和导出资源。真实 Rust RPC 与独立 worker 使用隔离临时项目及本地 HTTP 模拟服务；没有发送用户文献到在线模型。
 

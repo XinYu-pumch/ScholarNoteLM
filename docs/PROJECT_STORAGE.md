@@ -21,10 +21,8 @@
     logs/<批次ID>/                # 下载报告、逐篇日志、批次快照
     markdown/                     # 清洗后的全文；raw/ 原稿与 assets/ 图片
     vectors/                      # 文本块、向量缓存、源文本快照与索引状态
-    summaries/                    # 为后续文献总结预留
     notes/notes.json              # 阅读笔记
-    review/                       # 综述工作区、大纲版本及生成来源
-    reviews/                      # 旧版草稿与 Markdown 导出
+    review/                       # 综述工作区、大纲、正文及生成来源
     packages/current-literature.zip
     metadata/
       research.sqlite3            # 此项目的检索、成员关系、助手对话
