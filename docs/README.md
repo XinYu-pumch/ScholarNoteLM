@@ -6,6 +6,7 @@
 
 | 文档 | 内容 |
 | --- | --- |
+| [AGENTS.md](../AGENTS.md) | 给开发 agent 的硬性约束、常用命令与提交前验证（`CLAUDE.md` 引用同一文件） |
 | [根 README](../README.md) | 接手入口：当前状态、产品约定、运行方式、架构、数据约定、综述协议、测试 |
 | [开发版](DEVELOPMENT.md) | 启动、热更新与构建 |
 | [本地维护](LOCAL_MAINTENANCE.md) | 运行时、缓存与可删除范围 |
