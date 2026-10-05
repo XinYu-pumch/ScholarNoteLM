@@ -35,10 +35,16 @@ struct Workspace {
     root: PathBuf,
 }
 
+// The Python engine is required at runtime, so its entry point marks the app root.
+// (A documentation file was used before and broke startup when docs were reorganised.)
+fn is_app_root(path: &std::path::Path) -> bool {
+    path.join("services/downloader/engine.py").is_file()
+}
+
 fn workspace_root() -> Result<PathBuf, String> {
     if let Ok(path) = std::env::var("SCHOLARNOTELM_ROOT") {
         let root = PathBuf::from(path);
-        if root.join("PROJECT_PLAN.md").is_file() {
+        if is_app_root(&root) {
             return Ok(root);
         }
         return Err("SCHOLARNOTELM_ROOT must point to the ScholarNoteLM folder".into());
@@ -51,7 +57,7 @@ fn workspace_root() -> Result<PathBuf, String> {
     ];
     for start in starts.into_iter().flatten() {
         for parent in start.ancestors() {
-            if parent.join("PROJECT_PLAN.md").is_file() {
+            if is_app_root(parent) {
                 return Ok(parent.to_path_buf());
             }
         }

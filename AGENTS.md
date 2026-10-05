@@ -32,6 +32,8 @@ runtimes/downloader/bin/python -m unittest discover -s services/downloader/tests
 ./scripts/npm-local.sh run build                                                  # tsc + Vite 构建
 ```
 
+修改 `apps/desktop/src-tauri/src/main.rs`，或者移动、删除根目录文件之后，要实际运行一次 `./scripts/npm-local.sh run desktop`，确认桌面窗口能打开。桌面 app 启动时以 `services/downloader/engine.py` 判断根目录；浏览器开发模式和 `research-cli` 都不经过这项检查。
+
 涉及综述、问答、向量或完整流程时，再运行对应的集成脚本（使用本机模拟服务和隔离目录）：`scripts/test-review-writing-integration.py`、`test-qa-mini-review-integration.py`、`test-vectors-integration.py`、`test-library-pipeline.py`。
 
 ## 协作约定
