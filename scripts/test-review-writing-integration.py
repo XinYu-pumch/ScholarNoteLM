@@ -1,5 +1,5 @@
 """Real desktop RPC, worker and offline models; isolated papers and local LLM fixture."""
-import json,os,sqlite3,subprocess,sys,tempfile,threading,time
+import gzip,json,os,sqlite3,subprocess,sys,tempfile,threading,time
 from pathlib import Path
 from http.server import ThreadingHTTPServer,BaseHTTPRequestHandler
 ROOT=Path(__file__).resolve().parents[1];sys.path.insert(0,str(ROOT/'services/downloader'))
@@ -85,6 +85,11 @@ try:
   path=base/'review/ReviewTest';sections=list((path/'sections').glob('*.json'));assert len(sections)==3
   for f in sections:
    saved=json.loads(f.read_text());assert saved['evidence'];assert all(len(v['chunks'])==7 for v in saved['evidence'].values())
+  archives=list((path/'logs').glob('*/*.gz'));assert archives
+  log_storage={'originalBytes':sum(len(gzip.decompress(f.read_bytes())) for f in archives),'storedBytes':sum(f.stat().st_size for f in archives)}
+  assert log_storage['storedBytes']<log_storage['originalBytes']
+  assert not list((path/'logs').glob('*/input.json'))
+  assert all(json.loads(gzip.decompress(f.read_bytes())) in [r['messages'] for r in requests if 'messages' in r] for f in (path/'logs').glob('*/*.prompt.json.gz'))
   assert 'max_tokens' not in requests[-1] and 'temperature' not in requests[-1]
   n=len(requests);rpc('writing.start');assert len(requests)==n;assert rpc('writing.status')['job']['state']=='done'
   exported={fmt:Path(rpc('writing.export',format=fmt)['path']) for fmt in ('md','html','docx')}
@@ -131,5 +136,6 @@ try:
   assert all(Path(p).read_bytes()==content for p,content in preserved.items())
   for f in path.rglob('*'):
    if f.suffix in ('.txt','.json','.log','.csv','.md'):assert 'isolated-test-secret' not in f.read_text(errors='replace')
-  print(json.dumps({'success':True,'seconds':round(time.monotonic()-tick,2),'requests':len(requests),'writingUnits':3,'leafQueries':4,'topK':7,'peakHttpConcurrency':peak,'checks':['real Rust RPC','real independent worker','verified API recall, default no reranking','Chinese queries unchanged','two-stage prompt files sent exactly','writing does not recall again','abstract fallback','mixed-depth complete assembly','all latest skips generation','external section and prompt deletion','JSON failure result archived','retry sends failed item only','exports md/html/docx','cancel active HTTP within 3 seconds','completed bodies retained','no API key in artifacts','fresh round archives then resets','resume preserves round','independent workspace copy','reset preserves exports','historical exports after reset']},ensure_ascii=False),flush=True)
+   if f.suffix=='.gz':assert b'isolated-test-secret' not in gzip.decompress(f.read_bytes())
+  print(json.dumps({'success':True,'auditStorage':log_storage,'seconds':round(time.monotonic()-tick,2),'requests':len(requests),'writingUnits':3,'leafQueries':4,'topK':7,'peakHttpConcurrency':peak,'checks':['real Rust RPC','real independent worker','verified API recall, default no reranking','Chinese queries unchanged','two-stage prompt files sent exactly','writing does not recall again','abstract fallback','mixed-depth complete assembly','all latest skips generation','external section and prompt deletion','JSON failure result archived','retry sends failed item only','exports md/html/docx','cancel active HTTP within 3 seconds','completed bodies retained','no API key in artifacts','fresh round archives then resets','resume preserves round','independent workspace copy','reset preserves exports','historical exports after reset']},ensure_ascii=False),flush=True)
 finally:server.shutdown();server.server_close()

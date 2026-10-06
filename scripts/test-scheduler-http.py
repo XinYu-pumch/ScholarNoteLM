@@ -6,6 +6,7 @@ from types import SimpleNamespace
 from unittest.mock import patch
 sys.path.insert(0,str(Path(__file__).resolve().parents[1]/'services/downloader'))
 import engine as e
+import compact_io
 import scihub_retry as s
 sys.path.insert(0,str(Path(__file__).resolve().parents[1]/'services/downloader/tests'))
 from pdf_fixture import pdf as make_pdf
@@ -46,7 +47,7 @@ try:
  b=e.one('SELECT * FROM batches');bloom=SimpleNamespace(contains=lambda doi:int(doi.rsplit('/',1)[-1])<117,close=lambda:None)
  with patch.object(e,'bloom_info',return_value={}),patch.object(e.badr,'SciHubBloomFilter',return_value=bloom),patch.object(e,'source_unpaywall',unavailable),patch.object(e,'source_s3',unavailable),patch.object(s,'FIRST_DELAY',(.1,.1)):
   asyncio.run(e.run_batch(b))
- report=json.loads((e.batch_dir(b)/'download_report.json').read_text());first=[c for c in calls if c['stage']=='scihub_bloom'];second=[c for c in calls if c['stage']=='scihub_retry']
+ report=json.loads(compact_io.read_text((e.batch_dir(b)/'download_report.json')));first=[c for c in calls if c['stage']=='scihub_bloom'];second=[c for c in calls if c['stage']=='scihub_retry']
  assert len(first)==34 and len({c['pmid'] for c in first})==17
  assert len(second)==59 and {int(c['pmid']) for c in second[:17]}==set(range(100,117))
  assert all(int(c['pmid'])>=117 for c in second[17:])

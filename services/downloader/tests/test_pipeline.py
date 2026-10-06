@@ -10,6 +10,7 @@ from unittest.mock import patch
 
 sys.path.insert(0,str(Path(__file__).resolve().parents[1]))
 import engine as e
+import compact_io
 e.load_sources()
 import httpx
 from pypdf import PdfWriter
@@ -46,7 +47,7 @@ class PipelineTests(unittest.IsolatedAsyncioTestCase):
     def client(self,handler):
         original=httpx.AsyncClient
         return patch.object(e.httpx,'AsyncClient',side_effect=lambda **kwargs:original(transport=httpx.MockTransport(handler),**kwargs))
-    def report(self,b):return json.loads((e.batch_dir(b)/'download_report.json').read_text())
+    def report(self,b):return json.loads(compact_io.read_text((e.batch_dir(b)/'download_report.json')))
 
     async def test_s3_article_timeout_falls_through_and_is_not_reported_absent(self):
         b=self.batch(s3ArticleTimeout=.04);seen=[]

@@ -138,7 +138,7 @@ fn normalize_doi(value:&str)->String{
     let mut d=value.trim().to_lowercase();
     for prefix in ["https://doi.org/","http://doi.org/","https://dx.doi.org/","http://dx.doi.org/","doi:"]{if let Some(rest)=d.strip_prefix(prefix){d=rest.trim().into();break;}}d
 }
-fn resolve(root:&Path,c:&Connection,dois:&[String],cancel:&Path,dir:&Path)->R<Vec<(String,Value,String)>>{
+fn resolve(root:&Path,c:&Connection,p:&str,dois:&[String],cancel:&Path,dir:&Path)->R<Vec<(String,Value,String)>>{
     let term=dois.iter().map(|d|format!("\"{d}\"[aid]")).collect::<Vec<_>>().join(" OR ");
     let result=search(root,c,&term,&defaults(),9999,Some(cancel))?;
     write_file(&dir.join("esearch.json"),result.to_string().as_bytes())?;
@@ -147,7 +147,8 @@ fn resolve(root:&Path,c:&Connection,dois:&[String],cancel:&Path,dir:&Path)->R<Ve
     let mut articles=Vec::new();
     for (i,batch) in ids.chunks(100).enumerate(){
         let raw=ncbi(root,c,"efetch",vec![("db".into(),"pubmed".into()),("id".into(),batch.join(",")),("retmode".into(),"xml".into())],Some(cancel))?;
-        write_file(&dir.join(format!("efetch-{i}.xml")),raw.as_bytes())?;
+        let xml_path=pubmed_storage::save(root,p,raw.as_bytes())?;
+        write_file(&dir.join(format!("efetch-{i}.json")),json!({"xmlPath":xml_path}).to_string().as_bytes())?;
         let parsed=parse_pubmed(&raw)?;
         let actual=parsed.iter().map(|v|v.0.clone()).collect::<HashSet<_>>();
         if parsed.len()!=batch.len() || actual!=batch.iter().cloned().collect(){return Err("PubMed XML 与请求 PMID 不一致".into());}
@@ -157,8 +158,8 @@ fn resolve(root:&Path,c:&Connection,dois:&[String],cancel:&Path,dir:&Path)->R<Ve
 }
 fn commit(root:&Path,c:&mut Connection,p:&str,j:&mut Value,articles:&[(String,Value,String)],cancel:&Path)->R<()>{
     let _lock=project_lock(root,p)?;check_query_cancel(Some(cancel))?;
-    let id=s(j,"sourceId").to_string();valid_id(&id)?;let run=uid();let relative=format!("pubmed/queries/{id}/runs/{run}/raw.xml");
-    write_file(&project_dir(root,p)?.join(&relative),pack_xml(&articles.iter().map(|v|v.2.clone()).collect::<Vec<_>>()).as_bytes())?;
+    let id=s(j,"sourceId").to_string();valid_id(&id)?;let run=uid();
+    let relative=pubmed_storage::save(root,p,pack_xml(&articles.iter().map(|v|v.2.clone()).collect::<Vec<_>>()).as_bytes())?;
     let mut f=defaults();f["mode"]=json!("full");
     let data=json!({"id":run,"revision":1,"created":now(),"count":articles.len(),"fetched":articles.len(),"truncated":false,"filters":f,"text":"Zotero 集合导入快照","xmlPath":relative,"zotero":{"job":j["id"],"collection":j["collection"],"selectedCollections":j["selectedCollections"]}});
     let tx=c.transaction().map_err(err)?;
@@ -187,7 +188,7 @@ fn execute(root:&Path,p:&str,j:&mut Value)->R<()>{
     let mut accepted=HashMap::new();
     for (batch_no,batch) in dois.chunks(50).enumerate(){
         j["stage"]=json!(format!("匹配 DOI：第 {} / {} 批",batch_no+1,dois.len().div_ceil(50)));save(root,p,j)?;
-        let result=resolve(root,&c,batch,&cancel,&dir.join(format!("pubmed-batch-{batch_no}")));
+        let result=resolve(root,&c,p,batch,&cancel,&dir.join(format!("pubmed-batch-{batch_no}")));
         check_query_cancel(Some(&cancel))?;
         for doi in batch {
             let matches=result.as_ref().map(|articles|articles.iter().filter(|(_,v,_)|normalize_doi(s(v,"doi"))==*doi).collect::<Vec<_>>()).unwrap_or_default();

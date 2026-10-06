@@ -1,3 +1,5 @@
+#[path = "pubmed_storage.rs"]
+mod pubmed_storage;
 #[path = "zotero_import.rs"]
 mod zotero_import;
 pub use zotero_import::worker_entry as zotero_worker_entry;
@@ -839,8 +841,10 @@ fn corpus(root: &Path, c: &Connection, p: &str) -> R<Value> {
             .iter()
             .filter_map(|id| xmls.get(*id).cloned())
             .collect();
-        write_file(&dir.join("pubmed.xml"), pack_xml(&nodes).as_bytes())?;
-        write_file(&dir.join("manifest.json"), manifest.to_string().as_bytes())?;
+        let xml_path = pubmed_storage::save(root, p, pack_xml(&nodes).as_bytes())?;
+        let mut stored_manifest = manifest.clone();
+        stored_manifest["xmlPath"] = json!(xml_path);
+        write_file(&dir.join("manifest.json"), stored_manifest.to_string().as_bytes())?;
         c.execute(
             "INSERT INTO corpora VALUES(?,?,?,?,?)",
             params![id, p, now(), signature, manifest.to_string()],
@@ -849,9 +853,8 @@ fn corpus(root: &Path, c: &Connection, p: &str) -> R<Value> {
         id
     };
     // Repairable projection: SQLite + immutable snapshot remain authoritative.
-    let src = project_dir(root,p)?.join(format!("pubmed/snapshots/{id}/pubmed.xml"));
     let current = project_dir(root,p)?.join("pubmed/current.xml");
-    let bytes = fs::read(src).map_err(err)?;
+    let bytes = pubmed_storage::snapshot(root, p, &id)?;
     // Preserve the source identity on a read; dependent status caches invalidate
     // only when the published corpus actually changes. Missing projections heal.
     if fs::read(&current).ok().as_deref() != Some(bytes.as_slice()) {
@@ -947,7 +950,8 @@ fn run_query(root: &Path, c: &mut Connection, p: &str, id: &str, cancel: Option<
         check_query_cancel(cancel)?;
         let end=(offset+100).min(ids.len());let batch=&ids[offset..end];
         let raw=ncbi(root,c,"efetch",vec![("db".into(),"pubmed".into()),("retmode".into(),"xml".into()),("id".into(),batch.join(","))],cancel)?;
-        write_file(&dir.join(format!("batch-{offset}.xml")),raw.as_bytes())?;
+        let batch_xml = pubmed_storage::save(root,p,raw.as_bytes())?;
+        write_file(&dir.join(format!("batch-{offset}.json")),json!({"xmlPath":batch_xml}).to_string().as_bytes())?;
         let mut fetched=parse_pubmed(&raw)?;
         let got:HashSet<_>=fetched.iter().map(|x|x.0.as_str()).collect();
         let requested:HashSet<_>=batch.iter().map(String::as_str).collect();
@@ -972,11 +976,8 @@ fn run_query(root: &Path, c: &mut Connection, p: &str, id: &str, cancel: Option<
         .map(|(i, id)| (id.as_str(), i))
         .collect();
     articles.sort_by_key(|a| positions.get(a.0.as_str()).copied().unwrap_or(usize::MAX));
-    let data = json!({"id":run,"revision":revision,"text":term,"filters":f,"created":now(),"count":count,"fetched":articles.len(),"qualified":selected,"target":if target==usize::MAX {count}else{target},"exhausted":offset>=count,"candidateLimitReached":offset>=10000 && offset<count,"selectionPolicy":SELECTION_POLICY,"candidateIdsPath":candidate_ids_path,"jcrVersion":j["version"],"truncated":articles.len()<count,"translation":probe["translation"],"warnings":probe["warnings"],"meshVersion":mesh_status(root,c)?["version"],"xmlPath":format!("pubmed/queries/{id}/runs/{run}/raw.xml")});
-    write_file(
-        &dir.join("raw.xml"),
-        pack_xml(&articles.iter().map(|x| x.2.clone()).collect::<Vec<_>>()).as_bytes(),
-    )?;
+    let xml_path = pubmed_storage::save(root,p,pack_xml(&articles.iter().map(|x| x.2.clone()).collect::<Vec<_>>()).as_bytes())?;
+    let data = json!({"id":run,"revision":revision,"text":term,"filters":f,"created":now(),"count":count,"fetched":articles.len(),"qualified":selected,"target":if target==usize::MAX {count}else{target},"exhausted":offset>=count,"candidateLimitReached":offset>=10000 && offset<count,"selectionPolicy":SELECTION_POLICY,"candidateIdsPath":candidate_ids_path,"jcrVersion":j["version"],"truncated":articles.len()<count,"translation":probe["translation"],"warnings":probe["warnings"],"meshVersion":mesh_status(root,c)?["version"],"xmlPath":xml_path});
     write_file(&dir.join("manifest.json"), data.to_string().as_bytes())?;
     let _commit_lock = project_lock(root, p)?;
     check_query_cancel(cancel)?;
@@ -2183,8 +2184,9 @@ pub fn dispatch(root: &Path, request: Value) -> R<Value> {
             let id = uid();
             let run = uid();
             let dir = project_dir(root,p)?.join(format!("pubmed/queries/{id}/runs/{run}"));
-            write_file(&dir.join("raw.xml"), s(a, "xml").as_bytes())?;
-            let data = json!({"id":run,"revision":1,"created":now(),"count":articles.len(),"fetched":articles.len(),"truncated":false,"filters":defaults(),"text":"导入批次：原始检索式未知","xmlPath":format!("pubmed/queries/{id}/runs/{run}/raw.xml")});
+            let xml_path = pubmed_storage::save(root,p,s(a,"xml").as_bytes())?;
+            let data = json!({"id":run,"revision":1,"created":now(),"count":articles.len(),"fetched":articles.len(),"truncated":false,"filters":defaults(),"text":"导入批次：原始检索式未知","xmlPath":xml_path});
+            write_file(&dir.join("manifest.json"),data.to_string().as_bytes())?;
             let tx = c.transaction().map_err(err)?;
             tx.execute("INSERT INTO queries(id,project,name,text,source,active_run) VALUES(?,?,?,'','import',?)",params![id,p,s(a,"name"),run]).map_err(err)?;
             put(&tx, &format!("queryFilters:{id}"), &defaults())?;
@@ -2217,7 +2219,7 @@ pub fn dispatch(root: &Path, request: Value) -> R<Value> {
                 let result = corpus(root, &c, p)?;
                 root.join(s(&result, "path"))
             };
-            let content = fs::read_to_string(&path).map_err(err)?;
+            let content = String::from_utf8(pubmed_storage::read(&path)?).map_err(err)?;
             let target = project_dir(root,p)?.join(format!("pubmed/exports/{}-pubmed.xml", uid()));
             write_file(&target, content.as_bytes())?;
             Ok(json!({"path":target.to_string_lossy(),"content":content}))
@@ -2648,6 +2650,40 @@ mod tests {
         fs::remove_dir_all(root).unwrap();
     }
     #[test]
+    fn new_xml_history_shares_bytes_and_exports_legacy_and_compressed_runs() {
+        let root=temp();
+        let xml=format!("<PubmedArticleSet><PubmedArticle><MedlineCitation><PMID>1</PMID><Article><ArticleTitle>Paper</ArticleTitle><Abstract><AbstractText>{}</AbstractText></Abstract></Article></MedlineCitation></PubmedArticle></PubmedArticleSet>","Evidence. ".repeat(5000));
+        let call=|action:&str,args:Value|dispatch(&root,json!({"action":action,"args":args})).unwrap();
+        let first=call("xml.import",json!({"project":"test","name":"first","xml":xml}));
+        let run=first["queries"][0]["run"].clone();
+        let object=project_file(&root,"test",s(&run,"xmlPath")).unwrap();
+        assert!(object.to_string_lossy().ends_with(".xml.gz"));
+        assert!(fs::metadata(&object).unwrap().len()<xml.len() as u64/10);
+        let objects=project_dir(&root,"test").unwrap().join("pubmed/objects");
+        let count=fs::read_dir(&objects).unwrap().count();
+        call("xml.import",json!({"project":"test","name":"same bytes, distinct history","xml":xml}));
+        assert_eq!(fs::read_dir(&objects).unwrap().count(),count);
+        let exported=call("xml.export",json!({"project":"test","run":run["id"]}));
+        assert_eq!(s(&exported,"content"),xml);
+        assert_eq!(fs::read_to_string(s(&exported,"path")).unwrap(),xml);
+        // Moving a whole project keeps relative content references valid.
+        let moved=root.with_extension("moved");fs::rename(&root,&moved).unwrap();
+        assert_eq!(pubmed_storage::read(&project_file(&moved,"test",s(&run,"xmlPath")).unwrap()).unwrap(),xml.as_bytes());
+        // A historical plain snapshot remains readable without migration.
+        let legacy=project_dir(&moved,"test").unwrap().join("pubmed/snapshots/legacy");
+        write_file(&legacy.join("manifest.json"),b"{}").unwrap();write_file(&legacy.join("pubmed.xml"),xml.as_bytes()).unwrap();
+        assert_eq!(pubmed_storage::snapshot(&moved,"test","legacy").unwrap(),xml.as_bytes());
+        let c=db_project(&moved,"test").unwrap();let mut old=run.clone();
+        old["xmlPath"]=json!("pubmed/snapshots/legacy/pubmed.xml");
+        c.execute("UPDATE runs SET data=? WHERE id=?",params![old.to_string(),s(&run,"id")]).unwrap();
+        let exported=dispatch(&moved,json!({"action":"xml.export","args":{"project":"test","run":run["id"]}})).unwrap();
+        assert_eq!(s(&exported,"content"),xml);
+        // Corrupt shared objects cannot silently become historical evidence.
+        let object=project_file(&moved,"test",s(&run,"xmlPath")).unwrap();write_file(&object,b"corrupt").unwrap();
+        assert!(pubmed_storage::save(&moved,"test",xml.as_bytes()).is_err());
+        fs::remove_dir_all(moved).unwrap();
+    }
+    #[test]
     fn union_archive_draft_and_snapshot() {
         let root = temp();
         let call = |action: &str, args: Value| {
@@ -2679,11 +2715,7 @@ mod tests {
             .map(|v| s(v, "pmid"))
             .collect();
         assert_eq!(ids, vec!["103", "104"]);
-        assert!(root
-            .join(format!(
-                "workspace/test/pubmed/snapshots/{snap}/pubmed.xml"
-            ))
-            .exists());
+        assert_eq!(parse_pubmed(&String::from_utf8(pubmed_storage::snapshot(&root,"test",snap).unwrap()).unwrap()).unwrap().len(),4);
         let restored = call(
             "query.archive",
             json!({"project":"test","id":aid,"value":false}),

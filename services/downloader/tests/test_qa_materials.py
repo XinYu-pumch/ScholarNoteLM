@@ -55,7 +55,7 @@ class QAMaterialsTests(unittest.TestCase):
   self.assertEqual(len(self.threads),1);self.assertNotIn(self.main_thread,self.threads);self.assertEqual(len(self.calls),2)
  def test_changes_during_streaming_block_answer(self):
   job,path=self.execute('mutation');self.assertEqual(job['state'],'failed');self.assertFalse(job['answer']);self.assertFalse(job.get('draft'))
-  self.assertFalse(list(path.glob('*对话回复.response.txt')));self.assertEqual(len(self.calls),2)
+  self.assertFalse(list(path.glob('*对话回复.response.txt*')));self.assertEqual(len(self.calls),2)
  def test_changes_before_send_prevent_request(self):
   job,_=self.execute('before_send');self.assertEqual(job['state'],'failed');self.assertEqual(self.calls,[]);self.assertFalse(job['answer'])
  def test_changes_before_final_publication_block_answer(self):

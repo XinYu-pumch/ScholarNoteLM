@@ -214,7 +214,8 @@ ScholarNoteLM/
   pubmed/
     current.xml                 # 当前有效文献集合的派生 XML
     queries/                    # 单条检索式执行结果与历史
-    snapshots/                  # 合并集合快照
+    snapshots/                  # 合并集合快照清单
+    objects/                    # 按内容哈希共享的 .xml.gz（查询/合并快照共用）
     exports/
   pdf/<PMID>.pdf
   pdf/redundant/<PMID>.pdf       # 移出当前集合的 PDF
@@ -240,6 +241,15 @@ ScholarNoteLM/
 ```
 
 `pubmed/current.xml` 是下游判断有效 PMID 的依据，但它由检索数据库导出；**不要通过手工删 XML 来代替在工作台归档/停用检索式**。同一 PMID 只要仍被其他启用来源纳入，就留在当前集合。
+
+### 新项目的自动节省空间
+
+以下优化直接用于正常写入，新建项目无需清理命令或额外开关；旧项目后续新产物也使用同样规则，既有文件无需批量迁移：
+
+- **日志**：综述/问答的冻结输入、模型请求、返回及问答推理日志直接保存为 `.gz`；下载批次的 JSON/TXT 报告也直接压缩。界面照常显示报告，显式用外部程序打开下载报告时才按需导出普通 TXT。运行状态、重试检查点及正在追加的 `worker.log` 仍使用原格式；旧版明文记录兼容读取。压缩不删减模型输入或历史内容。
+- **XML**：查询原始结果、抓取批次与合并集合按原始字节 SHA-256 共享 `pubmed/objects/<hash>.xml.gz`；历史清单和来源关系独立保留，相同内容不因再次检索或切换筛选而重复存储。`current.xml` 和用户导出仍是普通 XML。导出/恢复时解压校验，兼容旧版快照。内容不同的 XML 分别压缩，不进行语义合并；SQLite 的成员关系和历史记录不变。
+- **图片**：生成向量图片快照时，在 macOS/APFS 上使用写时复制，共享 Markdown 图片的底层磁盘块；两个路径仍是独立文件，编辑或删除原图不会破坏旧快照。共享快照不重复写入，同卷的应用内项目迁移也优先保留共享块。其他系统/磁盘不支持时退回独立复制，保留完整证据。文件大小相加仍可能显示两份逻辑大小，实际磁盘占用由文件系统共享，普通复制或打包也不保证保留这种共享。
+- **稿件与导出**：已保存稿件共享压缩图片；HTML 在单个文件内共享图片和证据；完整 JSONL 仅在用户显式导出时生成。详见第 6 节。
 
 ### 文件生命周期与“最新”
 
@@ -409,10 +419,10 @@ review/<ReviewName>/
   manuscripts/<稿件ID>/document.json # 已保存稿件，读取后内容哈希与稿件 ID 一致
   manuscripts/assets/            # 各已保存稿件共享的不可变图片（无损压缩）
   logs/<run-id>/
-    input.json                   # 冻结输入和任务列表
+    input.json.gz                # 无损压缩的冻结输入和任务列表
     result.json                  # 本轮结果/错误；早期历史运行不一定有
-    *.prompt.json / *.response.txt
-    *.repair.prompt.json / *.repair.response.txt
+    *.prompt.json.gz / *.response.txt.gz
+    *.repair.prompt.json.gz / *.repair.response.txt.gz
     worker.log
   exports/                       # md / html / docx 静态导出
   audit/                         # 实际综述审查报告

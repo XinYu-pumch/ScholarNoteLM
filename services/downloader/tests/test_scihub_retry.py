@@ -13,6 +13,7 @@ from unittest.mock import patch
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 import engine as e
+import compact_io
 import scihub_retry as s
 import scihub_browser
 e.load_sources()
@@ -100,7 +101,7 @@ class RetryTests(unittest.IsolatedAsyncioTestCase):
         state = e.progress(b['id'], '123')
         self.assertEqual(state['retryUsed'], 1)
         self.assertEqual(state['retryStatus'], 'success')
-        report = json.loads((e.batch_dir(b) / 'download_report.json').read_text())
+        report = json.loads(compact_io.read_text((e.batch_dir(b) / 'download_report.json')))
         self.assertEqual(report['bloomSummary'], dict(hits=1, firstSuccess=0, retrySuccess=1, otherRecovery=0, failed=0, deferred=0, pending=0))
         detail = next(a['detail'] for a in report['attempts'] if a['stage'] == 'scihub_retry')
         self.assertEqual([r['role'] for r in detail['requests']], ['entry', 'file'])
@@ -273,7 +274,7 @@ class RetryTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(set(second[:17]),{str(p) for p in range(100,117)})
         self.assertTrue(all(int(p)>=117 for p in second[17:]))
         self.assertEqual(len(second),17+21*2)
-        report=json.loads((e.batch_dir(b)/'download_report.json').read_text())
+        report=json.loads(compact_io.read_text((e.batch_dir(b)/'download_report.json')))
         self.assertEqual(report['bloomSummary']['retrySuccess'],17)
         self.assertEqual(report['counts']['success'],17)
         self.assertEqual(report['counts']['failed'],21)
@@ -313,7 +314,7 @@ class RetryTests(unittest.IsolatedAsyncioTestCase):
             return response(url,429,headers={'Retry-After':'600'})
         with self.browser(handler):await asyncio.wait_for(e.run_batch(b),3)
         self.assertEqual(len(calls),1)
-        report=json.loads((e.batch_dir(b)/'download_report.json').read_text())
+        report=json.loads(compact_io.read_text((e.batch_dir(b)/'download_report.json')))
         self.assertEqual(report['counts'],{'deferred':10})
         self.assertEqual(report['bloomSummary']['deferred'],10)
         retry=next(st for st in report['stages'] if st['stage']=='scihub_retry')

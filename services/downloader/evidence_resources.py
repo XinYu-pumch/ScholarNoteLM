@@ -1,5 +1,6 @@
 """Whole tables/images with purely positional links to ordinary text chunks."""
 import base64,hashlib,json
+import snapshot_files
 import threading
 from collections import OrderedDict
 from pathlib import Path
@@ -109,7 +110,7 @@ def extract(project,pmid,version,text,segments,save):
             data=source.read_bytes() if source else b'';kind=mime(data)
             if kind:
                 sha=hashlib.sha256(data).hexdigest();relative='vectors/resource-assets/'+sha+'.'+kind.split('/')[1]
-                save(Path(project)/relative,data);row.update(assetPath=relative,assetSha256=sha,mime=kind)
+                snapshot_files.save_image(source,Path(project)/relative,data,save);row.update(assetPath=relative,assetSha256=sha,mime=kind)
             else:row['imageError']='图片文件缺失或格式暂不支持；仅保留邻近原文'
         result.append(row)
     return result

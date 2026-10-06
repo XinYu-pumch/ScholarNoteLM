@@ -52,3 +52,7 @@ runtimes/node/bin/node scripts/test-conversation-ui.mjs
 ```
 
 程序回归不代替学术质量评估。人工测试问题与追问见 [gut 问答评估](GUT_QA_EVALUATION.md)。
+
+## 请求日志存储
+
+新任务的冻结输入 `input.json.gz`、请求 `*.prompt.json.gz`、返回 `*.response.txt.gz` 使用无损 gzip，问答推理日志同样压缩。直接在生成时生效，不需要维护脚本；重试、读取与历史稿件上下文兼容旧明文记录。任务状态、检查点、正文和模型协议不变，正在追加的 worker 日志保持普通文本。

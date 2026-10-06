@@ -10,6 +10,7 @@ from unittest.mock import AsyncMock, patch
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 import engine as e
+import compact_io
 import europe_pmc_pdf as epmc
 import pmc_parallel
 e.load_sources()
@@ -42,7 +43,7 @@ class PmcTests(unittest.IsolatedAsyncioTestCase):
         return e.one('SELECT * FROM batches WHERE id=?', (b['id'],))
 
     def result(self, b):
-        return json.loads((e.batch_dir(b) / 'download_report.json').read_text())
+        return json.loads(compact_io.read_text((e.batch_dir(b) / 'download_report.json')))
 
     async def unavailable(self, *args):
         return None, 'not found'

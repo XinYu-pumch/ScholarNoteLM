@@ -1,4 +1,5 @@
 """Resumable review writing, evidence scopes and deterministic tree assembly."""
+import compact_io
 import review_content
 import review_manuscripts as manuscripts
 import asyncio,hashlib,html,json,os,re,subprocess,time,uuid,zipfile
@@ -246,7 +247,7 @@ def rpc(e,name,op,a):
     if mode=='write':manuscripts.save(e,name)
     token=uuid.uuid4().hex;run=path/'logs'/token;run.mkdir(parents=True)
     snapshot={'token':token,'created':time.time(),'topic':state['topic'],'config':cfg,'mode':mode,'retrieval':rcfg,'profileId':p.get('id',''),'model':p.get('model',''),'profileSignature':ps,'sourceSignature':source,'modelsSignature':models,'rows':rows,'tasks':tasks}
-    e.write_json(run/'input.json',snapshot)
+    compact_io.write_json(e,run/'input.json',snapshot)
     j={'token':token,'state':'queued','created':time.time(),'updated':time.time(),'pid':0,'owner':a.get('owner',0),'total':len(tasks),'completed':0,'failed':0,'mode':mode,'phase':'准备提示词' if mode=='prepare' else '准备生成综述','items':{u['id']:{'state':'pending'} for u in tasks},'error':''}
     e.write_json(path/'writing-job.json',j)
     env={**os.environ,'SCHOLARNOTELM_ROOT':str(e.ROOT),'PYTHONUTF8':'1','PYTHONDONTWRITEBYTECODE':'1','TMPDIR':str(e.ROOT/'tmp'),'TEMP':str(e.ROOT/'tmp'),'TMP':str(e.ROOT/'tmp')}
@@ -349,9 +350,9 @@ async def run(e,name,token,retriever_factory=None):
                     if cfg.get('limitContext',False) and len(messages[0]['content'])+len(text_content)>cfg['contextChars']:
                         raise ValueError('联合写作单元超过请求字符预算；请提高或关闭预算')
                     stem=unit['id']+'-0'
-                    e.atomic(runpath/(stem+'.prompt.json'),json.dumps(messages,ensure_ascii=False,indent=2))
+                    compact_io.write_text(e,runpath/(stem+'.prompt.json'),json.dumps(messages,ensure_ascii=False,indent=2))
                     await verify_materials()
-                    raw=await chat(p,messages,chat_cancelled,lambda **kw:update(unit['id'],**kw));e.atomic(runpath/(stem+'.response.txt'),raw)
+                    raw=await chat(p,messages,chat_cancelled,lambda **kw:update(unit['id'],**kw));compact_io.write_text(e,runpath/(stem+'.response.txt'),raw)
                     update(unit['id'],state='validating')
                     try:
                         value=object_json(raw);sections,errors=review_bundle.decode(value,bundle,unit,p)
@@ -360,9 +361,9 @@ async def run(e,name,token,retriever_factory=None):
                     if errors:
                         serials={n['id']:n['serial'] for n in unit['nodes']}
                         repair=review_bundle.repair_messages(bundle,path/'review_parts',p,value,{serials.get(k,k):v for k,v in errors.items()})
-                        e.atomic(runpath/(stem+'.repair.prompt.json'),json.dumps(repair,ensure_ascii=False,indent=2))
+                        compact_io.write_text(e,runpath/(stem+'.repair.prompt.json'),json.dumps(repair,ensure_ascii=False,indent=2))
                         await verify_materials()
-                        fixed=await chat(p,repair,chat_cancelled);e.atomic(runpath/(stem+'.repair.response.txt'),fixed)
+                        fixed=await chat(p,repair,chat_cancelled);compact_io.write_text(e,runpath/(stem+'.repair.response.txt'),fixed)
                         sections,errors=review_bundle.decode(object_json(fixed),bundle,unit,p)
                         if errors:raise ValueError('引用校验仍未通过：仅允许当前共享池中的证据 ID，父标题导语不能引用')
                     await verify_materials()

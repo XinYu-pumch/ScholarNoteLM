@@ -1,6 +1,7 @@
 """System resources stay in the installation; project data lives in a chosen workspace."""
 from pathlib import Path
 from contextlib import contextmanager
+import snapshot_files
 import json, os, re, shutil, sqlite3, subprocess, sys, uuid
 
 FOLDERS = {'pubmed':'PubMed XML、检索批次和合并快照', 'pdf':'当前集合 PDF，以 PMID 命名；redundant/ 保存移出集合的 PDF',
@@ -169,7 +170,7 @@ def move_workspace(root,value):
         for name in cfg['projects'].values():
             src=old/name;dst=target/name
             if any(p.is_symlink() for p in src.rglob('*')):raise ValueError('项目包含符号链接，请先移除链接')
-            copied.append(dst);shutil.copytree(src,dst)
+            copied.append(dst);shutil.copytree(src,dst,copy_function=snapshot_files.copy2)
             # Compare every copied file before activating the new location.
             import hashlib
             for f in src.rglob('*'):

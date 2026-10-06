@@ -116,8 +116,8 @@ class WritingTests(unittest.TestCase):
    self.run_both(self.setup_run(),FakeRetriever)
    state=self.status();self.assertEqual(state['job']['state'],'done',state['job']);self.assertEqual(state['latest'],4)
   self.assertGreater(len(calls),4)
-  logs=list((self.path/'logs').glob('*/*.repair.prompt.json'));self.assertTrue(logs)
-  self.assertIn('data:image/png;base64,',logs[0].read_text())
+  logs=list((self.path/'logs').glob('*/*.repair.prompt.json.gz'));self.assertTrue(logs)
+  self.assertIn('data:image/png;base64,',w.compact_io.read_text(logs[0]))
  def test_complete_pipeline_repair_and_resume_cache(self):
   token=self.setup_run();calls=[];retrieved=[]
   record={'id':'c1','text':'Evidence supporting the topic.','metadata':{'pmid':'123','title':'Article','sourceKind':'pubmed_abstract','sectionPath':[]}}
@@ -131,7 +131,7 @@ class WritingTests(unittest.TestCase):
    return json.dumps(payload)
   with patch.object(w.retrieval,'corpus',return_value=[record]),patch.object(w,'chat',side_effect=fake_chat):self.run_both(token,FakeRetriever)
   state=self.status();self.assertEqual(state['job']['state'],'done',state['job']);self.assertEqual(state['latest'],4);self.assertEqual(len(retrieved),5)
-  self.assertTrue(list((self.path/'logs').glob('*/*.repair.response.txt')))
+  self.assertTrue(list((self.path/'logs').glob('*/*.repair.response.txt.gz')))
   token=self.setup_run();retrieved.clear()
   with patch.object(w.retrieval,'corpus',return_value=[record]),patch.object(w,'chat',side_effect=fake_chat):self.run_both(token,FakeRetriever)
   self.assertEqual(retrieved,[]);self.assertEqual(self.status()['latest'],4)

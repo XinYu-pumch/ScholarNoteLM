@@ -3,6 +3,7 @@
 Evidence and requests are immutable run snapshots; credentials never enter run files.
 The worker is the sole writer of its job. Cancellation uses a separate marker.
 """
+import compact_io
 import asyncio,json,os,re,sqlite3,subprocess,time,uuid
 from pathlib import Path
 import storage,corpus_files as files,vector_chunks as chunks,vector_service as vectors
@@ -31,7 +32,7 @@ TOOLS='''可用工具（只读当前所选文献范围，无外部文献发现�
 读取工具返回 nextOffset 时才有后续页。目录和标题不是科学结论证据。不要把多个块当成多项独立研究；不要把 Top-N 结果说成全项目筛查。'''
 
 def read(path,default=None):
-    return json.loads(path.read_text(encoding='utf8')) if path.is_file() else default
+    return compact_io.read_json(path,default)
 
 def root(e):return reviews.safe(storage.project_dir(e.ROOT,e.PROJECT),'qa')
 def ident(value):
@@ -263,7 +264,7 @@ def start(e,a):
     j.update(messageId=replaced.get('messageId',replace_id) if replaced else rid,
              attempt=replaced.get('attempt',1)+1 if replaced else 1)
     if replaced:j['replacesRunId']=replace_id
-    e.write_json(path/'input.json',snapshot);e.write_json(path/'job.json',j)
+    compact_io.write_json(e,path/'input.json',snapshot);e.write_json(path/'job.json',j)
     if replace_index is None:t['runIds'].append(rid)
     else:t['runIds'][replace_index]=rid
     t['updated']=time.time()
@@ -614,7 +615,7 @@ async def run(e,rid):
         messages=resources.with_images(files.base(e),messages,p,supplied)
         if 'materialBundle' in source_payload:
             messages=qa_mini_review.messages(files.base(e),p,messages,payload)
-        e.write_json(path/(name+'.prompt.json'),{'model':p['model'],'messages':messages,'policy':POLICY})
+        compact_io.write_json(e,path/(name+'.prompt.json'),{'model':p['model'],'messages':messages,'policy':POLICY})
         def update(text):
             nonlocal last_stream
             step.update(output=text,received=len(text))
@@ -628,8 +629,8 @@ async def run(e,rid):
         try:
             await verify_materials()
             text=await chat(p,messages,poll_cancel,progress=progress,on_text=update,on_reasoning=update_reasoning)
-            await verify_materials();e.atomic(path/(name+'.response.txt'),text)
-            if step.get('reasoning'):e.atomic(path/(name+'.reasoning.txt'),step['reasoning'])
+            await verify_materials();compact_io.write_text(e,path/(name+'.response.txt'),text)
+            if step.get('reasoning'):compact_io.write_text(e,path/(name+'.reasoning.txt'),step['reasoning'])
             value=text
             if structured:
                 value,note=qa_protocol.parse(text,contract or stage,contract_payload or payload)

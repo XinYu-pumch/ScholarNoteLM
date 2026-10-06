@@ -4,6 +4,7 @@ import hashlib
 import json
 from unittest.mock import patch
 import test_scihub_retry as fixtures
+import compact_io
 import unittest
 e, s, response, pdf = fixtures.e, fixtures.s, fixtures.response, fixtures.pdf
 
@@ -58,7 +59,7 @@ class SourceCacheTests(unittest.IsolatedAsyncioTestCase):
         with self.browser(handler), patch.object(e.badr,'SciHubBloomFilter',return_value=type('Bloom',(),{'contains':lambda self,doi:False,'close':lambda self:None})()):
             await e.run_batch(b)
         self.assertEqual(calls,['https://files.test/main.pdf'])
-        report=json.loads((e.batch_dir(b)/'download_report.json').read_text())
+        report=json.loads(compact_io.read_text((e.batch_dir(b)/'download_report.json')))
         self.assertEqual(report['sourceCacheSuccess'],1)
         self.assertEqual(report['bloomSummary']['hits'],0)
         self.assertEqual(report['scihubSuccessByBloom'],{'hit':0,'nonHit':1})

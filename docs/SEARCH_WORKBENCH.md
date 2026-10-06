@@ -125,3 +125,7 @@ PLAYWRIGHT_BROWSERS_PATH="$PWD/runtimes/playwright" TMPDIR="$PWD/tmp" \
 浏览器开发模式通过同一 Rust 引擎 CLI 调用研究功能，聊天使用 NDJSON 实时转发；正式桌面通过 Tauri IPC Channel 接收流式事件并直接调用后台命令，不依赖 Vite 或另一个 HTTP 服务。开发桥限制同源 JSON 请求，避免浏览器其他页面调用本地配置接口。
 
 集成与界面测试使用项目 tmp/ 中的独立研究数据库，界面测试隔离原型存储，不覆盖用户项目。测试用模型服务只验证协议和流程；实际模型生成质量需要用户配置自己的服务后评估。当前仅验证 macOS Apple Silicon，Windows 源码保留兼容，尚未构建或运行验证。
+
+## XML 快照存储
+
+新查询、导入和合并集合将原始 XML 按字节哈希无损压缩到项目内 `pubmed/objects/<hash>.xml.gz`，清单的 `xmlPath` 指向共享对象。来源、筛选及执行历史各自保留；相同内容复用，不同内容独立压缩。合并快照的存储路径不参与原有集合签名。当前 `pubmed/current.xml` 和显式 XML 导出仍是普通 XML；历史明文快照兼容读取，压缩内容读取时校验哈希。

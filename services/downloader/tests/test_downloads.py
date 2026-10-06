@@ -2,6 +2,7 @@ import asyncio, hashlib, io, json, os, pathlib, sys, tempfile, unittest
 from unittest.mock import patch
 sys.path.insert(0,str(pathlib.Path(__file__).resolve().parents[1]))
 import engine as e
+import compact_io
 e.load_sources()
 import httpx
 from pypdf import PdfWriter
@@ -19,6 +20,20 @@ class Tests(unittest.IsolatedAsyncioTestCase):
         with patch.object(e,'launch'):
             r=e.create({'project':'p','snapshot':'snap','papers':papers or [{'pmid':'123','pmcid':'PMC123','title':'Test'}]})
         return e.one('SELECT * FROM batches WHERE id=?',(r['id'],))
+    def test_new_report_is_compressed_and_external_open_exports_text_on_demand(self):
+        b=self.batch();folder=e.batch_dir(b)
+        report=e.download_rpc('report',{'project':'p','id':b['id']})
+        self.assertIn('ScholarNoteLM Download Report',report['text'])
+        self.assertTrue(pathlib.Path(report['path']).is_file())
+        self.assertFalse((folder/'download_report.txt').exists())
+        self.assertFalse((folder/'download_report.json').exists())
+        self.assertFalse((folder/'exports').exists())
+        with patch.object(e,'open_local') as opened:
+            e.download_rpc('report',{'project':'p','id':b['id'],'open':True})
+            exported=opened.call_args.args[0]
+            self.assertEqual(exported,folder/'exports/download_report.txt')
+            self.assertIn('ScholarNoteLM Download Report',exported.read_text())
+
     def test_defaults_and_validation(self):
         self.assertNotIn('enhanced',e.config())
         for v in [-1,0,31]:
@@ -81,7 +96,7 @@ class Tests(unittest.IsolatedAsyncioTestCase):
             self.assertEqual(e.one('SELECT * FROM batches')['state'],'queued')
             e.execute("UPDATE batches SET state='running'");e.execute("UPDATE items SET state='running'");e.recover()
             self.assertEqual(e.one('SELECT * FROM batches')['state'],'paused')
-        report=e.batch_dir(b)/'download_report.txt';self.assertTrue(report.exists());self.assertIn('Unfinished: 1',report.read_text());self.assertIn('Final failed: 0',report.read_text())
+        report=e.batch_dir(b)/'download_report.txt';self.assertTrue(compact_io.compressed_path(report).exists());self.assertIn('Unfinished: 1',compact_io.read_text(report));self.assertIn('Final failed: 0',compact_io.read_text(report))
     async def test_default_pipeline_order_no_rescue_and_existing_reuse(self):
         b=self.batch();seen=[];content=pdf()
         async def fake_s3(client,paper,path,b,cfg):seen.append('s3');path.write_bytes(content);return {'source':'PMC S3'},''
@@ -96,7 +111,7 @@ class Tests(unittest.IsolatedAsyncioTestCase):
         with patch.object(e,'source_unpaywall',slow):
             await asyncio.sleep(.15);e.execute("UPDATE batches SET control='cancel' WHERE id=?",(b['id'],));await asyncio.wait_for(task,3)
         self.assertEqual(e.one('SELECT * FROM batches')['state'],'cancelled');self.assertEqual(e.one('SELECT * FROM items')['state'],'cancelled')
-        self.assertIn('Final failed: 0',(e.batch_dir(b)/'download_report.txt').read_text())
+        self.assertIn('Final failed: 0',compact_io.read_text((e.batch_dir(b)/'download_report.txt')))
     def test_retired_enhanced_setting_cannot_enable_retry_sources(self):
         b=self.batch();e.execute("UPDATE batches SET state='done'");e.execute("UPDATE items SET state='failed'")
         e.save_settings({'enhanced':True})

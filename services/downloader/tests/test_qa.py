@@ -115,7 +115,7 @@ class QATests(unittest.TestCase):
   job=q.read(path/'job.json');self.assertEqual(job['state'],'done');self.assertEqual(job['answer'],'Answer [E1]');self.assertEqual(job['citationValidation']['status'],'structural_checked')
   self.assertNotIn('auditStarted',job)
   self.assertTrue(all(v.get('reasoning')=='Checking supplied evidence.' for v in job['events'] if v['type']=='model'))
-  self.assertTrue(list(path.glob('*.reasoning.txt')))
+  self.assertTrue(list(path.glob('*.reasoning.txt.gz')))
 
  def test_read_inventory_never_builds_chunks(self):
   e.atomic(self.base/'pubmed/current.xml','<PubmedArticleSet><PubmedArticle><MedlineCitation><PMID>123</PMID><Article><ArticleTitle>Study</ArticleTitle><Abstract><AbstractText>'+('Evidence text. '*30)+'</AbstractText></Abstract></Article></MedlineCitation></PubmedArticle></PubmedArticleSet>')

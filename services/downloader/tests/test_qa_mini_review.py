@@ -22,7 +22,7 @@ class MiniReviewTests(unittest.TestCase):
   self.assertNotIn('E999',job['error'])
   self.assertEqual(job['formatRepair']['state'],'failed')
   self.assertTrue(job['formatRepair']['reason'])
-  self.assertTrue(list(path.glob('*修复问答格式.prompt.json')))
+  self.assertTrue(list(path.glob('*修复问答格式.prompt.json.gz')))
  def setUp(self):
   self.old=e.ROOT,e.PROJECT;self.tmp=tempfile.TemporaryDirectory(dir=e.ROOT/'tmp')
   e.ROOT,e.PROJECT=Path(self.tmp.name),'mini';self.project=storage.project_dir(e.ROOT,e.PROJECT)

@@ -1,4 +1,5 @@
 """Project-local review workspaces and outlines. No model requests from read/edit RPCs."""
+import compact_io
 import asyncio,csv,hashlib,io,json,os,re,shutil,sqlite3,subprocess,sys,time,uuid
 from pathlib import Path
 from urllib.parse import urlsplit
@@ -30,7 +31,7 @@ SYSTEM='''你是一位循证综述大纲编辑。按用户提供的主题、要�
 输出严格两列 CSV（Serial,Title），可包含该表头；标题含英文逗号或双引号时按 CSV 规范引用。不要输出省略号、Markdown 或说明文字。
 编号使用正整数点分形式，不允许前导零；各层兄弟从 1 连续编号，父节点必须先于子节点，按完整树的前序输出。不预设标题层级深度，最多 1000 个节点，每个标题一行且非空。保留所有父标题，不仅输出末级标题。'''
 
-def read(path,default=None):return json.loads(path.read_text(encoding='utf8')) if path.exists() else default
+def read(path,default=None):return compact_io.read_json(path,default)
 
 def safe(base,*parts):
     path=base

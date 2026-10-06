@@ -1,5 +1,5 @@
 """Real QA worker and shared API retriever against isolated local SSE/embedding fixtures."""
-import json,os,sqlite3,sys,tempfile,threading,time
+import gzip,json,os,sqlite3,sys,tempfile,threading,time
 from pathlib import Path
 from http.server import BaseHTTPRequestHandler,ThreadingHTTPServer
 ROOT=Path(__file__).resolve().parents[1];sys.path.insert(0,str(ROOT/'services/downloader'))
@@ -62,6 +62,11 @@ try:
   assert len([r for r in models if '选择为解答 question' in r['messages'][0]['content']])==0
   assert len([r for r in models if '逐要点说明支持' in r['messages'][0]['content']])==2
   assert not any({'max_tokens','max_completion_tokens','max_output_tokens'}&set(r) for r in models)
+  run_path=qa.runpath(e,job['id']);archives=list(run_path.glob('*.gz'));assert archives
+  log_storage={'originalBytes':sum(len(gzip.decompress(f.read_bytes())) for f in archives),'storedBytes':sum(f.stat().st_size for f in archives)}
+  assert log_storage['storedBytes']<log_storage['originalBytes']
+  assert not (run_path/'input.json').exists() and qa.read(run_path/'input.json')['question']=='What does the evidence show?'
+  assert all(json.loads(gzip.decompress(f.read_bytes()))['messages'] in [r['messages'] for r in models] for f in run_path.glob('*.prompt.json.gz'))
   bundle=json.loads((qa.runpath(e,job['id'])/'answer-bundle.json').read_text());assert len(bundle['evidencePool'])==2
   assert qa.rpc(e,'evidence',{'runId':job['id'],'evidenceId':'E1'})['metadata']['pmid']=='123'
   assert Path(qa.rpc(e,'export',{'threadId':thread['id']})['path']).is_file()
@@ -107,6 +112,6 @@ try:
   assert hello_state['state']=='done',hello_state.get('error')
   assert hello_state['answer'].startswith('你好') and hello_state['round']==0
   assert len(requests[before:])==2 and not any('input' in r for r in requests[before:])
-  print(json.dumps({'passed':True,'rounds':state['round'],'modelCalls':len(models),'checks':['real independent worker','shared retriever and embedding API','selected scope','minimum rounds','material deduplication','structured answer and table','PMID binding','source RPC','export','no output token cap','real follow-up rewrite with historical citation binding','greeting in empty project without retrieval','cancel active HTTP within 2 seconds','source mutation while streaming blocks publication']},ensure_ascii=False))
+  print(json.dumps({'passed':True,'auditStorage':log_storage,'rounds':state['round'],'modelCalls':len(models),'checks':['real independent worker','shared retriever and embedding API','selected scope','minimum rounds','material deduplication','structured answer and table','PMID binding','source RPC','export','no output token cap','real follow-up rewrite with historical citation binding','greeting in empty project without retrieval','cancel active HTTP within 2 seconds','source mutation while streaming blocks publication']},ensure_ascii=False))
 finally:
  e.ROOT,e.PROJECT=old;server.shutdown();server.server_close()

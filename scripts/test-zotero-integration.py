@@ -14,6 +14,7 @@ from unittest.mock import patch
 ROOT=Path(__file__).resolve().parents[1]
 sys.path[:0]=[str(ROOT/'services/downloader'),str(ROOT/'services/downloader/tests')]
 import engine as e
+import compact_io
 import corpus_files as files
 import markdown_service as markdown
 from zotero_fixture import Fixture
@@ -64,7 +65,7 @@ try:
         assert e.one('SELECT state,source FROM items WHERE batch=?',(bid,))=={'state':'success','source':'Zotero'}
         info=json.loads(e.one('SELECT data FROM assets WHERE pmid=?',('1',))['data'])
         assert info['attachmentKey']=='ATTACH01' and info['sha256']==original
-        report=json.loads((e.batch_dir(b)/'download_report.json').read_text())
+        report=json.loads(compact_io.read_text((e.batch_dir(b)/'download_report.json')))
         assert report['counts']=={'success':1} and report['stages'][-1]['success']==1
         assert report['stageRuns'][-1]['stage']=='zotero'
         assert (base/'literature_without_pdf.txt').read_text()=='2\n'
@@ -72,7 +73,7 @@ try:
         assert (e.batch_dir(b)/'literature_without_pdf.txt').read_text()==''
         assert not list((e.batch_dir(b)/'staging').rglob('*.pdf'))
         assert not list(base.glob('metadata/markdown-job*')),'standalone download must not auto-convert'
-        assert 'PRIVATE' not in (e.batch_dir(b)/'download_report.txt').read_text()
+        assert 'PRIVATE' not in compact_io.read_text((e.batch_dir(b)/'download_report.txt'))
         assert hashlib.sha256(source.read_bytes()).hexdigest()==original
         # Verify the existing opt-in handoff receives the newly registered Zotero PDF,
         # without invoking Marker or any model in this test.

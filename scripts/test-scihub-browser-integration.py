@@ -7,6 +7,7 @@ from http.server import BaseHTTPRequestHandler,ThreadingHTTPServer
 from urllib.parse import urlsplit
 ROOT=Path(__file__).resolve().parents[1];sys.path.insert(0,str(ROOT/'services/downloader'))
 import engine as e,corpus_files as files
+import compact_io
 sys.path.insert(0,str(ROOT/'services/downloader/tests'))
 from pdf_fixture import pdf
 PDF=pdf('10.1234/1')
@@ -57,7 +58,7 @@ with tempfile.TemporaryDirectory(prefix='scihub-browser-rpc-',dir=ROOT/'tmp') as
    if value['state']==state:
     final_report=e.batch_dir(value)/'download_report.json'
     sources=files.base(e)/'literature_pdf_sources.txt'
-    if state!='done' or (final_report.exists() and json.loads(final_report.read_text()).get('state')=='done' and sources.exists()):return value
+    if state!='done' or (compact_io.compressed_path(final_report).exists() and json.loads(compact_io.read_text(final_report)).get('state')=='done' and sources.exists()):return value
    time.sleep(.05)
   raise AssertionError(('batch timeout',state,value['state'],value['error']))
  def start(p):return rpc('download.start',pmids=[p])['id']
@@ -81,7 +82,7 @@ with tempfile.TemporaryDirectory(prefix='scihub-browser-rpc-',dir=ROOT/'tmp') as
   assert not (base/'metadata/markdown-job.json').exists() and not (base/'vectors/chunks.sqlite3').exists()
   assert 'Sci-Hub' in (base/'literature_pdf_sources.txt').read_text()
   assert '1' not in (base/'literature_without_pdf.txt').read_text().splitlines()
-  report=json.loads((base/'logs'/bid/'download_report.json').read_text());requests=[r for a in report['attempts'] for r in a['detail'].get('requests',[])]
+  report=json.loads(compact_io.read_text((base/'logs'/bid/'download_report.json')));requests=[r for a in report['attempts'] for r in a['detail'].get('requests',[])]
   assert requests and all(r['transport']=='playwright-chromium' for r in requests)
   assert requests[0]['method']=='browser-rendered-dom'
   assert [r['requestType'] for r in requests if 'requestType' in r]==['challenge_get','challenge_post','challenge_replay']
@@ -90,14 +91,14 @@ with tempfile.TemporaryDirectory(prefix='scihub-browser-rpc-',dir=ROOT/'tmp') as
   print('App RPC + real worker: Altcha, JavaScript link, native attachment, identity, publication, source/cache and reports passed',flush=True)
   # Same-hash cache keeps its route and now also rechecks identity.
   (base/'pdf/1.pdf').unlink();before=len(calls);bid=start('1');wait(bid)
-  report=json.loads((base/'logs'/bid/'download_report.json').read_text())
+  report=json.loads(compact_io.read_text((base/'logs'/bid/'download_report.json')))
   assert any(a['detail'].get('route')=='known-file' and a['outcome']=='success' for a in report['attempts'])
   assert not any('/entry/' in v for v in calls[before:])
   bid=start('7');wait(bid);assert_clean()
   assert not (base/'pdf/7.pdf').exists()
   pending=list((base/'logs'/bid/'identity_pending/7').glob('*.pdf'));assert pending
   assert pending[0].read_bytes()==pdf(blank=True)
-  report=json.loads((base/'logs'/bid/'download_report.json').read_text())
+  report=json.loads(compact_io.read_text((base/'logs'/bid/'download_report.json')))
   assert any(a['detail'].get('identityPending') for a in report['attempts'])
   assert e.one('SELECT state FROM items WHERE batch=?',(bid,))['state']=='failed'
   assert '7' in (base/'literature_without_pdf.txt').read_text().splitlines()

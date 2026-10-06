@@ -1,5 +1,6 @@
 """Durable, project-local PDF download service. JSON RPC on stdin; --worker for jobs."""
 from __future__ import annotations
+import compact_io
 import asyncio, base64, hashlib, json, os, random, re, sqlite3, struct, subprocess, sys, time, uuid, zipfile
 from collections import Counter
 from contextvars import ContextVar
@@ -244,7 +245,7 @@ def report(b):
     for a in attempts:
         lines.append(f"PMID {a['pmid']} | {a['stage']} | {a['outcome']} | {a['elapsed']:.3f}s | {a['detail']}")
     if b['error']:lines+=['','Batch error: '+b['error']]
-    d=batch_dir(b);write_json(d/'download_report.json',data);atomic(d/'download_report.txt','\n'.join(lines)+'\n')
+    d=batch_dir(b);compact_io.write_json(sys.modules[__name__],d/'download_report.json',data);compact_io.write_text(sys.modules[__name__],d/'download_report.txt','\n'.join(lines)+'\n')
     atomic(d/'literature_without_pdf.txt',''.join(i['pmid']+'\n' for i in items if i['state'] in ('failed','deferred')))
     return data
 
@@ -368,7 +369,7 @@ def list_state(project):
         for i in b['items']:
             i['title']=json.loads(i.pop('paper')).get('title','');i['progress']=states.get(i['pmid'],{})
         b['bloomSummary']=bloom_summary(b['items'],attempts,states)
-        b['counts']=dict(Counter(i['state'] for i in b['items']));b['reportPath']=str(batch_dir(b)/'download_report.txt')
+        b['counts']=dict(Counter(i['state'] for i in b['items']));b['reportPath']=str(batch_dir(b)/'download_report.txt.gz')
     assets={r['pmid']:json.loads(r['data']) for r in rows('SELECT * FROM assets WHERE project=?',(project,))}
     for asset in assets.values():asset['exists']=asset_path(project,asset).is_file();asset['path']=str(asset_path(project,asset))
     return {'batches':batches,'assets':assets}
@@ -973,8 +974,12 @@ def download_rpc(action,a):
     if action=='report':
         b=one('SELECT * FROM batches WHERE id=? AND project=?',(ident(a['id']),ident(a['project'])));path=batch_dir(b)/'download_report.txt'
         report(b)
-        if a.get('open'):return open_local(path.parent if a.get('folder') else path)
-        return {'text':path.read_text(),'path':str(path)}
+        text=compact_io.read_text(path)
+        if a.get('open'):
+            if a.get('folder'):return open_local(path.parent)
+            exported=path.parent/'exports/download_report.txt';atomic(exported,text)
+            return open_local(exported)
+        return {'text':text,'path':str(compact_io.compressed_path(path))}
     if action=='open':
         asset=json.loads(one('SELECT data FROM assets WHERE project=? AND pmid=?',(ident(a['project']),pmid(a['pmid'])))['data']);path=asset_path(a['project'],asset);return open_local(path.parent if a.get('folder') else path)
     if action=='import':

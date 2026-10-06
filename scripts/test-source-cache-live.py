@@ -6,6 +6,7 @@ from unittest.mock import patch
 ROOT=Path(__file__).resolve().parents[1]
 sys.path.insert(0,str(ROOT/'services/downloader'))
 import engine as e
+import compact_io
 e.load_sources()
 exp=ROOT/'experiments/scihub-20260920'
 papers=json.loads((exp/'papers.json').read_text())
@@ -26,7 +27,7 @@ async def unavailable(*args):return None,'Isolated Sci source verification'
 start=time.monotonic()
 with patch.object(e,'bloom_info',return_value={}),patch.object(e.badr,'SciHubBloomFilter',return_value=bloom),patch.object(e,'source_s3',unavailable),patch.object(e,'source_unpaywall',unavailable):
  asyncio.run(e.run_batch(b))
-report=json.loads((e.batch_dir(b)/'download_report.json').read_text())
+report=json.loads(compact_io.read_text((e.batch_dir(b)/'download_report.json')))
 result={'fixture':str(fixture),'report':str(e.batch_dir(b)/'download_report.json'),'wallSeconds':round(time.monotonic()-start,3),'counts':report['counts'],'sourceCacheSuccess':report['sourceCacheSuccess'],'scihubSuccessByBloom':report['scihubSuccessByBloom'],'sources':{},'verified':[]}
 from pypdf import PdfReader
 import re

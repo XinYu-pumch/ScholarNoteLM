@@ -11,6 +11,7 @@ import unittest
 from unittest.mock import patch, AsyncMock
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 import engine as e
+import compact_io
 import corpus_files as f
 import zotero_local as z
 import zotero_stage as stage
@@ -154,7 +155,7 @@ class ZoteroTests(ZoteroFixture):
         self.assertEqual(info['attachmentKey'],'ATTACH04');self.assertEqual(info['parentKey'],'PARENT04')
         self.assertEqual(info['manuscriptKind'],'fulltext');self.assertEqual(info['doi'],'10.1234/test')
         self.assertFalse(any('/PARENT01/children' in path or '/PARENT03/children' in path for path,q in self.fixture.calls))
-        text=(e.batch_dir(b)/'download_report.txt').read_text();self.assertIn('ATTACH04',text);self.assertNotIn('PRIVATE',text)
+        text=compact_io.read_text((e.batch_dir(b)/'download_report.txt'));self.assertIn('ATTACH04',text);self.assertNotIn('PRIVATE',text)
         self.assertEqual((self.base/'literature_without_pdf.txt').read_text(),'2\n')
         self.assertEqual((e.batch_dir(b)/'literature_without_pdf.txt').read_text(),'')
         self.assertEqual(e.progress(b['id'],'1')['zotero']['attachmentKey'],'ATTACH04')
