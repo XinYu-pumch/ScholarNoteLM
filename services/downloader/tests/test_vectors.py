@@ -40,7 +40,20 @@ class VectorTests(unittest.TestCase):
   e.atomic(self.base/'pubmed/current.xml','<PubmedArticleSet/>');c.sync(e);self.assertEqual(c.documents(e),[]);self.assertFalse((self.base/'vectors/chunks/redundant/123.jsonl').exists())
   with c.connect(e) as db:self.assertEqual(db.execute('SELECT COUNT(*) FROM documents').fetchone()[0],0)
   self.xml();c.sync(e);self.assertNotEqual(c.documents(e)[0]['version'],a['version'])
-  self.assertTrue((self.base/'vectors/chunks/123.jsonl').exists());self.assertFalse((self.base/'vectors/chunks/redundant/123.jsonl').exists())
+  self.assertFalse((self.base/'vectors/chunks/123.jsonl').exists());self.assertFalse((self.base/'vectors/chunks/redundant/123.jsonl').exists())
+ def test_jsonl_is_only_written_on_export_with_complete_metadata(self):
+  self.xml();c.sync(e)
+  before=c.documents(e)[0]
+  self.assertFalse((self.base/'vectors/chunks').exists())
+  result=v.rpc(e,'export',{'pmid':'123'});path=Path(result['path'])
+  actual=[json.loads(line) for line in path.read_text().splitlines()]
+  with c.connect(e) as db:expected=[{k:v for k,v in r.items() if k!='resources'} for r in c.records_for(db,before['version'],before['metadata'])]
+  self.assertEqual(actual,expected);self.assertEqual(result['count'],len(expected))
+  self.assertIn('abstract',actual[0]['metadata'])
+  self.assertEqual(path.parent,self.base/'vectors/exports')
+  self.xml('Updated result. '*30);c.sync(e)
+  self.assertEqual([json.loads(line) for line in path.read_text().splitlines()],actual)
+  v.rpc(e,'export',{'pmid':'123'});self.assertIn('Updated result',path.read_text())
  def test_invalid_xml_does_not_remove_current_documents(self):
   self.xml();c.sync(e);e.atomic(self.base/'pubmed/current.xml','<broken>')
   with self.assertRaises(Exception):c.sync(e)

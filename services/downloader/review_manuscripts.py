@@ -1,10 +1,11 @@
-"""Immutable, self-contained manuscripts and the one mutable writing round.
+"""Immutable manuscripts with shared image storage and one mutable writing round.
 
 Call mutations under review_service.lock. Reset uses a strict allowlist and
 never traverses exports or manuscripts. Frozen display blocks include images.
 """
 import base64,hashlib,json,os,re,shutil,time,uuid
 import review_service as outline
+import manuscript_storage
 
 RESET_DIRS=('review_parts','sections','prompts','retrieval','logs')
 RESET_FILES=('writing-job.json','writing-round.json')
@@ -46,8 +47,19 @@ def get(e,name,ident):
     if not re.fullmatch(r'[a-f0-9]{64}',ident or ''):raise ValueError('稿件标识无效')
     result=outline.read(outline.safe(folder(e,name),ident,'document.json'))
     if not result:raise ValueError('已保存稿件不存在')
-    if payload_hash(result)!=ident:raise ValueError('已保存稿件校验失败，原始正文未清理')
+    result=manuscript_storage.unpack(folder(e,name),result)
+    if result.get('id')!=ident or payload_hash(result)!=ident:raise ValueError('已保存稿件校验失败，原始正文未清理')
     return result
+
+def store(e,name,value):
+    """Publish only after a lossless round trip; caller holds the review lock."""
+    ident=value['id']
+    if payload_hash(value)!=ident:raise ValueError('已保存稿件校验失败，原稿未修改')
+    target=outline.safe(folder(e,name),ident,'document.json')
+    compact=manuscript_storage.pack(folder(e,name),value,e.atomic)
+    if manuscript_storage.unpack(folder(e,name),compact)!=value:
+        raise ValueError('稿件压缩校验失败，原稿未修改')
+    e.write_json(target,compact)
 
 def listing(e,name):
     result=[]
@@ -88,11 +100,12 @@ def save(e,name):
     target=outline.safe(folder(e,name),ident,'document.json')
     if target.exists():
         existing=get(e,name,ident)
+        if 'storageFormat' not in outline.read(target):store(e,name,existing)
         e.write_json(target.parent/'summary.json',{k:existing[k] for k in ('id','created','label','topic','partial','outlineHash')})
         return existing
     created=time.time();kind='草稿' if value['partial'] else '完整稿'
     value.update(id=ident,created=created,label=f'{name}_{kind}_{time.strftime("%Y%m%d-%H%M%S",time.localtime(created))}_{ident[:8]}')
-    e.write_json(target,value)
+    store(e,name,value)
     if get(e,name,ident)!=value:raise ValueError('稿件保存校验失败，未清理正文')
     e.write_json(target.parent/'summary.json',{k:value[k] for k in ('id','created','label','topic','partial','outlineHash')})
     return value

@@ -224,7 +224,8 @@ ScholarNoteLM/
   markdown/assets/<PMID>/
   vectors/
     chunks.sqlite3              # 文本块、文档版本、Embedding 缓存与索引登记
-    chunks/                     # 可导出的逐篇 JSONL
+    exports/                    # 用户按需导出的逐篇完整 JSONL
+    chunks/                     # 旧版自动 JSONL；可无损压缩为 .jsonl.gz
     sources/                    # 文本版本快照
   metadata/
     research.sqlite3            # 本项目检索式、文献成员关系、助手对话
@@ -322,6 +323,8 @@ Embedding 输入仅为 chunk 原文，模板版本为 `chunk-body-only-v2`；论
 
 `vectors/chunks.sqlite3` 中的 Embedding 缓存是唯一的向量存储（2026-10-04 起不再使用 Chroma）；`indexed` 登记表示某篇文献的全部块都已有当前模型的向量。综述 API 召回直接对缓存做余弦排序，不要求所有文献都已登记为最新。遇到“生成缺失 API 向量”时，应检查模型身份、输入哈希、模板/文本版本和摘要块是否已有缓存，不能仅凭缺失数量断言为无 PDF 文献。
 
+索引和浏览不再自动保存每篇完整 JSONL，避免在每个块上重复写入摘要等文章级 metadata；数据库及界面仍保留完整 metadata。“导出 JSONL”按需写入 `vectors/exports/<PMID>.jsonl`，格式不变。已有 `vectors/chunks/` 副本不会因升级自动删除，可通过下述无损压缩命令保留为 `.jsonl.gz`。
+
 Embedding 请求使用当前 Embedding 配置中的共享 RPM/TPM 限速，默认 60 RPM / 120000 估算 TPM 是应用值，不代表供应商账号配额；429 遵循 Retry-After。验证绑定实际服务配置与凭据指纹，修改后需重新验证。
 
 ## 6. 综述生成：实现与文件协议
@@ -365,6 +368,18 @@ CSV 为序号/标题两列，校验父子关系、顺序、同级连续编号等
 
 HTML 为离线阅读页面：低饱和深绿工具栏、连续正文、可折叠目录与当前章节定位、阅读进度；引用详情默认收起，点击 PMID 后按小节展开对应素材。窄屏使用可关闭侧栏，支持键盘操作；打印 / PDF 隐藏阅读控件。CSS 与脚本内嵌，打开页面无需联网。新导出的引用详情包含共享正文、完整关联表格与内嵌图片；表格使用安全的 Markdown/HTML 渲染。旧字符串素材继续兼容。Word 通过 python-docx 生成。装配按完整大纲顺序，不按异步完成顺序，组织标题也保留。`citation_validation.passed` **仅代表格式/范围检查通过，不是论断已被科学证据证明**。
 
+已保存稿件的内部 `document.json` 使用 `manuscript-shared-images-v1` 存储格式：相同图片在本综述工作区的 `manuscripts/assets/` 中只保存一份无损压缩的 data URL，读取时校验哈希并还原。稿件 ID、正文、引用、图片字节及原有输入签名不变；旧版内嵌图片 JSON 仍可直接读取。复制稿件归档时须包含整个 `manuscripts/` 目录，重置当前撰写不会删除其中的资源。**HTML 导出仍是包含所有图片、样式和脚本的单个文件，可以单独移动到其他位置离线阅读**，不会引用内部资源文件。
+
+已有项目的内部重复数据可显式无损压缩（默认只读估算；`--apply` 才修改，并持有存储/综述/文献锁）：
+
+```sh
+runtimes/downloader/bin/python scripts/compact-project-storage.py
+runtimes/downloader/bin/python scripts/compact-project-storage.py --apply
+# 可用 --project <项目ID> 限定项目，--root <隔离根目录> 指定测试环境。
+```
+
+压缩仅迁移已保存稿件图片、压缩旧版自动 JSONL；逐文件校验还原内容后原子发布，可中断后重跑。不修改 PDF、HTML、问答、向量数据库、提示词材料包或运行历史，不触发下载、Embedding 或 LLM。活动任务持锁时拒绝执行；不要手工删除 `manuscripts/assets/`。
+
 ### 工作区布局和外部文件修改
 
 ```text
@@ -386,6 +401,8 @@ review/<ReviewName>/
     resources/                   # 按内容哈希保存的表格与图片
     section_*.json               # 公共综述片段
   sections/<unit-id>.json         # 内部正文、完整 metadata、签名、模型与任务信息
+  manuscripts/<稿件ID>/document.json # 已保存稿件，读取后内容哈希与稿件 ID 一致
+  manuscripts/assets/            # 各已保存稿件共享的不可变图片（无损压缩）
   logs/<run-id>/
     input.json                   # 冻结输入和任务列表
     result.json                  # 本轮结果/错误；早期历史运行不一定有

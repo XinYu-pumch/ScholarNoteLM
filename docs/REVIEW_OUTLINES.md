@@ -68,11 +68,17 @@
   prompts/                    # 提示词文件清单、校验值、准备状态
   review_parts/               # prompt_section_*.json、TXT 预览、resources 与 section_*.json
   sections/                   # 写作单元正文、证据、输入指纹
+  manuscripts/<稿件ID>/document.json # 已保存的完整稿/草稿，保留原稿件内容哈希
+  manuscripts/assets/         # 稿件间共享、按内容哈希命名的压缩图片
   logs/<任务ID>/              # 冻结输入、完整提示词、模型响应、修复记录、日志
   exports/                    # Markdown、Word、HTML
 ```
 
 导出沿用 BADR 的完整大纲装配。HTML 采用目录、正文、引用详情三栏，支持 Markdown 排版，点击 PMID 显示该小节素材和 PubMed 链接；同一单元的终末小节可查看整个共享池中该 PMID 的素材和关联图表，其他单元的材料不混入。Word 使用 python-docx，封面标题与生成时间、分页、层级标题、粗斜体、列表和表格；参考文献仅使用实际引用的 PMID 与 PubMed 链接。HTML 与 Word 读取同一份规范化章节。未完成或过期内容导出时明确标记为草稿。删除工作区会移至项目 `metadata/review-trash/`。
+
+已保存稿件按 `manuscript-shared-images-v1` 组织内部存储，将重复 data URL 变成共享图片引用；图片使用无损 gzip 保存原始 data URL，以 SHA-256 校验。读取时还原完整稿件，再按既有内容哈希校验，所以稿件 ID、引用、模型输入签名均不改变。旧版单文件稿件兼容读取；再次保存相同稿件时转换存储表示，也可用 `scripts/compact-project-storage.py --apply` 批量无损迁移。该命令默认只读估算。
+
+资源池属于 `manuscripts/`，不依赖当前 Markdown、向量、写作材料包或大纲；重置当前撰写仍能查看和导出旧稿。移动内部归档需要整个 `manuscripts/` 目录。HTML 导出始终将图片及其他资源完整内嵌，允许重复，可只移动一个 HTML 离线查看；已有导出不参与压缩。
 
 ## 验证命令
 

@@ -53,7 +53,9 @@ with tempfile.TemporaryDirectory(prefix='vector-integration-',dir=ROOT/'tmp') as
  job=index();assert job['completed']==1,job
  hits=search('cytokine','semantic');assert len(hits)==1 and hits[0]['metadata']['pmid']=='123',hits
  xml({'123':first,'456':second});job=index();assert job['completed']==2 and job['skipped']==0 and job['items'][0]['newEmbeddings']==0 and job['items'][1]['newEmbeddings']==1,job
- assert (f.base(e)/'vectors/chunks/456.jsonl').exists()
+ assert not (f.base(e)/'vectors/chunks/456.jsonl').exists()
+ exported=v.rpc(e,'export',{'pmid':'456'});assert Path(exported['path']).exists()
+ assert json.loads(Path(exported['path']).read_text().splitlines()[0])['metadata']['pmid']=='456'
  # One batch fails while another succeeds: retry must reuse the successful batch.
  fail_token='FAILMARK';xml({'123':('Healthy new batch. '*25)+'\n\n'+('FAILMARK other batch. '*25)})
  job=index();assert job['failed']==1 and not c.documents(e,v.profile(v.config(e)))[0]['indexed'],job

@@ -9,7 +9,7 @@ A='1,Original\n1.1,Leaf\n2,Conclusion\n'
 B='1,New first heading\n2,Original\n2.1,Leaf\n3,Conclusion\n'
 class ManuscriptTests(unittest.TestCase):
  def setUp(self):
-  self.old=e.ROOT,e.PROJECT;self.tmp=tempfile.TemporaryDirectory();e.ROOT,e.PROJECT=Path(self.tmp.name),'test'
+  self.old=e.ROOT,e.PROJECT;self.tmp=tempfile.TemporaryDirectory(dir=Path(__file__).resolve().parents[3]/'tmp');e.ROOT,e.PROJECT=Path(self.tmp.name),'test'
   self.base=storage.project_dir(e.ROOT,e.PROJECT);e.atomic(self.base/'pubmed/current.xml','<PubmedArticleSet/>')
   self.detail=r.rpc(e,'create',{'name':'Test','outlineSource':'file','fileName':'A.csv','csv':A,'topic':'Topic A','requirements':'Keep evidence'})
   self.path=r.work(e,'Test');self.profile=patch.object(r,'profile',return_value=PROFILE);self.profile.start()

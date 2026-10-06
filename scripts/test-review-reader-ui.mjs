@@ -6,15 +6,25 @@ import { resolve } from 'node:path';
 const output = resolve('tmp/html-reader-check');
 mkdirSync(output, { recursive: true });
 execFileSync(resolve('runtimes/downloader/bin/python'), ['-c', `
-import sys
+import sys, shutil
 from pathlib import Path
 sys.path.insert(0, 'services/downloader')
-from review_export import html_document
+import engine as e, review_manuscripts as manuscripts
 rows = [{'serial': s, 'title': t} for s,t in [('1','研究背景'),('1.1','补体调控与遗传因素'),('1.1.1','证据与研究局限'),('1.1.1.1.1.1.1','完整保留七级编号'),('2','临床研究与未来方向')]]
 sections = {r['serial']: ('正文用于验证长文阅读与引用定位。 **加粗**与*斜体*。 (PMID: 12345678)\\n\\n' * 8) for r in rows}
 sections['2'] += '\\n| 基因 | 研究内容 |\\n| --- | --- |\\n| C3 | 补体调节 |\\n\\n<script>alert(1)</script>'
 refs = {r['serial']: {'12345678': ['章节 '+r['serial']+' 的素材。 Gene<sup>2</sup> and H<sub>2</sub>O. <img src=x onerror=alert(1)>']} for r in rows}
-Path(sys.argv[1]).write_text(html_document('综述阅读 · 格式与引用验证', rows, sections, refs, True), encoding='utf8')
+image='data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+jRZkAAAAASUVORK5CYII='
+refs['2']['12345678'].append({'id':'image-evidence','html':'<p>Embedded image evidence</p>','resources':[{'id':'figure','kind':'figure','pmid':'12345678','lineStart':1,'lineEnd':1,'dataUrl':image,'context':[]}]})
+destination=Path(sys.argv[1]);e.ROOT=destination.parent/'isolated';e.PROJECT='test'
+value={'topic':'综述阅读 · 格式与引用验证','rows':rows,'sections':sections,'references':refs,'partial':True,
+       'blocks':{r['serial']:[{'type':'markdown','text':sections[r['serial']]}] for r in rows},'pmids':['12345678'],'outlineHash':'fixture','models':[]}
+value.update(id=manuscripts.payload_hash(value),created=1,label='reader')
+manuscripts.store(e,'Review',value)
+assert len(list(manuscripts.folder(e,'Review').glob('assets/*.gz')))==1
+exported=manuscripts.export(e,'Review','html',value['id'])
+shutil.copyfile(exported['path'],destination)
+shutil.rmtree(e.ROOT)  # Only the moved HTML remains when the browser opens it.
 `, resolve(output, 'review.html')], { cwd: resolve('.'), encoding: 'utf8' });
 const browser = await chromium.launch({ headless: true });
 const page = await browser.newPage({ viewport: { width: 1500, height: 1000 } });
@@ -42,7 +52,9 @@ try {
  await expect(page.locator('#area>a')).toHaveAttribute('href', 'https://pubmed.ncbi.nlm.nih.gov/12345678/');
  // The same PMID in another section must show that section's evidence.
  await page.locator('.lnk[data-scope="2"]').first().click();
- await expect(page.locator('#area .cb')).toContainText('章节 2 的素材');
+ await expect(page.locator('#area .cb').first()).toContainText('章节 2 的素材');
+ await expect(page.locator('#area img')).toHaveCount(1);
+ expect(await page.locator('#area img').evaluate(img => img.complete && img.naturalWidth > 0)).toBe(true);
  await expect(page.locator('.lnk[aria-pressed="true"]')).toHaveCount(1);
  await page.keyboard.press('Escape');
  await expect(page.locator('#ref')).toBeHidden();
@@ -87,5 +99,5 @@ try {
  await page.pdf({ path: resolve(output, 'review.pdf'), format: 'A4', printBackground: true });
  expect(errors).toEqual([]);
  expect(requests).toEqual([]);
- console.log(JSON.stringify({success:true, checks:['full outline','collapsible directory','active section','scoped citations','safe superscripts','reading progress','desktop/tablet/phone layouts','keyboard focus and Escape','print/PDF','no external requests','no script errors']}));
+ console.log(JSON.stringify({success:true, checks:['compact manuscript export','moved HTML with source archive removed','embedded image renders offline','full outline','collapsible directory','active section','scoped citations','safe superscripts','reading progress','desktop/tablet/phone layouts','keyboard focus and Escape','print/PDF','no external requests','no script errors']}));
 } finally { await browser.close(); }

@@ -47,6 +47,7 @@ def purge_documents(e,pmids):
                 if asset.is_relative_to((base(e)/'resource-assets').resolve()):asset.unlink(missing_ok=True)
     for p in pmids:
         (files.base(e)/'vectors/chunks'/f'{p}.jsonl').unlink(missing_ok=True)
+        (files.base(e)/'vectors/chunks'/f'{p}.jsonl.gz').unlink(missing_ok=True)
 
 def connect(e):
     c=sqlite3.connect(base(e)/'chunks.sqlite3',timeout=15);c.row_factory=sqlite3.Row
@@ -220,15 +221,15 @@ def sync_locked(e,pmids=None):
                 c.execute('INSERT INTO documents VALUES(?,?,?,?)',(version,p,text,json.dumps(meta,ensure_ascii=False)))
                 e.atomic(files.folder(e,'vectors/sources')/f'{version}.md',text)
             encoded=json.dumps(meta,ensure_ascii=False)
-            old=c.execute('SELECT version,meta FROM current_documents WHERE pmid=?',(p,)).fetchone()
             c.execute('INSERT OR REPLACE INTO current_documents VALUES(?,?,1,?)',(p,version,encoded))
-            if not old or old['version']!=version or old['meta']!=encoded or not (base(e)/'chunks'/f'{p}.jsonl').exists():
-                records=records_for(c,version,meta)
-                e.atomic(files.folder(e,'vectors/chunks')/f'{p}.jsonl',''.join(json.dumps({k:v for k,v in r.items() if k!='resources'},ensure_ascii=False)+'\n' for r in records))
-        # Keep old versions in SQLite/sources; current JSONL folder reflects current membership.
-        output=files.folder(e,'vectors/chunks')
+        # SQLite stores article metadata once per version. Full JSONL is an explicit
+        # export, not a second eagerly maintained copy of every block's metadata.
+        # Retain old versions in SQLite/sources and clean only removed membership.
+        output=base(e)/'chunks'
         for path in output.glob('*.jsonl'):
             if path.stem not in articles:path.unlink()
+        for path in output.glob('*.jsonl.gz'):
+            if path.name.removesuffix('.jsonl.gz') not in articles:path.unlink()
         return xml_hash
 
 def records_for(c,version,meta):

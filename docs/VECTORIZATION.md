@@ -69,7 +69,8 @@ ScholarNoteLM/config/embedding.json       # 系统配置，含密钥；不写入
 项目/
   vectors/
     chunks.sqlite3                       # 文献版本、块、FTS、向量缓存、索引状态
-    chunks/PMID.jsonl                    # 当前文献的正文块与完整 metadata
+    exports/PMID.jsonl                   # 按需导出：正文块与完整 metadata
+    chunks/PMID.jsonl.gz                 # 显式无损迁移后保留的旧自动 JSONL
     sources/文献版本.md                  # 拆分对应的不可变文本快照
     manifest.json                        # 当前模型签名与拆分版本，无密钥
   metadata/vector-job.json               # 最近索引任务
@@ -79,7 +80,9 @@ ScholarNoteLM/config/embedding.json       # 系统配置，含密钥；不写入
   logs/retrieval/                        # 检索测试的证据记录
 ```
 
-JSONL 一行一个 `{id, text, metadata}`，便于在编辑器中检查或后续分析。所有非空短块进入 JSONL/向量库。图表完整内容独立存储，块 metadata 保存 resourceIds；检索时补入 resources。详见 [图表关联证据](positional-evidence-resources.md)。
+JSONL 一行一个 `{id, text, metadata}`，便于在编辑器中检查或后续分析。所有非空短块进入数据库，点击“导出 JSONL”时才写完整文件；重复导出同一 PMID 更新对应导出文件。同步、索引和浏览不再逐篇生成重复 metadata 副本。导出是静态快照，后续索引变化不会自动改写它。图表完整内容独立存储，块 metadata 保存 resourceIds；检索时补入 resources。详见 [图表关联证据](positional-evidence-resources.md)。
+
+旧自动生成的 `vectors/chunks/*.jsonl` 可用 `scripts/compact-project-storage.py --apply` 无损压缩为 `.jsonl.gz`；默认不带 `--apply` 只读估算。压缩不读取模型配置、不重建向量，旧文件逐字节校验后才移除未压缩副本。文章移出集合时，其旧自动 JSONL 及压缩副本一起清除；`exports/` 内显式导出的静态文件保留。SQLite 的分块、输入及缓存签名均不变。
 
 ## 验证
 

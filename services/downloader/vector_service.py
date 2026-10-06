@@ -408,7 +408,9 @@ def rpc(e,action,a):
         with chunks.connect(e) as c:
             records=chunks.records_for(c,doc['version'],doc['metadata']);source=c.execute('SELECT text FROM documents WHERE version=?',(doc['version'],)).fetchone()['text'];segments=chunks.split(source)
         if action=='export':
-            path=chunks.base(e)/'chunks'/f'{p}.jsonl';return {'path':str(path),'count':len(records)}
+            path=files.folder(e,'vectors/exports')/f'{p}.jsonl'
+            e.atomic(path,''.join(json.dumps({k:v for k,v in r.items() if k!='resources'},ensure_ascii=False)+'\n' for r in records))
+            return {'path':str(path),'count':len(records)}
         offset=max(0,int(a.get('offset',0)));limit=min(100,max(1,int(a.get('limit',30))))
         if a.get('ignored'):
             ignored=[s for s in segments if not s['accepted']];return {'document':doc,'total':len(ignored),'items':ignored[offset:offset+limit],'ignoredCount':len(ignored),'source':source if a.get('includeSource') else None}
