@@ -125,6 +125,7 @@ class SharedRunTests(unittest.TestCase):
   html=Path(w.export(e,'Test','html')['path']).read_text();self.assertIn('SECOND LEAF SOURCE',html)
   from bs4 import BeautifulSoup
   db=json.loads(BeautifulSoup(html,'html.parser').find(id='reference-data').string)
+  db=review_export.html_compaction.unpack(db)
   self.assertIn('23456789',db[node['serial']])
   # Derived previews are not authoritative; JSON edits invalidate preparation.
   preview=self.path/'review_parts'/f'prompt_section_{unit["serial"]}.txt';preview.write_text('edited preview')

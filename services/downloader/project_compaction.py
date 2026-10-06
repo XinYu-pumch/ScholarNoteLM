@@ -1,4 +1,4 @@
-"""Explicit, lossless maintenance. No model calls, index rebuilds or HTML edits.
+"""Explicit, lossless maintenance. Optional self-contained HTML resource pooling.
 
 The CLI holds exclusive storage, review and corpus locks for application. A dry
 run only reads files. Each file is independently verified and atomically replaced;
@@ -12,12 +12,14 @@ import manuscript_storage as images
 import review_manuscripts as manuscripts
 import review_service as review
 import storage
+import html_compaction
 
 
-def compact_project(e, apply=False):
+def compact_project(e, apply=False, include_html=False):
     base = storage.project_dir(e.ROOT, e.PROJECT)
     plans = []
     asset_bytes = {}
+    html_results = []
     before = after = 0
     review_root = review.safe(base, 'review')
     for work in sorted(review_root.iterdir()) if review_root.exists() else []:
@@ -50,6 +52,22 @@ def compact_project(e, apply=False):
             before += len(original)
             after += len(json.dumps(compact, ensure_ascii=False, indent=2).encode('utf8'))
             plans.append(('manuscript', path, original, work.name))
+        if include_html:
+            exports = review.safe(work, 'exports')
+            for candidate in sorted(exports.rglob('*.html')):
+                path = review.safe(base, *candidate.relative_to(base).parts)
+                original = path.read_bytes()
+                try:
+                    result = html_compaction.compact_html(original.decode('utf8')).encode('utf8')
+                except html_compaction.UnsupportedHTML as exc:
+                    html_results.append({'path':str(path.relative_to(base)), 'skipped':str(exc)})
+                    continue
+                if result == original or len(result) >= len(original):
+                    continue
+                before += len(original)
+                after += len(result)
+                html_results.append({'path':str(path.relative_to(base)), 'beforeBytes':len(original), 'afterBytes':len(result)})
+                plans.append(('html', path, original, result))
 
     chunks = review.safe(base, 'vectors', 'chunks')
     for path in sorted(chunks.glob('*.jsonl')):
@@ -80,6 +98,10 @@ def compact_project(e, apply=False):
                 manuscripts.store(e, extra, value)
                 if manuscripts.get(e, extra, path.parent.name) != value:
                     raise ValueError('压缩后稿件校验失败')
+            elif kind == 'html':
+                # compact_html already proved that scoped evidence and body image
+                # URLs reconstruct exactly; publish without regenerating any prose.
+                e.atomic(path, extra)
             else:
                 target = path.with_name(path.name + '.gz')
                 if not target.exists():
@@ -93,4 +115,5 @@ def compact_project(e, apply=False):
     return {'project': e.PROJECT, 'applied': apply,
             'manuscripts': sum(p[0] == 'manuscript' for p in plans),
             'jsonlFiles': sum(p[0] == 'jsonl' for p in plans),
+            'htmlFiles': sum(p[0] == 'html' for p in plans), 'htmlResults':html_results,
             'beforeBytes': before, 'afterBytes': after, 'savedBytes': before - after}

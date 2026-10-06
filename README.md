@@ -370,15 +370,20 @@ HTML 为离线阅读页面：低饱和深绿工具栏、连续正文、可折叠
 
 已保存稿件的内部 `document.json` 使用 `manuscript-shared-images-v1` 存储格式：相同图片在本综述工作区的 `manuscripts/assets/` 中只保存一份无损压缩的 data URL，读取时校验哈希并还原。稿件 ID、正文、引用、图片字节及原有输入签名不变；旧版内嵌图片 JSON 仍可直接读取。复制稿件归档时须包含整个 `manuscripts/` 目录，重置当前撰写不会删除其中的资源。**HTML 导出仍是包含所有图片、样式和脚本的单个文件，可以单独移动到其他位置离线阅读**，不会引用内部资源文件。
 
+HTML 内部采用 `offline-evidence-pool-v1`：相同图片、完整资源及证据片段各保存一份，章节/PMID 只保存对应列表。正文图片与引用详情共用同一内嵌图片，打开时由内嵌脚本还原显示，无外部文件、网络请求或画质损失。同一 PMID 在不同章节的证据范围、各次引用及正文展示位置仍独立保留；这是存储去重，不删正文引文。
+
 已有项目的内部重复数据可显式无损压缩（默认只读估算；`--apply` 才修改，并持有存储/综述/文献锁）：
 
 ```sh
 runtimes/downloader/bin/python scripts/compact-project-storage.py
 runtimes/downloader/bin/python scripts/compact-project-storage.py --apply
+# 同时处理已导出的正式 HTML（仍为可独立移动的单文件）：
+runtimes/downloader/bin/python scripts/compact-project-storage.py --html
+runtimes/downloader/bin/python scripts/compact-project-storage.py --html --apply
 # 可用 --project <项目ID> 限定项目，--root <隔离根目录> 指定测试环境。
 ```
 
-压缩仅迁移已保存稿件图片、压缩旧版自动 JSONL；逐文件校验还原内容后原子发布，可中断后重跑。不修改 PDF、HTML、问答、向量数据库、提示词材料包或运行历史，不触发下载、Embedding 或 LLM。活动任务持锁时拒绝执行；不要手工删除 `manuscripts/assets/`。
+压缩默认仅迁移已保存稿件图片、压缩旧版自动 JSONL；只有显式添加 `--html` 才处理现有 HTML，并仅迁移已识别的正式阅读器格式，跳过早期原型或自定义阅读器。逐文件校验还原内容后原子发布，可中断后重跑；HTML 的正文、标题、引用关系、图片、样式及原导出时间均保留。不修改 PDF、问答、向量数据库、提示词材料包或运行历史，不触发下载、Embedding 或 LLM。活动任务持锁时拒绝执行；不要手工删除 `manuscripts/assets/`。
 
 ### 工作区布局和外部文件修改
 

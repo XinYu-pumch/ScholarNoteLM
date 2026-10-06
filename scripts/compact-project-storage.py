@@ -19,6 +19,7 @@ def main():
     parser.add_argument('--root', type=Path, default=ROOT)
     parser.add_argument('--project', action='append', help='Project ID; repeat to select several. Defaults to all registered projects.')
     parser.add_argument('--apply', action='store_true', help='Apply verified lossless changes while holding exclusive storage locks.')
+    parser.add_argument('--html', action='store_true', help='Also pool duplicate evidence/images inside recognized standalone HTML exports. All resources stay embedded.')
     args = parser.parse_args()
     e.ROOT = args.root.resolve()
     with ExitStack() as guards:
@@ -35,7 +36,7 @@ def main():
                 if args.apply:
                     project_guards.enter_context(review_service.lock(e))
                     project_guards.enter_context(corpus_files.lock(e))
-                result = project_compaction.compact_project(e, args.apply)
+                result = project_compaction.compact_project(e, args.apply, include_html=args.html)
                 result['folder'] = cfg['projects'][project]
                 print(json.dumps(result, ensure_ascii=False), flush=True)
 

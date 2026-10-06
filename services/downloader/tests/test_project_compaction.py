@@ -28,7 +28,8 @@ class CompactionTests(unittest.TestCase):
         raw = b''.join(hashlib.sha256(str(i).encode()).digest() for i in range(400))
         url = 'data:image/png;base64,' + base64.b64encode(raw).decode()
         value = {'topic': tag, 'rows': [], 'sections': {}, 'blocks': {}, 'pmids': [],
-                 'references': {str(i): {'dataUrl': url, 'caption': str(i)} for i in range(12)},
+                 'references': {str(i): {'123': [{'html': '<p>Evidence</p>', 'resources':
+                     [{'dataUrl': url, 'caption': str(i)}]}]} for i in range(12)},
                  'outlineHash': 'outline', 'partial': False, 'models': []}
         value.update(id=m.payload_hash(value), created=1, label=tag)
         target = self.path/'manuscripts'/value['id']/'document.json'
@@ -72,7 +73,7 @@ class CompactionTests(unittest.TestCase):
         outside = e.ROOT/'outside.gz';outside.write_bytes(raw);asset.symlink_to(outside)
         with self.assertRaisesRegex(ValueError, '符号链接'):m.get(e, 'Test', a['id'])
         asset.unlink();asset.write_bytes(raw)
-        stored=json.loads(path.read_text());stored['payload']['references']['0']['dataUrl']['imageAsset']='../outside'
+        stored=json.loads(path.read_text());stored['payload']['references']['0']['123'][0]['resources'][0]['dataUrl']['imageAsset']='../outside'
         e.write_json(path,stored)
         with self.assertRaisesRegex(ValueError, '校验'):m.get(e, 'Test', a['id'])
 
@@ -112,11 +113,11 @@ class CompactionTests(unittest.TestCase):
         self.assertEqual(m.get(e,'Moved',a['id']),a)
         result=m.export(e,'Moved','html',a['id'])
         html=Path(result['path']).read_text()
-        self.assertIn(a['references']['0']['dataUrl'],html)
+        self.assertIn(a['references']['0']['123'][0]['resources'][0]['dataUrl'],html)
         self.assertNotIn('imageAsset',html);self.assertNotIn('.data-url.gz',html)
         destination=e.ROOT/'standalone.html';shutil.copyfile(result['path'],destination)
         shutil.rmtree(moved)
-        self.assertIn(a['references']['0']['dataUrl'],destination.read_text())
+        self.assertIn(a['references']['0']['123'][0]['resources'][0]['dataUrl'],destination.read_text())
 
     def test_cli_defaults_to_readonly_and_refuses_active_storage_lock(self):
         _,path=self.legacy();original=path.read_bytes()

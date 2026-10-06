@@ -73,7 +73,8 @@ class ResourceBlocksTests(unittest.TestCase):
   from bs4 import BeautifulSoup
   soup=BeautifulSoup(html,'html.parser');content=soup.select_one('#s-1\\.1 .content')
   self.assertEqual(len(content.select('figure')),2);self.assertEqual(len(content.select('table')),1)
-  self.assertTrue(content.img['src'].startswith('data:image/png;base64,'));self.assertIn('42',content.get_text())
+  pool=json.loads(soup.find(id='reference-data').string)
+  self.assertTrue(pool['images'][content.img['data-image-ref']].startswith('data:image/png;base64,'));self.assertIn('42',content.get_text())
   doc=self.fx.project/'test.docx';x.word_document(doc,'Test',self.fx.nodes,body,False,blocks)
   with zipfile.ZipFile(doc) as archive:
    self.assertTrue(any(p.startswith('word/media/') for p in archive.namelist()));self.assertIn('42',archive.read('word/document.xml').decode())

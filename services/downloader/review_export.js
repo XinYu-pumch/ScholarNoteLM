@@ -1,6 +1,17 @@
 (() => {
   'use strict';
-  const db = JSON.parse(document.getElementById('reference-data').textContent);
+  const stored = JSON.parse(document.getElementById('reference-data').textContent);
+  const pooled = stored.format === 'offline-evidence-pool-v1';
+  const db = pooled ? stored.scopes : stored;
+  function imageUrl(value) {
+    const url = pooled && value && typeof value === 'object' ? stored.images[value.imageRef] : value;
+    return typeof url === 'string' && /^data:image\/(png|jpeg|gif|webp);base64,[A-Za-z0-9+/=]+$/.test(url) ? url : '';
+  }
+  // The data itself lives in this HTML. No companion paths or network requests.
+  document.querySelectorAll('img[data-image-ref]').forEach(img => {
+    const url = imageUrl({imageRef: img.dataset.imageRef});
+    if (url) img.src = url;
+  });
   const body = document.body;
   const main = document.getElementById('main');
   const toc = document.getElementById('toc');
@@ -107,7 +118,8 @@
     const title = document.createElement('strong'); title.textContent = 'PMID ' + pmid;
     summary.append(title, document.createTextNode('章节 ' + scope + ' · ' + entries.length + ' 段引用素材'));
     area.append(summary);
-    entries.forEach((entry, index) => {
+    entries.forEach((entryRef, index) => {
+      const entry = pooled ? stored.entries[entryRef] : entryRef;
       const card = document.createElement('div'); card.className = 'card';
       const heading = document.createElement('div'); heading.className = 'ct';
       heading.textContent = '素材 ' + String(index + 1).padStart(2, '0') + ' · PMID: ' + pmid + '（来源章节：' + scope + '）';
@@ -115,15 +127,16 @@
       if (typeof entry === 'object' && entry !== null) {
         // HTML is produced only by the exporter's escaping/allowlist renderer.
         content.classList.add('structured'); content.innerHTML = entry.html;
-        for (const resource of entry.resources || []) {
+        for (const resourceRef of entry.resources || []) {
+          const resource = pooled ? stored.resources[resourceRef] : resourceRef;
           const details = document.createElement('details'); details.className = 'source-resource';
           const label = document.createElement('summary');
           label.textContent = (resource.kind === 'table' ? '完整原文表格' : '关联图片') + ' · 行 ' + resource.lineStart + '–' + resource.lineEnd;
           details.append(label);
           const material = document.createElement('div'); material.className = 'source-resource-content';
           if (resource.kind === 'table') material.innerHTML = resource.html;
-          else if (/^data:image\/(png|jpeg|gif|webp);base64,[A-Za-z0-9+/=]+$/.test(resource.dataUrl || '')) {
-            const img = document.createElement('img'); img.src = resource.dataUrl; img.alt = 'PMID ' + resource.pmid + ' 的关联图片'; material.append(img);
+          else if (imageUrl(resource.dataUrl)) {
+            const img = document.createElement('img'); img.src = imageUrl(resource.dataUrl); img.alt = 'PMID ' + resource.pmid + ' 的关联图片'; material.append(img);
           } else material.textContent = resource.error || '图片快照不可用';
           details.append(material);
           for (const context of resource.context || []) {

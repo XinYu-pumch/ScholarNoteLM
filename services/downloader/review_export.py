@@ -4,6 +4,7 @@ from pathlib import Path
 from urllib.parse import urlparse
 import review_format as fmt
 import review_content
+import html_compaction
 from text_presentation import strip_source_links
 
 def markdown_html(text):
@@ -117,7 +118,7 @@ def html_document(topic,rows,sections,references,partial,section_blocks=None):
     script=Path(__file__).with_name('review_export.js').read_text(encoding='utf8')
     pmids=set(re.findall(r'data-pmid="(\d+)"',''.join(body)))
     stamp=time.strftime('%Y-%m-%d %H:%M')
-    return f'''<!doctype html>
+    document = f'''<!doctype html>
 <html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
 <title>{html.escape(topic)}</title><style>{css}</style></head>
 <body class="toc-open">
@@ -131,6 +132,7 @@ def html_document(topic,rows,sections,references,partial,section_blocks=None):
 {''.join(body)}<footer class="document-footer"><span>ScholarNoteLM</span><span>文献综述 · {stamp}</span></footer></article></main>
 <aside id="ref" aria-label="引用详情" hidden><div class="panel-heading"><div><span class="eyebrow">SOURCE MATERIAL</span><h2>引用详情</h2></div><button class="panel-close" data-close="ref" type="button" aria-label="关闭引用详情">×</button></div><div id="area" aria-live="polite"><div class="tip"><span class="tip-symbol" aria-hidden="true">↗</span><strong>从引用回到原文</strong><p>点击正文中的 PMID，查看该章节使用的文献素材。</p></div></div></aside>
 <script id="reference-data" type="application/json">{data}</script><script>{script}</script></body></html>'''
+    return html_compaction.compact_html(document)
 
 def word_document(dest,topic,rows,sections,partial,section_blocks=None):
     from docx import Document
