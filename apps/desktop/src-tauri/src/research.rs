@@ -540,6 +540,7 @@ fn ncbi(root: &Path, c: &Connection, endpoint: &str, mut fields: Vec<(String,Str
         let next=fixture["responses"].as_array_mut().ok_or("fixture responses")?;
         if next.is_empty(){return Err("Unexpected network request in test".into());}
         let response=next.remove(0);assert_eq!(response["endpoint"],endpoint);
+        if let Some(expected)=response["fields"].as_object() {for (key,value) in expected {assert!(fields.iter().any(|(k,v)|k==key && Some(v.as_str())==value.as_str()),"missing fixture field {key}");}}
         if endpoint=="esearch" {if let Some(term)=response["term"].as_str(){assert!(fields.iter().any(|(k,v)|k=="term" && v==term));assert!(!fields.iter().any(|(k,_)|k=="mindate"||k=="maxdate"));}else{assert!(fields.iter().any(|(k,v)|k=="term" && v.contains("hasabstract")));}}
         write_file(&path,fixture.to_string().as_bytes())?;return Ok(s(&response,"body").to_string());
     }
@@ -679,20 +680,22 @@ fn search(root: &Path, c: &Connection, term: &str, f: &Value, retmax: usize, can
         json!({"count":r["count"].as_str().unwrap().parse::<usize>().map_err(err)?,"translation":r["querytranslation"],"warnings":r["warninglist"],"errors":r["errorlist"],"ids":r["idlist"],"checked":now()}),
     )
 }
+// PubMed currently clamps retmax=10000 to 9999. Keep requests, validation and
+// full-search partitioning on the same boundary; this is not the user's target.
+const PUBMED_CANDIDATE_LIMIT: usize = 9999;
+fn candidate_ids(result: &Value, expected: usize) -> R<Vec<String>> {
+    let values=result["ids"].as_array().ok_or("PubMed PMID 列表缺失；旧结果已保留")?;
+    let ids:Vec<String>=values.iter().map(|v|v.as_str().filter(|id|!id.is_empty() && id.bytes().all(|b|b.is_ascii_digit())).map(String::from).ok_or("PubMed PMID 格式异常；旧结果已保留".to_string())).collect::<R<_>>()?;
+    if ids.len()!=expected || ids.iter().collect::<HashSet<_>>().len()!=ids.len() {
+        return Err(format!("PubMed 候选列表不完整或有重复（预期 {expected}，返回 {}）；请重试，旧结果已保留",ids.len()));
+    }
+    Ok(ids)
+}
 fn collect_ids(root: &Path, c: &Connection, term: &str, f: &Value, depth: u8, cancel: Option<&Path>) -> R<Vec<String>> {
-    let result = search(root, c, term, f, 10000, cancel)?;
+    let result = search(root, c, term, f, PUBMED_CANDIDATE_LIMIT, cancel)?;
     let count = result["count"].as_u64().unwrap_or(0);
-    if count <= 10000 {
-        let ids: Vec<String> = result["ids"]
-            .as_array()
-            .ok_or("PubMed 未返回 PMID 列表")?
-            .iter()
-            .filter_map(|v| v.as_str().map(String::from))
-            .collect();
-        if ids.len() != count as usize {
-            return Err("PubMed 结果数量不一致，请重试".into());
-        }
-        return Ok(ids);
+    if count <= PUBMED_CANDIDATE_LIMIT as u64 {
+        return candidate_ids(&result, count as usize);
     }
     if depth > 24 {
         return Err("结果过大，请缩小检索范围".into());
@@ -710,7 +713,7 @@ fn collect_ids(root: &Path, c: &Connection, term: &str, f: &Value, depth: u8, ca
     };
     let days = (end - start).num_days();
     if days <= 0 {
-        return Err("单日命中超过 10000 条，请缩小研究范围后重试；未覆盖旧结果".into());
+        return Err(format!("单日命中超过 {PUBMED_CANDIDATE_LIMIT} 条，请缩小研究范围后重试；未覆盖旧结果"));
     }
     let mid = start
         .checked_add_days(Days::new((days / 2) as u64))
@@ -937,10 +940,13 @@ fn run_query(root: &Path, c: &mut Connection, p: &str, id: &str, cancel: Option<
         (ids,previous["count"].as_u64().unwrap_or(0) as usize,previous.clone())
     } else {
         let effective=format!("({term}) AND hasabstract");
-        let probe=search(root,c,&effective,&f,10000,cancel)?;
+        let probe=search(root,c,&effective,&f,PUBMED_CANDIDATE_LIMIT,cancel)?;
         let count=probe["count"].as_u64().unwrap_or(0) as usize;
-        let ids=if f["mode"]=="full" {collect_ids(root,c,&effective,&f,0,cancel)?}else{probe["ids"].as_array().ok_or("PubMed PMID 列表缺失")?.iter().filter_map(|v|v.as_str().map(String::from)).collect::<Vec<_>>()};
-        if ids.len()!=count.min(if f["mode"]=="full"{usize::MAX}else{10000}) {return Err("PubMed 候选数量发生变化，请重试；旧结果已保留".into());}
+        let ids=if f["mode"]=="full" {
+            let ids=collect_ids(root,c,&effective,&f,0,cancel)?;
+            if ids.len()!=count {return Err("PubMed 候选数量发生变化，请重试；旧结果已保留".into());}
+            ids
+        }else{candidate_ids(&probe,count.min(PUBMED_CANDIDATE_LIMIT))?};
         (ids,count,probe)
     };
     let target=if f["mode"]=="full"{usize::MAX}else{f["limit"].as_u64().unwrap_or(30) as usize};
@@ -962,6 +968,7 @@ fn run_query(root: &Path, c: &mut Connection, p: &str, id: &str, cancel: Option<
     let selected=articles.iter().filter(|(_,a,_)|qualifies(a,&f,index.as_ref())).count().min(target);
     let candidate_ids_path=format!("pubmed/queries/{id}/runs/{run}/candidate-ids.json");
     write_file(&dir.join("candidate-ids.json"),serde_json::to_string(&ids).map_err(err)?.as_bytes())?;
+    let candidate_limit_reached=offset>=ids.len() && ids.len()<count;
     let ids=ids[..offset].to_vec();
     let got: HashSet<_> = articles.iter().map(|x| x.0.as_str()).collect();
     let requested: HashSet<_> = ids.iter().map(String::as_str).collect();
@@ -977,7 +984,7 @@ fn run_query(root: &Path, c: &mut Connection, p: &str, id: &str, cancel: Option<
         .collect();
     articles.sort_by_key(|a| positions.get(a.0.as_str()).copied().unwrap_or(usize::MAX));
     let xml_path = pubmed_storage::save(root,p,pack_xml(&articles.iter().map(|x| x.2.clone()).collect::<Vec<_>>()).as_bytes())?;
-    let data = json!({"id":run,"revision":revision,"text":term,"filters":f,"created":now(),"count":count,"fetched":articles.len(),"qualified":selected,"target":if target==usize::MAX {count}else{target},"exhausted":offset>=count,"candidateLimitReached":offset>=10000 && offset<count,"selectionPolicy":SELECTION_POLICY,"candidateIdsPath":candidate_ids_path,"jcrVersion":j["version"],"truncated":articles.len()<count,"translation":probe["translation"],"warnings":probe["warnings"],"meshVersion":mesh_status(root,c)?["version"],"xmlPath":xml_path});
+    let data = json!({"id":run,"revision":revision,"text":term,"filters":f,"created":now(),"count":count,"fetched":articles.len(),"qualified":selected,"target":if target==usize::MAX {count}else{target},"exhausted":offset>=count,"candidateLimitReached":candidate_limit_reached,"selectionPolicy":SELECTION_POLICY,"candidateIdsPath":candidate_ids_path,"jcrVersion":j["version"],"truncated":articles.len()<count,"translation":probe["translation"],"warnings":probe["warnings"],"meshVersion":mesh_status(root,c)?["version"],"xmlPath":xml_path});
     write_file(&dir.join("manifest.json"), data.to_string().as_bytes())?;
     let _commit_lock = project_lock(root, p)?;
     check_query_cancel(cancel)?;
@@ -2880,6 +2887,61 @@ mod tests {
         }
     }
 
+    fn search_fixture(count: usize, start: usize, end: usize) -> Value {
+        json!({"endpoint":"esearch","fields":{"retmax":"9999"},"body":json!({"esearchresult":{"count":count.to_string(),"idlist":(start..=end).map(|n|n.to_string()).collect::<Vec<_>>()}}).to_string()})
+    }
+
+    #[test]
+    fn pubmed_candidate_ids_reject_missing_duplicate_and_invalid_records() {
+        assert!(candidate_ids(&json!({"ids":[]}),0).unwrap().is_empty());
+        assert!(candidate_ids(&json!({"ids":["1"]}),2).is_err());
+        assert!(candidate_ids(&json!({"ids":["1","1"]}),2).is_err());
+        assert!(candidate_ids(&json!({"ids":["1",null]}),1).is_err());
+        assert!(candidate_ids(&json!({"ids":["abc"]}),1).is_err());
+    }
+
+    #[test]
+    fn pubmed_explore_accepts_9999_candidates_and_preserves_old_run_on_short_response() {
+        let root=temp();let p="test";
+        let saved=dispatch(&root,json!({"action":"query.save","args":{"project":p,"name":"Broad query","text":"herpes"}})).unwrap();
+        let id=s(&saved["queries"][0],"id").to_string();let mut c=db_project(&root,p).unwrap();
+        let mut f=defaults();f["limit"]=json!(30);put(&c,&format!("queryFilters:{id}"),&f).unwrap();
+        let xml=format!("<PubmedArticleSet>{}</PubmedArticleSet>",(1..=100).map(|n|format!("<PubmedArticle><MedlineCitation><PMID>{n}</PMID><Article><ArticleTitle>Paper {n}</ArticleTitle><Abstract><AbstractText>Useful evidence</AbstractText></Abstract></Article></MedlineCitation></PubmedArticle>")).collect::<String>());
+        let fixture=|responses:Value|write_file(&root.join("ncbi-fixture.json"),json!({"responses":responses}).to_string().as_bytes()).unwrap();
+        for count in [9999,10000,11881,10845] {
+            fixture(json!([search_fixture(count,1,9999),{"endpoint":"efetch","body":xml}]));
+            let result=run_query(&root,&mut c,p,&id,None,true).unwrap();
+            let run=&result["queries"][0]["run"];
+            assert_eq!(run["count"],count);assert_eq!(run["qualified"],30);
+            assert_eq!(run["candidateLimitReached"],false);
+            let candidates:Vec<String>=serde_json::from_slice(&fs::read(project_file(&root,p,s(run,"candidateIdsPath")).unwrap()).unwrap()).unwrap();
+            assert_eq!(candidates.len(),9999);
+            let previous=result["queries"][0]["activeRun"].clone();
+            fixture(json!([search_fixture(count,1,9998)]));
+            assert!(run_query(&root,&mut c,p,&id,None,true).unwrap_err().contains("候选列表不完整"));
+            assert_eq!(workspace(&root,&c,p).unwrap()["queries"][0]["activeRun"],previous);
+        }
+        fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    fn pubmed_full_search_partitions_at_9999_and_checks_partition_counts() {
+        let root=temp();let c=db(&root).unwrap();let term="herpes AND hasabstract";
+        let mut f=defaults();f["start"]=json!("2020-01-01");f["end"]=json!("2020-01-02");
+        let fixture=|responses:Value|write_file(&root.join("ncbi-fixture.json"),json!({"responses":responses}).to_string().as_bytes()).unwrap();
+        fixture(json!([search_fixture(9999,1,9999)]));
+        assert_eq!(collect_ids(&root,&c,term,&f,0,None).unwrap().len(),9999);
+        let mut left=search_fixture(5000,1,5000);left["fields"]["mindate"]=json!("2020/01/01");left["fields"]["maxdate"]=json!("2020/01/01");
+        let mut right=search_fixture(5000,5001,10000);right["fields"]["mindate"]=json!("2020/01/02");right["fields"]["maxdate"]=json!("2020/01/02");
+        fixture(json!([search_fixture(10000,1,9999),left,right]));
+        let ids=collect_ids(&root,&c,term,&f,0,None).unwrap();assert_eq!(ids.len(),10000);assert_eq!(ids.last().unwrap(),"10000");
+        fixture(json!([search_fixture(10000,1,9999),left,search_fixture(5000,5000,9999)]));
+        assert!(collect_ids(&root,&c,term,&f,0,None).unwrap_err().contains("分区检索计数不一致"));
+        f["end"]=f["start"].clone();fixture(json!([search_fixture(10000,1,9999)]));
+        assert!(collect_ids(&root,&c,term,&f,0,None).unwrap_err().contains("单日命中超过 9999"));
+        fs::remove_dir_all(root).unwrap();
+    }
+
     #[test]
     fn qualified_target_refills_in_rank_order_reuses_candidates_and_preserves_failed_run() {
         let root=temp();let p="test";
@@ -2904,6 +2966,14 @@ mod tests {
         let old=exhausted["queries"][0]["activeRun"].clone();
         fixture(json!([{"endpoint":"esearch","body":search},{"endpoint":"efetch","body":xml(1,99)}]));
         assert!(run_query(&root,&mut c,p,&id,None,true).is_err());assert_eq!(workspace(&root,&c,p).unwrap()["queries"][0]["activeRun"],old);
+        // A reused, capped candidate snapshot may be shorter than today's API
+        // ceiling. Report its actual exhaustion rather than a hard-coded offset.
+        let mut capped=exhausted["queries"][0]["run"].clone();capped["count"]=json!(106);
+        c.execute("UPDATE runs SET data=? WHERE id=?",params![capped.to_string(),s(&capped,"id")]).unwrap();
+        fixture(json!([]));
+        let limited=run_query(&root,&mut c,p,&id,None,false).unwrap();
+        assert_eq!(limited["queries"][0]["run"]["candidateLimitReached"],true);
+        assert_eq!(limited["queries"][0]["run"]["exhausted"],false);
         fs::remove_dir_all(root).unwrap();
     }
 
