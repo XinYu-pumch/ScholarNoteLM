@@ -81,4 +81,33 @@ class ReaderTests(unittest.TestCase):
  def test_old_worker_cannot_overwrite_new_run(self):
   t=self.start(self.new());asyncio.run(r.run(e,t['id'],'wrong'));self.assertEqual(r.rpc(e,'get',{'id':t['id']})['state'],'queued')
 
+ def test_fork_copies_prefix_and_shares_source_after_parent_delete(self):
+  self.raw();t=self.finish(self.start(self.new()));first=t['messages'][0]['id'];t=self.finish(self.start(t,question='Second'))
+  child=r.rpc(e,'fork',{'id':t['id'],'turnId':first})
+  self.assertEqual(len(child['messages']),1);self.assertEqual(child['parentId'],t['id']);self.assertEqual(child['source'],t['source'])
+  self.assertNotIn('run',child);self.assertEqual(child['state'],'idle')
+  r.rpc(e,'delete',{'id':t['id']});self.assertIn('UNCLEANED_FULLTEXT',r.load_source(e,child['source'])['text'])
+  child=self.start(child,question='Branch follow-up');self.assertEqual(len(child['messages']),2)
+ def test_historical_regeneration_preserves_original_and_omits_later_turns(self):
+  t=self.finish(self.start(self.new()));t=self.finish(self.start(t,question='Second'));original=r.rpc(e,'get',{'id':t['id']})
+  result=self.start(t,retry=True,turnId=t['messages'][0]['id'])
+  self.assertNotEqual(result['id'],t['id']);self.assertEqual(len(result['messages']),1);self.assertEqual(result['messages'][0]['question'],'Question')
+  self.assertNotEqual(result['messages'][0]['id'],t['messages'][0]['id']);self.assertEqual(r.rpc(e,'get',{'id':t['id']}),original)
+ def test_latest_regeneration_rejects_stale_turn_id(self):
+  t=self.finish(self.start(self.new()));old=t['messages'][0]['id'];fresh=self.finish(self.start(t,retry=True,turnId=old))
+  self.assertEqual(t['id'],fresh['id']);self.assertNotEqual(fresh['messages'][0]['id'],old)
+  with self.assertRaisesRegex(ValueError,'已变化'):self.start(fresh,retry=True,turnId=old)
+  with self.assertRaisesRegex(ValueError,'已变化'):r.rpc(e,'fork',{'id':fresh['id'],'turnId':old})
+ def test_fork_only_completed_turn_while_parent_can_keep_running(self):
+  t=self.finish(self.start(self.new()));first=t['messages'][0]['id'];t=self.start(t,question='Pending')
+  with self.assertRaisesRegex(ValueError,'完成'):r.rpc(e,'fork',{'id':t['id'],'turnId':t['messages'][-1]['id']})
+  child=r.rpc(e,'fork',{'id':t['id'],'turnId':first});self.assertEqual(child['state'],'idle');self.assertEqual(r.rpc(e,'get',{'id':t['id']})['state'],'queued')
+ def test_legacy_message_ids_are_stable_without_storage_migration(self):
+  t=self.finish(self.start(self.new()))
+  with r.db(e) as c:
+   t['messages'][0].pop('id');r.put(c,t)
+  first=r.rpc(e,'get',{'id':t['id']})['messages'][0]['id']
+  self.assertEqual(first,r.rpc(e,'get',{'id':t['id']})['messages'][0]['id'])
+  self.assertEqual(r.rpc(e,'fork',{'id':t['id'],'turnId':first})['messages'][0]['id'],first)
+
 if __name__=='__main__':unittest.main()

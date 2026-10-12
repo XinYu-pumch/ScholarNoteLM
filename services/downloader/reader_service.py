@@ -1,5 +1,5 @@
 """Per-paper reading conversations. Full raw text is pinned once, never RAG-truncated."""
-import asyncio,base64,gzip,hashlib,json,os,re,sqlite3,subprocess,sys,time,uuid
+import copy,asyncio,base64,gzip,hashlib,json,os,re,sqlite3,subprocess,sys,time,uuid
 from contextlib import contextmanager,nullcontext
 import artifact_state,corpus_files,review_service,storage,vector_chunks
 
@@ -29,7 +29,28 @@ def db(e):
 def get(c,tid):
     row=c.execute('SELECT data FROM threads WHERE id=?',(ident(tid),)).fetchone()
     if not row:raise ValueError('阅读对话不存在或已删除')
-    return json.loads(row[0])
+    t=json.loads(row[0])
+    # Stable IDs for older conversations, without rewriting source snapshots.
+    for turn in t['messages']:
+        turn.setdefault('id',hashlib.sha256(json.dumps([turn.get('created'),turn['question']],ensure_ascii=False).encode()).hexdigest()[:32])
+    return t
+
+def turn_index(t,value):
+    index=next((i for i,m in enumerate(t['messages']) if m['id']==value),None)
+    if index is None:raise ValueError('这条回答已变化，请刷新后重试')
+    return index
+
+def branch(t,index,include=True):
+    child=copy.deepcopy(t)
+    child.update(id=uuid.uuid4().hex,parentId=t['id'],parentTurnId=t['messages'][index]['id'],
+        name=t['name'][:65]+' · 分支',created=time.time(),state='idle',error='')
+    child.pop('run',None)
+    child['messages']=child['messages'][:index+int(include)]
+    if child['messages']:
+        child['profileId']=child['messages'][-1].get('profileId',t['profileId'])
+        child['model']=child['messages'][-1]['model']
+    return child
+
 def put(c,t):
     t['updated']=time.time()
     c.execute('INSERT OR REPLACE INTO threads VALUES(?,?,?,?)',(t['id'],t['pmid'],t['updated'],json.dumps(t,ensure_ascii=False)))
@@ -111,7 +132,7 @@ def rpc(e,op,a):
             if 'value' in a:
                 patch=a['value']
                 if not isinstance(patch,dict):raise ValueError('阅读位置无效')
-                for key in ('page','zoom','scroll','thread','pdfVersion'):
+                for key in ('page','zoom','scroll','pageOffset','scrollLeft','thread','pdfVersion'):
                     if key in patch:value[key]=patch[key]
                 if len(json.dumps(value))>1000:raise ValueError('阅读位置无效')
                 c.execute('INSERT OR REPLACE INTO progress VALUES(?,?,?)',(p,json.dumps(value),time.time()))
@@ -135,6 +156,11 @@ def rpc(e,op,a):
         t=get(c,a.get('id'));before=t['state'];recover(e,t)
         if before!=t['state']:put(c,t)
         if op=='get':return t
+        if op=='fork':
+            index=turn_index(t,a.get('turnId'))
+            if t['messages'][index]['state']!='done':raise ValueError('请等待这条回答完成后再创建分支')
+            load_source(e,t['source'])
+            child=branch(t,index);put(c,child);return child
         if op=='cancel':
             if t['state'] in ACTIVE:t['state']='stopping';put(c,t)
         elif op=='rename':
@@ -165,7 +191,11 @@ def start(e,a):
         else:load_source(e,t['source'])
         if a.get('retry'):
             if not t['messages']:raise ValueError('没有可以重试的回答')
-            question=t['messages'][-1]['question'];t['messages'].pop()
+            index=turn_index(t,a['turnId']) if 'turnId' in a else len(t['messages'])-1
+            question=t['messages'][index]['question']
+            if index<len(t['messages'])-1:
+                t=branch(t,index,include=False);tid=t['id']
+            else:t['messages'].pop()
         else:
             question=review_service.bounded(a.get('question'),50000,'问题')
             if not question:raise ValueError('问题不能为空')
@@ -173,7 +203,7 @@ def start(e,a):
         run=uuid.uuid4().hex
         t.update(state='queued',run=run,error='',profileId=p['id'],model=p['model'])
         if not t['messages'] and t['name']=='新对话':t['name']=question[:40]
-        t['messages'].append({'question':question,'text':'','reasoning':'','state':'queued','model':p['model'],'created':time.time()})
+        t['messages'].append({'id':uuid.uuid4().hex,'profileId':p['id'],'question':question,'text':'','reasoning':'','state':'queued','model':p['model'],'created':time.time()})
         put(c,t)
     try:
         env={**os.environ,'SCHOLARNOTELM_ROOT':str(e.ROOT),'PYTHONDONTWRITEBYTECODE':'1'}

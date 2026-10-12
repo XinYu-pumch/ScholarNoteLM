@@ -34,13 +34,13 @@ def main():
   base=storage.project_dir(app,e.PROJECT)
   xml='<PubmedArticleSet>'+''.join(f'<PubmedArticle><MedlineCitation><PMID>{p}</PMID><Article><ArticleTitle>{title}</ArticleTitle><Journal><Title>Reader testing journal</Title><JournalIssue><PubDate><Year>2026</Year></PubDate></JournalIssue></Journal><Abstract><AbstractText>Abstract only evidence. This is an isolated fixture, not a scientific claim.</AbstractText></Abstract></Article></MedlineCitation></PubmedArticle>' for p,title in [('1','Full text study — PDF 阅读测试'),('2','Abstract only study — 摘要阅读测试'),('3','Pending conversion — 尚未转换')])+'</PubmedArticleSet>'
   rpc('xml.import',name='Reader fixture',xml=xml)
-  # Two text pages, valid PDF with no dependency on downloaded papers.
+  # Eight text pages, valid PDF with no dependency on downloaded papers.
   from pypdf import PdfWriter
   from pypdf.generic import DictionaryObject,NameObject,DecodedStreamObject
   writer=PdfWriter()
   font=DictionaryObject({NameObject('/Type'):NameObject('/Font'),NameObject('/Subtype'):NameObject('/Type1'),NameObject('/BaseFont'):NameObject('/Helvetica')})
   font_ref=writer._add_object(font)
-  for n in (1,2):
+  for n in range(1,9):
    page=writer.add_blank_page(width=600,height=800)
    page[NameObject('/Resources')]=DictionaryObject({NameObject('/Font'):DictionaryObject({NameObject('/F1'):font_ref})})
    lines=[f'Reading workspace - test paper / page {n}','Introduction','','Full text reading and per-paper conversations.','This PDF contains a selectable text layer.','Search for evidence.','','Methods','','The test verifies raw Markdown, references and captions.','','Results','','Complete source and conversation history are supplied.']
@@ -63,6 +63,10 @@ def main():
   assert 'FULL_RAW_START' in requests[-1]['messages'][1]['content'] and 'RAW_END_REFERENCE' in requests[-1]['messages'][1]['content']
   assert 'CLEANED_NEVER_SEND' not in json.dumps(requests[-1]);assert len(requests[-1]['messages'][1]['content'])>200000
   a=wait(rpc('reader.start',id=a['id'],question='Follow-up',model='fixture-other'));assert a['state']=='done';assert requests[-1]['model']=='fixture-other';assert len(requests[-1]['messages'])==5
+  fork=rpc('reader.fork',id=a['id'],turnId=a['messages'][0]['id']);assert len(fork['messages'])==1 and fork['source']==a['source']
+  fork=wait(rpc('reader.start',id=fork['id'],question='Branch follow-up'));assert fork['state']=='done';assert requests[-1]['messages'][-3]['content']=='Summarize';assert 'Follow-up' not in [m['content'] for m in requests[-1]['messages']]
+  regen=wait(rpc('reader.start',id=a['id'],retry=True,turnId=a['messages'][0]['id']));assert regen['state']=='done' and regen['id']!=a['id'];assert len(requests[-1]['messages'])==3
+  assert len(rpc('reader.get',id=a['id'])['messages'])==2
   b=rpc('reader.new',pmid='1');b=wait(rpc('reader.start',id=b['id'],question='Independent'));assert a['source']==b['source'];assert len(list((base/'reader/sources').glob('*.gz')))==1
   c=rpc('reader.new',pmid='2');c=wait(rpc('reader.start',id=c['id'],question='Abstract'));assert c['sourceKind']=='abstract';assert '仅摘要' in requests[-1]['messages'][1]['content']
   started.clear();c=rpc('reader.start',id=c['id'],question='CANCEL');assert started.wait(5);rpc('reader.cancel',id=c['id']);c=wait(c);assert c['state']=='cancelled' and c['messages'][-1]['text']
