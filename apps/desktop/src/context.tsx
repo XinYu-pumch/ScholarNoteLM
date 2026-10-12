@@ -18,7 +18,7 @@ export function Provider({ children }: { children: ReactNode }) {
   const [state, setState] = useState<AppState>(structuredClone(emptyState));
   const [loaded, setLoaded] = useState(false);
   const [loadError, setLoadError] = useState('');
-  const [page, setPageRaw] = useState<Page>('overview');
+  const [page, setPageRaw] = useState<Page>('library');
   const leaveDecision=useRef<boolean|null>(null);
   const canLeave=()=>{if(leaveDecision.current!==null)return leaveDecision.current;const allowed=window.dispatchEvent(new Event('app-before-navigate',{cancelable:true}));leaveDecision.current=allowed;queueMicrotask(()=>{leaveDecision.current=null;});return allowed;};
   const setPage=(next:Page)=>{if(next===page||canLeave())setPageRaw(next);};
@@ -84,7 +84,7 @@ export function Provider({ children }: { children: ReactNode }) {
       await writeState(latestState.current);
       const result = await rpc<{state:AppState;deleted:boolean}>('storage.delete',{project:id,confirm:id});
       setState(result.state);setPersistedState(result.state);setSaveFailure(false);
-      setPageRaw('overview');setPaperId('');
+      setPageRaw('library');setPaperId('');
 
     } finally { deleting.current = false; }
   };

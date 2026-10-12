@@ -1,4 +1,4 @@
-export type Page = 'search' | 'overview' | 'library' | 'reader' | 'chat' | 'review' | 'tasks' | 'settings';
+export type Page = 'search' | 'library' | 'reader' | 'chat' | 'review' | 'tasks' | 'settings';
 export type PaperStatus = 'pdf' | 'indexed' | 'abstract' | 'pending' | 'failed';
 export type Paper = { researchManaged?: boolean; corpusSnapshot?: string; id: string; title: string; author: string; year: number; journal: string; tag: string; status: PaperStatus; starred: boolean; abstract: string };
 export type Message = { id: string; role: 'user' | 'assistant'; text: string; sources: string[] };
