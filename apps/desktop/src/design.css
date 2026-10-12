@@ -518,6 +518,7 @@ input[type='checkbox'], input[type='radio'] { accent-color: var(--accent); }
 .paper-notes textarea { padding:var(--space-2); border:1px solid var(--line); border-radius:var(--radius-sm); background:var(--panel); color:var(--text); }
 .paper-pdf-pages { display:flex; flex-direction:column; align-items:center; gap:var(--space-4); width:max-content; min-width:100%; }
 .paper-pdf-pages .paper-pdf-page { flex-shrink:0; margin:0; background:var(--surface); overflow:hidden; }
+.paper-pdf-raster { position:absolute; top:0; left:0; transform-origin:0 0; }
 .paper-pdf-scroll { overflow-anchor:none; }
 .paper-pdf-tools .paper-pdf-zoom { display:flex; align-items:center; gap:var(--space-1); }
 .paper-pdf-tools .paper-pdf-zoom input { width:58px; }

@@ -1,0 +1,47 @@
+<!doctype html>
+<html lang="zh-CN"><meta charset="utf-8"><title>PDF 缩放隔离验收</title>
+<style>body{margin:0;font:14px system-ui}header{padding:8px}button{margin-right:8px}output{white-space:pre-wrap}iframe{display:block;width:100%;height:calc(100vh - 110px);border:0}</style>
+<header>仅供隔离测试：先在下方打开“阅读与笔记”，等待 PDF 显示。<p>
+<button id="wheel">验证连续 Ctrl + 滚轮</button><button id="gesture">验证 WebKit 捏合</button>
+<output id="result">等待测试</output></header><iframe src="/"></iframe>
+<script type="module">
+// Open through an isolated Vite server's /@fs/.../scripts/test-reader-zoom.html.
+// Real application projects are deliberately rejected. No model calls are made.
+const frame=document.querySelector('iframe'),output=document.querySelector('output');
+for(const kind of ['wheel','gesture'])document.getElementById(kind).onclick=async()=>{
+ const w=frame.contentWindow,d=w.document,el=d.querySelector('.paper-pdf-scroll');
+ if(!d.body.textContent.includes('阅读功能隔离测试')||!el)return output.textContent='请先打开隔离测试项目的 PDF';
+ const bounds=el.getBoundingClientRect(),x=bounds.left+el.clientWidth*.6,y=bounds.top+el.clientHeight*.45;
+ const page=[...el.querySelectorAll('[data-pdf-page]')].find(p=>{const r=p.getBoundingClientRect();return r.top<=y&&r.bottom>y;});
+ const original=page?.querySelector('canvas');
+ if(!original||!original.width)return output.textContent='请等待当前页渲染完成';
+ for(const b of document.querySelectorAll('button'))b.disabled=true;
+ const rect=page.getBoundingClientRect(),point={x:(x-rect.left)/rect.width,y:(y-rect.top)/rect.height};
+ let previous=original,changes=0,blank=0,drift=0;const durations=[];
+ const visibleCanvas=()=>[...page.querySelectorAll('canvas')].find(c=>w.getComputedStyle(c).visibility!=='hidden');
+ const sample=()=>{const c=visibleCanvas();if(!c)blank++;if(c&&c!==previous){changes++;previous=c;}const r=page.getBoundingClientRect();drift=Math.max(drift,Math.abs(r.left+r.width*point.x-x),Math.abs(r.top+r.height*point.y-y));};
+ const gesture=(type,scale)=>{const e=new w.Event(type,{bubbles:true,cancelable:true});Object.defineProperties(e,{scale:{value:scale},clientX:{value:x},clientY:{value:y}});el.dispatchEvent(e);};
+ output.textContent='连续缩放中…';if(kind==='gesture')gesture('gesturestart',1);
+ let last=performance.now();
+ for(let i=1;i<=60;i++){
+  await new Promise(requestAnimationFrame);const now=performance.now();durations.push(now-last);last=now;sample();
+  if(kind==='gesture'){
+   gesture('gesturechange',Math.exp(i*.006));
+   // Some WebKit hosts also emit wheel events: they must not double the zoom.
+   el.dispatchEvent(new w.WheelEvent('wheel',{ctrlKey:true,deltaY:-1.2,clientX:x,clientY:y,bubbles:true,cancelable:true}));
+  }else{
+   // Three events in the same frame must accumulate without three raster jobs.
+   for(let j=0;j<3;j++)el.dispatchEvent(new w.WheelEvent('wheel',{ctrlKey:true,deltaY:-.4,clientX:x,clientY:y,bubbles:true,cancelable:true}));
+  }
+ }
+ if(kind==='gesture')gesture('gestureend',Math.exp(.36));
+ await new Promise(requestAnimationFrame);await new Promise(requestAnimationFrame);sample();
+ const duringChanges=changes;
+ for(let i=0;i<45;i++){await new Promise(requestAnimationFrame);sample();}
+ const r=page.getBoundingClientRect(),expected=Math.exp(.36),actual=r.width/rect.width;
+ const crisp=[...page.querySelectorAll('.paper-pdf-raster')].some(n=>w.getComputedStyle(n).visibility!=='hidden'&&Math.abs(n.getBoundingClientRect().width/n.offsetWidth-1)<.002);
+ const pass=blank===0&&duringChanges===0&&changes===1&&drift<3&&Math.abs(actual-expected)<.01&&crisp;
+ output.textContent=JSON.stringify({result:pass?'PASS':'FAIL',kind,blankFrames:blank,rasterChangesDuringGesture:duringChanges,rasterChangesAfterSettle:changes,maxAnchorDriftPx:+drift.toFixed(2),scaleRatio:+actual.toFixed(3),crisp,p95FrameMs:+durations.sort((a,b)=>a-b)[Math.floor(durations.length*.95)].toFixed(1)});
+ for(const b of document.querySelectorAll('button'))b.disabled=false;
+};
+</script></html>

@@ -6,32 +6,43 @@ import workerUrl from 'pdfjs-dist/legacy/build/pdf.worker.min.mjs?url';
 
 export type ReadingPosition={page?:number;zoom?:string;scroll?:number;pageOffset?:number;scrollLeft?:number;pdfVersion?:string;thread?:string};
 type PageSize={width:number;height:number};
-type Anchor={page:number;fraction?:number;legacyOffset?:number;left?:number;horizontal?:number};
+type Anchor={page:number;fraction?:number;legacyOffset?:number;left?:number;horizontal?:number;viewportX?:number;viewportY?:number};
+type ZoomPoint={x:number;y:number};
 const clampZoom=(n:number)=>Math.min(8,Math.max(.1,n));
 const validZoom=(z?:string)=>z==='fit'||!Number.isFinite(Number(z))||Number(z)<=0?'fit':String(clampZoom(Number(z)));
+const ZOOM_IDLE_MS=180; // Coalesce input before doing expensive PDF.js raster work.
 
 /** Only nearby pages own canvases; off-screen pages retain their exact geometry. */
-function PdfPage({pdf,number,size,scale,root}:{pdf:PDFDocumentProxy;number:number;size:PageSize;scale:number;root:HTMLDivElement|null}){
+function PdfPage({pdf,number,size,scale,renderScale,root}:{pdf:PDFDocumentProxy;number:number;size:PageSize;scale:number;renderScale:number;root:HTMLDivElement|null}){
  const host=useRef<HTMLDivElement>(null),[visible,setVisible]=useState(false),[error,setError]=useState('');
+ const published=useRef<{layer:HTMLDivElement;canvas:HTMLCanvasElement;scale:number}|null>(null),displayScale=useRef(scale);displayScale.current=scale;
+ function release(){const old=published.current;if(old){old.layer.remove();old.canvas.width=0;old.canvas.height=0;published.current=null;}}
  useEffect(()=>{if(!root||!host.current)return;const observer=new IntersectionObserver(entries=>setVisible(entries[0].isIntersecting),{root,rootMargin:'500px 0px'});observer.observe(host.current);return()=>observer.disconnect();},[root]);
+ useEffect(()=>()=>release(),[pdf,number,visible]);
+ // Keep the last complete bitmap and its text layer together throughout a gesture.
+ useLayoutEffect(()=>{const old=published.current;if(old)old.layer.style.transform=`scale(${scale/old.scale})`;},[scale]);
  useEffect(()=>{
   const target=host.current;if(!visible||!target)return;
   let alive=true,render:RenderTask|undefined,textLayer:InstanceType<typeof import('pdfjs-dist/legacy/build/pdf.mjs')['TextLayer']>|undefined;
-  // Each render owns its DOM nodes, so cancelled async work cannot alter its replacement.
-  const canvas=document.createElement('canvas'),text=document.createElement('div');
-  canvas.setAttribute('aria-label',`论文 PDF 第 ${number} 页`);text.className='textLayer';target.append(canvas,text);setError('');
+  // Stage a replacement off-screen; never clear a readable page while PDF.js works.
+  const layer=document.createElement('div'),canvas=document.createElement('canvas'),text=document.createElement('div');
+  layer.className='paper-pdf-raster';layer.style.visibility='hidden';layer.setAttribute('aria-hidden','true');
+  canvas.setAttribute('aria-label',`论文 PDF 第 ${number} 页`);text.className='textLayer';layer.append(canvas,text);target.append(layer);setError('');
   void (async()=>{try{
    const page=await pdf.getPage(number);if(!alive)return;
-   const viewport=page.getViewport({scale});
+   const viewport=page.getViewport({scale:renderScale});
    const ratio=Math.min(window.devicePixelRatio||1,2,Math.sqrt(8_000_000/(viewport.width*viewport.height)),8192/Math.max(viewport.width,viewport.height));
    canvas.width=Math.ceil(viewport.width*ratio);canvas.height=Math.ceil(viewport.height*ratio);canvas.style.width=`${viewport.width}px`;canvas.style.height=`${viewport.height}px`;
-   text.style.setProperty('--scale-factor',String(scale));text.style.setProperty('--total-scale-factor',String(scale));
+   layer.style.width=`${viewport.width}px`;layer.style.height=`${viewport.height}px`;
+   text.style.setProperty('--scale-factor',String(renderScale));text.style.setProperty('--total-scale-factor',String(renderScale));
    render=page.render({canvas,viewport,transform:[ratio,0,0,ratio,0,0]});await render.promise;if(!alive)return;
    const {TextLayer}=await import('pdfjs-dist/legacy/build/pdf.mjs');if(!alive)return;
-   textLayer=new TextLayer({textContentSource:page.streamTextContent(),container:text,viewport});await textLayer.render();
+   textLayer=new TextLayer({textContentSource:page.streamTextContent(),container:text,viewport});await textLayer.render();if(!alive)return;
+   layer.style.transform=`scale(${displayScale.current/renderScale})`;layer.style.visibility='';layer.removeAttribute('aria-hidden');
+   release();published.current={layer,canvas,scale:renderScale};
   }catch(e){if(alive)setError(message(e));}})();
-  return()=>{alive=false;render?.cancel();textLayer?.cancel();canvas.remove();text.remove();canvas.width=0;canvas.height=0;};
- },[pdf,number,scale,visible]);
+  return()=>{alive=false;render?.cancel();textLayer?.cancel();if(published.current?.layer!==layer){layer.remove();canvas.width=0;canvas.height=0;}};
+ },[pdf,number,renderScale,visible]);
  return <div ref={host} className="paper-pdf-page" data-pdf-page={number} role="region" aria-label={`PDF 第 ${number} 页`} style={{width:size.width*scale,height:size.height*scale}}>{error&&<p className="wb-alert" role="alert">第 {number} 页：{error}</p>}</div>;
 }
 
@@ -44,27 +55,32 @@ export default function PdfReader({project,pmid,version,size,position,onPosition
  const pending=useRef<Anchor|null>({page:saved.page||1,fraction:saved.pageOffset,legacyOffset:saved.scroll||0,left:saved.scrollLeft||0});
  const pages=useRef<HTMLDivElement>(null),ready=useRef(false);
  const scale=zoom==='fit'?Math.max(.1,(width-32)/Math.max(...sizes.map(p=>p.width),1)):Number(zoom);
+ const [renderScale,setRenderScale]=useState<number|null>(null);
+ useEffect(()=>{if(!pdf)return;if(renderScale===null){setRenderScale(scale);return;}const timer=setTimeout(()=>setRenderScale(scale),ZOOM_IDLE_MS);return()=>clearTimeout(timer);},[scale,pdf]);
  const current=useRef({scale,zoom});current.current={scale,zoom};
- function capture():Anchor{
+ function capture(point?:ZoomPoint):Anchor{
   const el=scroll.current;if(!el||!pages.current)return {page:1,fraction:0};
-  const top=el.getBoundingClientRect().top+16;
+  const bounds=el.getBoundingClientRect(),y=point?Math.max(0,Math.min(el.clientHeight,point.y-bounds.top)):16,x=point?Math.max(0,Math.min(el.clientWidth,point.x-bounds.left)):el.clientWidth/2,top=bounds.top+y;
   const nodes=Array.from(pages.current.children) as HTMLElement[];
   const node=nodes.find(n=>n.getBoundingClientRect().bottom>top)||nodes.at(-1);
   if(!node)return {page:1,fraction:0};const rect=node.getBoundingClientRect();
-  return {page:Number(node.dataset.pdfPage),fraction:Math.max(0,Math.min(1,(top-rect.top)/rect.height)),left:el.scrollLeft,horizontal:(el.scrollLeft+el.clientWidth/2)/el.scrollWidth};
+  return {page:Number(node.dataset.pdfPage),fraction:(top-rect.top)/rect.height,left:el.scrollLeft,horizontal:(bounds.left+x-rect.left)/rect.width,viewportX:x,viewportY:y};
  }
  function save(){if(!ready.current||!scroll.current)return;const a=capture();setPage(a.page);setPageInput(String(a.page));onSave.current({page:a.page,pageOffset:a.fraction,scroll:scroll.current.scrollTop,scrollLeft:scroll.current.scrollLeft,zoom:current.current.zoom,pdfVersion:version});}
- function changeZoom(value:string){const next=validZoom(value);if(next===current.current.zoom){setZoomInput(String(Math.round(current.current.scale*100)));return;}pending.current=capture();setZoom(next);}
+ function changeZoom(value:string,point?:ZoomPoint,anchor?:Anchor){const next=validZoom(value);if(next===current.current.zoom){setZoomInput(String(Math.round(current.current.scale*100)));return;}pending.current=anchor??capture(point);setZoom(next);}
  const changeRef=useRef(changeZoom);changeRef.current=changeZoom;
  useEffect(()=>{
   const el=scroll.current;if(!el)return;
   let measured=600;const observer=new ResizeObserver(()=>{if(measured===el.clientWidth)return;measured=el.clientWidth;pending.current??=capture();setWidth(measured);});observer.observe(el);
-  const wheel=(e:WheelEvent)=>{if(!e.ctrlKey&&!e.metaKey)return;e.preventDefault();changeRef.current(String(current.current.scale*Math.exp(-Math.max(-100,Math.min(100,e.deltaY))*.005)));};
-  let gestureScale=1;
-  const start=(e:Event)=>{e.preventDefault();gestureScale=current.current.scale;};
-  const gesture=(e:Event)=>{e.preventDefault();const n=(e as Event&{scale:number}).scale;if(Number.isFinite(n))changeRef.current(String(gestureScale*n));};
-  el.addEventListener('wheel',wheel,{passive:false});el.addEventListener('gesturestart',start,{passive:false});el.addEventListener('gesturechange',gesture,{passive:false});
-  return()=>{observer.disconnect();el.removeEventListener('wheel',wheel);el.removeEventListener('gesturestart',start);el.removeEventListener('gesturechange',gesture);};
+  let frame=0,queued:number|null=null,point:ZoomPoint|undefined,gestureScale=1,gesturing=false,anchor:Anchor|undefined,idle:ReturnType<typeof setTimeout>;
+  const queue=(n:number,p?:ZoomPoint)=>{if(!anchor||p?.x!==point?.x||p?.y!==point?.y)anchor=capture(p);queued=clampZoom(n);point=p;clearTimeout(idle);if(!gesturing)idle=setTimeout(()=>{anchor=undefined;},ZOOM_IDLE_MS);if(!frame)frame=requestAnimationFrame(()=>{frame=0;const next=queued;queued=null;if(next!==null)changeRef.current(String(next),point,anchor);});};
+  const wheel=(e:WheelEvent)=>{if(!e.ctrlKey&&!e.metaKey)return;e.preventDefault();if(gesturing)return;const delta=e.deltaY*(e.deltaMode===1?16:e.deltaMode===2?el.clientHeight:1);queue((queued??current.current.scale)*Math.exp(-Math.max(-100,Math.min(100,delta))*.005),{x:e.clientX,y:e.clientY});};
+  const location=(e:Event)=>{const p=e as Event&{clientX?:number;clientY?:number};return Number.isFinite(p.clientX)&&Number.isFinite(p.clientY)?{x:p.clientX!,y:p.clientY!}:undefined;};
+  const start=(e:Event)=>{e.preventDefault();clearTimeout(idle);anchor=undefined;gesturing=true;gestureScale=queued??current.current.scale;};
+  const gesture=(e:Event)=>{e.preventDefault();const n=(e as Event&{scale:number}).scale;if(Number.isFinite(n))queue(gestureScale*n,location(e));};
+  const end=(e:Event)=>{e.preventDefault();gesturing=false;idle=setTimeout(()=>{anchor=undefined;},ZOOM_IDLE_MS);};
+  el.addEventListener('wheel',wheel,{passive:false});el.addEventListener('gesturestart',start,{passive:false});el.addEventListener('gesturechange',gesture,{passive:false});el.addEventListener('gestureend',end,{passive:false});
+  return()=>{observer.disconnect();cancelAnimationFrame(frame);clearTimeout(idle);el.removeEventListener('wheel',wheel);el.removeEventListener('gesturestart',start);el.removeEventListener('gesturechange',gesture);el.removeEventListener('gestureend',end);};
  },[]);
  useEffect(()=>{
   let alive=true;let task:ReturnType<typeof import('pdfjs-dist/legacy/build/pdf.mjs')['getDocument']>|undefined;
@@ -83,9 +99,10 @@ export default function PdfReader({project,pmid,version,size,position,onPosition
   if(!sizes.length||!scroll.current||!pages.current)return;
   const a=pending.current,el=scroll.current;
   if(a){const n=Math.min(sizes.length,Math.max(1,a.page));const node=pages.current.children[n-1] as HTMLElement;
-   const offset=a.fraction!==undefined?a.fraction*node.offsetHeight:Math.min(a.legacyOffset||0,node.offsetHeight);
-   el.scrollTop+=node.getBoundingClientRect().top-el.getBoundingClientRect().top-16+offset;
-   el.scrollLeft=a.horizontal!==undefined?a.horizontal*el.scrollWidth-el.clientWidth/2:a.left||0;pending.current=null;
+   const rect=node.getBoundingClientRect(),bounds=el.getBoundingClientRect();
+   const offset=a.fraction!==undefined?a.fraction*rect.height:Math.min(a.legacyOffset||0,rect.height);
+   el.scrollTop+=rect.top-bounds.top-(a.viewportY??16)+offset;
+   el.scrollLeft=a.horizontal!==undefined?el.scrollLeft+rect.left-bounds.left+a.horizontal*rect.width-(a.viewportX??el.clientWidth/2):a.left||0;pending.current=null;
   }
   ready.current=true;save();setZoomInput(String(Math.round(scale*100)));
  },[sizes,scale,zoom,width]);
@@ -102,5 +119,5 @@ export default function PdfReader({project,pmid,version,size,position,onPosition
   <button className="text-button" disabled={!pdf} onClick={()=>changeZoom('fit')}>适合宽度</button>
   <form onSubmit={e=>{e.preventDefault();void find();}}><input aria-label="搜索 PDF 文字" placeholder="查找文字" value={query} onChange={e=>{setQuery(e.target.value);setSearched(false);}}/><button className="icon-button" aria-label="查找" disabled={!pdf||finding||!query.trim()}><Search size={15}/></button></form>
  </div>{searched&&<div className="paper-search-results">{found.length?<>匹配页：{found.map(n=><button key={n} className="text-button" onClick={()=>jump(n)}>{n}</button>)}</>:<>没有匹配文字（扫描件可能没有文字层）</>}</div>}{error&&<p role="alert" className="wb-alert">{error}</p>}
- <div className="paper-pdf-scroll" ref={scroll} onScroll={save}>{!pdf&&<p className="quiet">正在读取 PDF… {loading}%</p>}<div className="paper-pdf-pages" ref={pages}>{pdf&&sizes.map((s,i)=><PdfPage key={i} pdf={pdf} number={i+1} size={s} scale={scale} root={scroll.current}/>)}</div></div></div>;
+ <div className="paper-pdf-scroll" ref={scroll} onScroll={save}>{!pdf&&<p className="quiet">正在读取 PDF… {loading}%</p>}<div className="paper-pdf-pages" ref={pages}>{pdf&&sizes.map((s,i)=><PdfPage key={i} pdf={pdf} number={i+1} size={s} scale={scale} renderScale={renderScale??scale} root={scroll.current}/>)}</div></div></div>;
 }
