@@ -1,3 +1,7 @@
+import {useState} from 'react';
+import {useApp} from './context';
+import {ReaderLink} from './Reader';
+import {Modal} from './ui';
 import {evidenceMarkdownComponents} from './evidenceMarkdown';
 import Markdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
@@ -5,12 +9,14 @@ import type {Components} from 'react-markdown';
 
 export type BodyBlock={type:'markdown';text:string}|{type:'notice';text:string}|{type:'table';anchor:string;label:string;title:string;html:string;notes:string}|{type:'resource';anchor?:string;resourceId:string;kind:'table'|'figure';label:string;pmid:string;html?:string;dataUrl?:string;context?:{text:string}[]};
 export default function ReviewBody({markdown,blocks,onObjectLink,onCitation}:{markdown:string;blocks?:BodyBlock[];onObjectLink?:(anchor:string)=>void;onCitation?:(pmid:string)=>void}){
- const cite=(text:string)=>onCitation?text.replace(/\(PMID:\s*(\d+(?:\s*,\s*\d+)*)\)/g,(_,ids:string)=>`(PMID: ${ids.split(/\s*,\s*/).map(id=>`[${id}](#cite-pmid-${id})`).join(', ')})`):text;
- const html=(text:string)=>onCitation?text.replace(/\(PMID:\s*(\d+(?:\s*,\s*\d+)*)\)/g,(_,ids:string)=>`(PMID: ${ids.split(/\s*,\s*/).map(id=>`<button class="qa-citation" data-qa-pmid="${id}">${id}</button>`).join(', ')})`):text;
- const components:Components=onCitation?{...evidenceMarkdownComponents,a:({href,children})=>href?.match(/^#cite-pmid-\d+$/)?<button className="qa-citation" title="查看引用的原文与图表" onClick={()=>onCitation(href.slice(11))}>{children}</button>:<a href={href}>{children}</a>}:evidenceMarkdownComponents;
+ const [citation,setCitation]=useState('');const {project}=useApp();
+ const showCitation=onCitation||setCitation;const paper=project.papers.find(p=>p.id===`PMID-${citation}`);
+ const cite=(text:string)=>text.replace(/\(PMID:\s*(\d+(?:\s*,\s*\d+)*)\)/g,(_,ids:string)=>`(PMID: ${ids.split(/\s*,\s*/).map(id=>`[${id}](#cite-pmid-${id})`).join(', ')})`);
+ const html=(text:string)=>text.replace(/\(PMID:\s*(\d+(?:\s*,\s*\d+)*)\)/g,(_,ids:string)=>`(PMID: ${ids.split(/\s*,\s*/).map(id=>`<button class="qa-citation" data-qa-pmid="${id}">${id}</button>`).join(', ')})`);
+ const components:Components={...evidenceMarkdownComponents,a:({href,children})=>href?.match(/^#cite-pmid-\d+$/)?<button className="qa-citation" title="查看引用的原文与图表" onClick={()=>showCitation(href.slice(11))}>{children}</button>:<a href={href}>{children}</a>};
  return <div onClick={event=>{
   const citation=event.target instanceof Element?event.target.closest('[data-qa-pmid]'):null;
-  if(citation&&onCitation){onCitation(citation.getAttribute('data-qa-pmid')!);return;}
+  if(citation){showCitation(citation.getAttribute('data-qa-pmid')!);return;}
   const link=event.target instanceof Element?event.target.closest('a'):null;
   const href=link?.getAttribute('href');if(!href||!/^#obj_[a-f0-9]{24}$/.test(href))return;
   event.preventDefault();const target=event.currentTarget.querySelector(href)||document.getElementById(href.slice(1));
@@ -25,7 +31,7 @@ export default function ReviewBody({markdown,blocks,onObjectLink,onCitation}:{ma
    </figure>
   :<figure className="body-resource" id={b.anchor} data-resource-id={b.resourceId} key={i}>
     {b.kind==='table'?<div className="body-resource-table" dangerouslySetInnerHTML={{__html:b.html||''}}/>:<img src={b.dataUrl} alt={`${b.label} · PMID ${b.pmid}`}/>}
-    <figcaption>{b.label} · 原文资源 (PMID: {onCitation?<button className="qa-citation" onClick={()=>onCitation(b.pmid)}>{b.pmid}</button>:b.pmid})</figcaption>
+    <figcaption>{b.label} · 原文资源 (PMID: {<button className="qa-citation" onClick={()=>showCitation(b.pmid)}>{b.pmid}</button>})</figcaption>
     {!!b.context?.length&&<details><summary>原文邻近文字（不保证为完整图注）</summary>{b.context.map((p,j)=><Markdown key={j} remarkPlugins={[remarkGfm]} components={evidenceMarkdownComponents}>{p.text}</Markdown>)}</details>}
-   </figure>)}</div>;
+   </figure>)}{citation&&<Modal title="引用文献" onClose={()=>setCitation('')}><h3>{paper?.title||`PMID ${citation}`}</h3>{paper&&<p className="quiet">{paper.journal} · {paper.year}</p>}<ReaderLink pmid={citation}/></Modal>}</div>;
 }

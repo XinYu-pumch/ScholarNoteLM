@@ -445,3 +445,74 @@ input[type='checkbox'], input[type='radio'] { accent-color: var(--accent); }
 .qa-composer:focus-within, .wb-composer:focus-within { border-color: var(--accent); box-shadow: var(--shadow-sm), var(--focus-ring); }
 
 .zotero-progress { border: .5px solid var(--line); background: var(--surface); border-radius: var(--radius-panel); box-shadow: var(--shadow-xs); }
+
+/* Paper reading: independently scrolling document and persistent composer. */
+.page-reader { overflow: hidden; }
+.paper-reader { height: 100%; min-height: 0; display: flex; flex-direction: column; padding: var(--space-4) var(--space-5); gap: var(--space-2); }
+.paper-reader-heading,.paper-reader-meta,.paper-chat-pane>header,.paper-chat-controls,.paper-chat-composer>div,.paper-chat-turn footer,.paper-pdf-tools { display:flex; align-items:center; gap:var(--space-2); }
+.paper-reader-heading>.text-button { flex-shrink:0; }
+.paper-reader-meta { color:var(--muted); font-size:var(--fs-footnote); }
+.paper-reader-meta>span:first-child { flex:1; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.paper-picker { position:relative; flex:1; min-width:0; }
+.paper-picker-trigger { width:100%; display:flex; align-items:center; justify-content:space-between; gap:var(--space-3); text-align:left; padding:var(--space-2) var(--space-3); border:1px solid var(--line); border-radius:var(--radius-md); background:var(--surface); }
+.paper-picker-trigger>span { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font-size:var(--fs-body); font-weight:var(--fw-medium); }
+.paper-picker-menu { position:absolute; top:100%; left:0; right:0; z-index:60; padding:var(--space-2); background:var(--surface-raised); border:1px solid var(--line); box-shadow:var(--shadow-md); border-radius:var(--radius-md); }
+.paper-picker-menu>input { width:100%; margin-bottom:var(--space-2); }
+.paper-picker-menu [role=listbox] { max-height:320px; overflow:auto; }
+.paper-picker-menu [role=option] { display:block; width:100%; text-align:left; padding:var(--space-3); border-radius:var(--radius-sm); }
+.paper-picker-menu [aria-selected=true] { background:var(--accent-soft); }
+.paper-picker-menu strong,.paper-picker-menu small { display:block; }
+.paper-picker-menu small { color:var(--muted); margin-top:var(--space-1); }
+.paper-reader-layout { display:grid; grid-template-columns:minmax(0,1fr) var(--space-2) minmax(300px,var(--reader-chat-width)); flex:1; min-height:0; }
+.paper-reader-layout.chat-hidden { grid-template-columns:minmax(0,1fr); }
+.paper-reading-pane { min-width:0; min-height:0; background:var(--panel); border:1px solid var(--line); border-radius:var(--radius-panel); overflow:hidden; }
+.paper-divider { cursor:col-resize; touch-action:none; }
+.paper-divider:hover,.paper-divider:focus-visible { background:var(--accent-soft); }
+.paper-chat-pane { min-height:0; min-width:0; display:flex; flex-direction:column; gap:var(--space-2); padding:var(--space-3); background:var(--surface); border:1px solid var(--line); border-radius:var(--radius-panel); }
+.paper-chat-pane>header { justify-content:space-between; }
+.paper-chat-pane h3 { display:flex; align-items:center; gap:var(--space-2); font-size:var(--fs-body); margin:0; }
+.paper-chat-controls .workspace-model-picker { flex:1; min-width:0; }
+.paper-chat-controls .workspace-model-picker>span:first-child { display:none; }
+.paper-source-note { padding:var(--space-2); border-radius:var(--radius-sm); background:var(--accent-wash); font-size:var(--fs-footnote); color:var(--muted); }
+.paper-source-note strong { display:block; color:var(--ochre); }
+.paper-chat-messages { flex:1; overflow:auto; min-height:0; overflow-wrap:anywhere; }
+.paper-chat-turn { margin-bottom:var(--space-5); }
+.paper-chat-question { white-space:pre-wrap; padding:var(--space-3); border-radius:var(--radius-md); background:var(--accent-soft); }
+.paper-chat-turn footer { flex-wrap:wrap; color:var(--muted); font-size:var(--fs-footnote); }
+.paper-chat-turn footer small { flex:1; }
+.paper-chat-composer { flex-shrink:0; border:1px solid var(--line-strong); border-radius:var(--radius-md); padding:var(--space-2); }
+.paper-chat-composer textarea { width:100%; height:80px; min-height:60px; max-height:180px; resize:vertical; border:0; box-shadow:none; padding:var(--space-1); }
+.paper-chat-composer>div { justify-content:space-between; }
+.paper-chat-composer small { color:var(--muted); font-size:var(--fs-caption); }
+.paper-chat-empty { flex:1; display:flex; flex-direction:column; align-items:center; justify-content:center; text-align:center; gap:var(--space-3); }
+.paper-chat-empty p { margin:0; }
+.paper-notes { font-size:var(--fs-footnote); color:var(--muted); flex-shrink:0; }
+.paper-notes textarea { width:100%; height:100px; resize:vertical; margin-top:var(--space-2); }
+.paper-abstract { height:100%; overflow:auto; padding:var(--space-8); font-family:var(--font-reading); }
+.paper-abstract h1 { font-size:var(--fs-title2); }
+.paper-pdf { display:flex; flex-direction:column; height:100%; min-height:0; }
+.paper-pdf-tools { flex-wrap:wrap; padding:var(--space-2); background:var(--surface); border-bottom:1px solid var(--line); font-size:var(--fs-footnote); }
+.paper-pdf-tools label input { width:52px; }
+.paper-pdf-tools form { display:flex; flex:1; min-width:100px; }
+.paper-pdf-tools form input { min-width:0; width:100%; }
+.paper-pdf-tools select { min-width:90px; }
+.paper-pdf-scroll { flex:1; overflow:auto; padding:var(--space-4); min-height:0; }
+.paper-pdf-page { width:max-content; margin:auto; position:relative; box-shadow:var(--shadow-sm); }
+.paper-pdf-page canvas { display:block; }
+.paper-pdf-page .textLayer { position:absolute; inset:0; }
+.paper-search-results { padding:var(--space-2); max-height:80px; overflow:auto; font-size:var(--fs-footnote); }
+.paper-chat-pane>.wb-alert { max-height:120px; overflow:auto; flex-shrink:0; }
+@media(max-width:1000px) { .paper-reader { padding:var(--space-3); } .paper-reader-layout { grid-template-columns:minmax(0,1fr) var(--space-2) minmax(280px,40%); } .paper-reader-meta>span:nth-child(2) { display:none; } }
+/* PDF.js TextLayer geometry. Font sizes/transforms here follow PDF coordinates. */
+.paper-pdf-page .textLayer { text-align:initial; overflow:clip; line-height:1; text-size-adjust:none; -webkit-text-size-adjust:none; forced-color-adjust:none; transform-origin:0 0; --min-font-size:1; --text-scale-factor:calc(var(--total-scale-factor) * var(--min-font-size)); --min-font-size-inv:calc(1 / var(--min-font-size)); }
+.paper-pdf-page .textLayer :is(span,br) { color:transparent; position:absolute; white-space:pre; cursor:text; transform-origin:0 0; }
+.paper-pdf-page .textLayer>:not(.markedContent),.paper-pdf-page .textLayer .markedContent span:not(.markedContent) { z-index:1; --font-height:0; font-size:calc(var(--text-scale-factor) * var(--font-height)); --scale-x:1; --rotate:0deg; transform:rotate(var(--rotate)) scaleX(var(--scale-x)) scale(var(--min-font-size-inv)); }
+.paper-pdf-page .textLayer .markedContent { display:contents; }
+.paper-pdf-page .textLayer ::selection { background:var(--accent-badge); }
+.paper-pdf-page .textLayer span[role=img] { user-select:none; cursor:default; }
+.paper-pdf-tools input,.paper-pdf-tools select,.paper-picker-menu>input { height:var(--control-height); padding:var(--space-1) var(--space-2); border:1px solid var(--line-strong); border-radius:var(--radius-sm); background:var(--surface); color:var(--text); font:inherit; }
+.paper-pdf-tools input:focus-visible,.paper-picker-menu>input:focus-visible { outline:0; box-shadow:var(--focus-ring); }
+.paper-chat-controls .workspace-model-picker .select-trigger { width:100%; }
+/* PDF.js measures glyphs in this off-screen canvas; it must not grow the page. */
+.hiddenCanvasElement { position:absolute; top:0; left:0; width:0; height:0; display:none; }
+.paper-notes textarea { padding:var(--space-2); border:1px solid var(--line); border-radius:var(--radius-sm); background:var(--panel); color:var(--text); }

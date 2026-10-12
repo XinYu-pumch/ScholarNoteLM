@@ -8,7 +8,7 @@ FOLDERS = {'pubmed':'PubMed XML、检索批次和合并快照', 'pdf':'当前集
  'abstracts':'PubMed 摘要 Markdown，以 PMID 命名', 'markdown':'清洗后全文 Markdown；raw/ 原稿，assets/ 图片',
  'logs':'下载报告和逐篇日志', 'vectors':'文本块、向量缓存、源文本快照与索引状态',
  'notes':'阅读笔记', 'review':'综述工作区、大纲、正文、检索证据与导出', 'packages':'当前 XML 对应的文献包',
- 'qa':'文献问答、原文证据快照、任务和导出', 'metadata':'项目数据库和下载来源记录'}
+ 'reader':'单篇阅读对话、共享全文快照与阅读位置', 'qa':'文献问答、原文证据快照、任务和导出', 'metadata':'项目数据库和下载来源记录'}
 
 def atomic(path, data):
     path.parent.mkdir(parents=True,exist_ok=True)

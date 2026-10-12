@@ -1948,7 +1948,7 @@ pub fn dispatch(root: &Path, request: Value) -> R<Value> {
     }
     let _storage=storage_lock(root,false)?;
     let mut c=if p.is_empty(){db(root)?}else{db_project(root,p)?};
-    if action.starts_with("markdown.") || action.starts_with("vector.") || action.starts_with("review.") || action.starts_with("library.") || action.starts_with("qa.") {
+    if action.starts_with("reader.") || action.starts_with("markdown.") || action.starts_with("vector.") || action.starts_with("review.") || action.starts_with("library.") || action.starts_with("qa.") {
         return download_rpc(root, action, if a.is_object(){a.clone()}else{json!({})});
     }
     if let Some(op) = action.strip_prefix("download.") {

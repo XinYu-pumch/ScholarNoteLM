@@ -8,7 +8,7 @@ const dev = process.argv[2] === 'dev';
 const cli = path.join(root, 'node_modules/@tauri-apps/cli/tauri.js');
 const windows = process.platform === 'win32';
 const env = {
-  ...process.env, SCHOLARNOTELM_ROOT: root,
+  ...process.env, SCHOLARNOTELM_ROOT: process.env.SCHOLARNOTELM_ROOT || root,
   SCHOLARNOTELM_DEV: dev ? '1' : '0',
   PATH: [path.dirname(process.execPath), path.join(root, 'cache/cargo/bin'), process.env.PATH].join(path.delimiter),
   CARGO_HOME: path.join(root, 'cache/cargo'), RUSTUP_HOME: path.join(root, 'runtimes/rust'),

@@ -1065,6 +1065,9 @@ def dispatch_rpc(action,a):
     if action=='llm.test':
         from review_llm import test_connection
         return asyncio.run(test_connection(a.get('profile',{})))
+    if action.startswith('reader.'):
+        import reader_service
+        return reader_service.rpc(sys.modules[__name__],action.removeprefix('reader.'),a)
     if action.startswith('qa.'):
         import qa_service
         return qa_service.rpc(sys.modules[__name__],action.removeprefix('qa.'),a)
@@ -1105,7 +1108,7 @@ def rpc(action,a):
     if a.get('project'):PROJECT=ident(a['project'])
     import library_service
     if action.startswith('library.'):return library_service.rpc(sys.modules[__name__],action.removeprefix('library.'),a)
-    mutating=action in ('start','import','clear','markdown.start','markdown.reconcile','vector.start','qa.start') or (action=='control' and a.get('command') in ('resume','retry')) or action in ('review.start','review.writing.start','review.writing.prepare','review.writing.prepare.resume','review.writing.reset','review.writing.retry')
+    mutating=action in ('start','import','clear','markdown.start','markdown.reconcile','vector.start','qa.start','reader.start') or (action=='control' and a.get('command') in ('resume','retry')) or action in ('review.start','review.writing.start','review.writing.prepare','review.writing.prepare.resume','review.writing.reset','review.writing.retry')
     if action=='control' and a.get('command')=='resume':
         current=library_service.job(sys.modules[__name__])
         if current and current['state'] in library_service.ACTIVE and current.get('downloadId')==a.get('id'):a={**a,'workflowId':current['id']}

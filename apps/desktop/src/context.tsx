@@ -9,7 +9,7 @@ type Context = {
   updateProject: (update: (p: Project) => Project) => void;
   updateState: (update: (s: AppState) => AppState) => void;
   deleteProject: (id: string) => Promise<void>;
-  openPaper: (paper: Paper) => void; paperId: string; setPaperId: (id: string) => void;
+  readerReturnPage: Page; openPaper: (paper: Paper) => void; paperId: string; setPaperId: (id: string) => void;
   notify: (message: string) => void; toast: string; saveStatus: string;
 };
 const Context = createContext<Context | null>(null);
@@ -24,6 +24,8 @@ export function Provider({ children }: { children: ReactNode }) {
   const setPage=(next:Page)=>{if(next===page||canLeave())setPageRaw(next);};
   const [settingsTab,setSettingsTab]=useState('models');
   const [paperId, setPaperId] = useState('');
+  const [readerReturnPage,setReaderReturnPage]=useState<Page>('library');
+  useEffect(()=>{setPaperId('');},[state.active]);
   const [toast, setToast] = useState('');
   const [persistedState, setPersistedState] = useState<AppState | null>(null);
   const [saveFailure, setSaveFailure] = useState(false);
@@ -88,5 +90,5 @@ export function Provider({ children }: { children: ReactNode }) {
   };
   if (!loaded) return <div className="boot-screen"><img src="/mark.svg" alt="" /><h2>ScholarNoteLM</h2><p>{loadError || '正在打开你的研究空间…'}</p>{loadError && <button className="button" onClick={() => location.reload()}>重新加载</button>}</div>;
   const updateProject = (fn: (p: Project) => Project) => setState(current => ({ ...current, projects: current.projects.map(p => p.id === state.active ? fn(p) : p) }));
-  return <Context.Provider value={{ state, project, page, setPage, deleteProject, settingsTab,setSettingsTab,openSettings:tab=>{setSettingsTab(tab);setPage('settings');},updateProject, updateState: fn=>{const next=fn(state);if(next.active===state.active||canLeave())setState(next);}, paperId, setPaperId, openPaper: paper => { setPaperId(paper.id); setPage('reader'); }, notify: message => setToast(message), toast, saveStatus }}>{children}</Context.Provider>;
+  return <Context.Provider value={{ state, project, page, setPage, deleteProject, settingsTab,setSettingsTab,openSettings:tab=>{setSettingsTab(tab);setPage('settings');},updateProject, updateState: fn=>{const next=fn(state);if(next.active===state.active||canLeave())setState(next);}, paperId, setPaperId, readerReturnPage, openPaper: paper => { if(!canLeave())return; if(page!=='reader')setReaderReturnPage(page); setPaperId(paper.id); setPageRaw('reader'); }, notify: message => setToast(message), toast, saveStatus }}>{children}</Context.Provider>;
 }

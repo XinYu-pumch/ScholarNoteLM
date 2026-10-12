@@ -42,7 +42,8 @@ def worker_alive(e,pid):
 
 def running(e):
     import markdown_service as m,vector_service as v,review_service as r,review_writing as w
-    result=[]
+    import reader_service
+    result=[('reader',job) for job in reader_service.jobs(e)]
     import zotero_import
     z=zotero_import.current_job(e)
     if z and z.get("state") in ACTIVE:result.append(("zotero",z))
@@ -71,6 +72,9 @@ def stop_children(e):
         elif kind=='vector':v.rpc(e,'stop',{})
         elif kind=='outline':r.rpc(e,'cancel',{'name':record['name']})
         elif kind=='writing':r.rpc(e,'writing.cancel',{'name':record['name']})
+        elif kind=='reader':
+            import reader_service
+            reader_service.rpc(e,'cancel',{'id':record['id']})
         elif kind=='qa':
             import qa_service
             qa_service.rpc(e,'cancel',{'runId':record['id']})

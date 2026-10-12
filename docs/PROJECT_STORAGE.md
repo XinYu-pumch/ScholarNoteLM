@@ -68,3 +68,7 @@ macOS/APFS 上的新向量图片快照优先通过 `clonefile` 共享原图的�
 ## 当前集合与冗余文件
 
 当前 XML 移出的 PDF 自动归档到 `pdf/redundant/`，对应摘要、全文 Markdown、图片、文本块与向量数据删除。重新纳入后只恢复 PDF，Markdown 与索引重新生成。全文原稿位于 `markdown/raw/`，清洗稿位于 `markdown/`。模型、运行环境仍属于 app 内系统资源。详见 [完整规则](MARKDOWN.md)。
+
+## 阅读对话
+
+`reader/reader.sqlite3` 保存单篇对话与阅读位置，`reader/sources/*.json.gz` 按材料版本共享全文快照；不是每轮复制 PDF 或 Markdown。`notes/notes.json` 保留原有手写笔记。完整项目迁移时需一起保留 `reader/`，细节见 [阅读规范](READING.md)。

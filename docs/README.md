@@ -20,6 +20,7 @@
 | Marker 转换与参考文献清洗 | [MARKDOWN.md](MARKDOWN.md) |
 | 正文分块、Embedding、索引与限速 | [VECTORIZATION.md](VECTORIZATION.md) |
 | 位置关联图表 | [positional-evidence-resources.md](positional-evidence-resources.md) |
+| 阅读与笔记 | [READING.md](READING.md) |
 | 文献问答 | [LITERATURE_QA.md](LITERATURE_QA.md) |
 | 问答上下文、历史证据与并行对话 | [QA_CONTEXT.md](QA_CONTEXT.md) |
 | 综述大纲与撰写 | [REVIEW_OUTLINES.md](REVIEW_OUTLINES.md) |
@@ -39,4 +40,4 @@
 ## 注意
 
 - 测试脚本会把截图和结果 JSON 写入 `docs/`。这些是运行产物，不要提交，也不要当作规范。
-- 不要依据已删除的历史文档恢复旧功能，例如重排、BM25 / MedCPT、PaddleOCR、清洗策略开关、单篇精读、Chroma、演示项目。
+- 不要依据已删除的历史文档恢复旧功能，例如重排、BM25 / MedCPT、PaddleOCR、清洗策略开关、旧版单篇精读 RAG、Chroma、演示项目。
