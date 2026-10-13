@@ -1,3 +1,4 @@
+import {useUnsavedChanges} from './useUnsavedChanges';
 import {ReaderLink} from './Reader';
 import {useQuery} from './useQuery';
 import {usePageState,pageMemory,rememberPage} from './page-memory';
@@ -40,9 +41,12 @@ function ModelChoice({label,role,cfg,profiles,onChange,disabled=false}:{label:st
 
 export function QASettings(){
  const {notify}=useApp();const [cfg,setCfg]=useState<Config|null>(null);const [error,setError]=useState('');const [busy,setBusy]=useState(false);const [dirty,setDirty]=useState(false);
- useEffect(()=>{let alive=true;void rpc<Config>('qa.settings').then(c=>{if(alive)setCfg(c);}).catch(e=>{if(alive)setError(message(e));});return()=>{alive=false;};},[]);
+ useEffect(()=>{let alive=true;void rpc<Config>('qa.settings').then(c=>{if(alive){setCfg(c);setBaseline(c);}}).catch(e=>{if(alive)setError(message(e));});return()=>{alive=false;};},[]);
+ const [baseline,setBaseline]=useState<Config|null>(null);
  const change=(c:Config)=>{setCfg(c);setDirty(true);};
- return <div className="qa-settings"><h2>文献问答</h2><p className="quiet">调整查找文献的范围和轮数。</p>{error&&<div role="alert" className="wb-alert">{error}</div>}{cfg&&<form onSubmit={async e=>{e.preventDefault();setBusy(true);setError('');try{const {answerProfile,answerModel,plannerProfile,plannerModel,evidenceProfile,evidenceModel,...options}=cfg;setCfg(await rpc<Config>('qa.settings.save',options));setDirty(false);notify('问答设置已保存，下次提问生效');}catch(e){setError(message(e));}finally{setBusy(false);}}}><fieldset disabled={busy} className="wb-form">
+ async function persist(){if(!cfg)return;const {answerProfile,answerModel,plannerProfile,plannerModel,evidenceProfile,evidenceModel,...options}=cfg;const saved=await rpc<Config>('qa.settings.save',options);setCfg(saved);setBaseline(saved);setDirty(false);notify('问答设置已保存，下次提问生效',{tone:'success'});}
+ const draftDialog=useUnsavedChanges({label:'文献问答设置',dirty,busy,save:persist,discard:()=>{setCfg(baseline);setDirty(false);}});
+ return <div className="qa-settings">{draftDialog}<h2>文献问答</h2><p className="quiet">调整查找文献的范围和轮数。</p>{error&&<div role="alert" className="wb-alert">{error}</div>}{cfg&&<form onSubmit={async e=>{e.preventDefault();setBusy(true);setError('');try{await persist();}catch(e){setError(message(e));}finally{setBusy(false);}}}><fieldset disabled={busy} className="wb-form">
  <div className="wb-form-grid">{([['topK','每次检索的参考片段数'],['queriesPerRound','每轮检索次数上限'],['minRounds','最少检索轮数'],['maxRounds','最多检索轮数']] as const).map(([key,label])=><label key={key}>{label}<NumberInput type="number" min={1} step={1} required value={cfg[key]} onChange={e=>change({...cfg,[key]:Number(e.target.value)})}/></label>)}</div>
  <p className="quiet small">检索次数越多，通常等待越久。</p>
  <details className="model-advanced"><summary>文献概览设置<ChevronDown size={13}/></summary><div className="wb-form-grid">{([['contextChars','每次阅读长度 · 字符'],['evidenceConcurrency','阅读并发数'],['maxSteps','阅读步骤上限'],['toolsPerRound','每步查找次数上限']] as const).map(([key,label])=><label key={key}>{label}<NumberInput type="number" min={key==='contextChars'?12000:1} step={1} value={cfg[key]} onChange={e=>change({...cfg,[key]:Number(e.target.value)})}/></label>)}</div></details>

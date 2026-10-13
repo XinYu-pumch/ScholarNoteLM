@@ -650,3 +650,6 @@ input[type='checkbox'], input[type='radio'] { accent-color: var(--accent); }
 }
 
 .writing-action-reason { flex:none; margin:var(--space-2) 0; color:var(--muted); font-size:var(--fs-footnote); }
+
+.search-tab-panel { display:flex; flex:1; min-height:0; }
+.search-tab-panel>.search-chat-layout { flex:1; min-width:0; }

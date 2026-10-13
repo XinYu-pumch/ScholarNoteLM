@@ -3030,6 +3030,7 @@ dependencies = [
  "chrono",
  "flate2",
  "fs2",
+ "objc2",
  "quick-xml 0.37.5",
  "regex",
  "reqwest 0.12.28",

@@ -1,3 +1,4 @@
+import {useUnsavedChanges} from './useUnsavedChanges';
 import {useEffect,useRef,useState} from 'react';
 import {Save} from 'lucide-react';
 import {useApp} from './context';
@@ -9,12 +10,14 @@ import {type MarkdownSettingsData as Settings} from './markdown-api';
 
 export function MarkdownSettings(){
  const {project,notify}=useApp();const [data,setData]=useState<Settings|null>(null),[busy,setBusy]=useState(false),[error,setError]=useState('');
- const currentProject=useRef(project.id);currentProject.current=project.id;
- useEffect(()=>{let live=true;setData(null);void rpc<Settings>('markdown.settings',{project:project.id}).then(d=>{if(live)setData(d);}).catch(e=>{if(live)setError(message(e));});return()=>{live=false;};},[project.id]);
- async function save(){if(!data)return;const target=project.id;setBusy(true);try{const saved=await rpc<Settings>('markdown.settings.save',{project:target,...data.config});if(currentProject.current===target){setData(saved);setError('');}downloadChanged();notify('转换设置已保存');}catch(e){setError(message(e));}finally{setBusy(false);}}
+ const baseline=useRef<Settings|null>(null);
+ useEffect(()=>{let live=true;setData(null);void rpc<Settings>('markdown.settings',{project:project.id}).then(d=>{if(live){setData(d);baseline.current=d;}}).catch(e=>{if(live)setError(message(e));});return()=>{live=false;};},[project.id]);
+ async function persist(){if(!data)return;const saved=await rpc<Settings>('markdown.settings.save',{project:project.id,...data.config});setData(saved);baseline.current=saved;setError('');downloadChanged();notify('转换设置已保存',{tone:'success'});}
+ async function save(){setBusy(true);try{await persist();}catch(e){setError(message(e));}finally{setBusy(false);}}
+ const draftDialog=useUnsavedChanges({label:'全文转换设置',dirty:!!baseline.current&&JSON.stringify(data?.config)!==JSON.stringify(baseline.current.config),busy,save:persist,discard:()=>setData(baseline.current)});
  const cfg=data?.config;
  function change(patch:Partial<Settings['config']>){setData(d=>d?{...d,config:{...d.config,...patch}}:d);}
- return <div className="download-settings"><h2>全文转换</h2>{error&&<div className="wb-alert">{error}</div>}{!data&&!error&&<p className="quiet">正在读取转换设置…</p>}{data&&cfg&&<>
+ return <div className="download-settings">{draftDialog}<h2>全文转换</h2>{error&&<div className="wb-alert">{error}</div>}{!data&&!error&&<p className="quiet">正在读取转换设置…</p>}{data&&cfg&&<>
  {!data.ready&&<div className="wb-alert" role="alert">转换环境尚未就绪{data.missing.length?`：缺少 ${data.missing.join('、')}`:''}</div>}
  <div className="conversion-settings wb-form"><label>计算设备<Select aria-label="计算设备" disabled={busy} value={cfg.device} onChange={e=>change({device:e.target.value})}><option value="auto">自动选择</option><option value="cpu">CPU</option><option value="mps">Apple Silicon</option><option value="cuda">NVIDIA GPU</option></Select></label><label>文字提取进程<Select aria-label="文字提取进程" disabled={busy} value={String(cfg.pdftextWorkers)} onChange={e=>change({pdftextWorkers:e.target.value==='auto'?'auto':Number(e.target.value)})}><option value="auto">自动</option>{[1,2,4,8,16].map(n=><option key={n} value={n}>{n}</option>)}</Select></label></div>
  <div className="model-save-bar"><button className="button primary" disabled={busy} onClick={()=>void save()}><Save size={15}/>保存设置</button></div></>}</div>;

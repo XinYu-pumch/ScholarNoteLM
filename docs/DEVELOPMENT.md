@@ -62,3 +62,14 @@ Markdown 任务同样可在开发版直接运行；转换期间修改 Python，�
 目前转换仅使用 Marker，问答与综述检索使用 Embedding API。重排模型和 Paddle 专用环境已删除，不能按旧文档重新安装。`runtimes/retrieval` 仍是问答与综述 worker 的运行入口，其基础依赖通过 `.pth` 共享 `runtimes/marker`。
 
 编译产物、安装缓存、当前可执行程序及用户资料的边界见 [本地维护](LOCAL_MAINTENANCE.md)。清理后无需为了检查文档重新打包；只有代码变化或需要发行版本时才构建。
+
+## 原生退出保护验证
+
+使用隔离根目录启动开发版，修改一个设置后分别关闭窗口和按 ⌘Q，验证继续编辑、放弃、保存失败和保存成功。配置保存成功后，还需等待项目状态及笔记的最后一次写入。macOS 的系统退出走 AppKit delegate，单独依赖 Tauri `ExitRequested` 不足以拦截 ⌘Q。修改或升级 Tauri/Tao 后需重复原生验证。
+
+无需打开应用的回归测试：
+
+```sh
+./scripts/npm-local.sh exec -- node --test scripts/test-ui-navigation.mjs scripts/test-exit-protocol.mjs
+./scripts/cargo-local.sh test --manifest-path apps/desktop/src-tauri/Cargo.toml --bin scholarnotelm exit_guard
+```

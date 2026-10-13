@@ -1,3 +1,5 @@
+import {useNativeClose} from './useNativeClose';
+import {flushLatestState} from './exitProtocol';
 import {canNavigate, requestNavigation} from './navigation';
 import {type Notice, type NoticeTone} from './Notification';
 import { createContext, useContext, useEffect, useRef, useState, type ReactNode } from 'react';
@@ -36,6 +38,8 @@ export function Provider({ children }: { children: ReactNode }) {
   const saveStatus = persistedState === state ? '已保存到本地' : saveFailure ? '保存失败' : '正在保存…';
   const writeQueue = useRef(Promise.resolve());
   const saveRevision = useRef(0);
+  const saveTimer = useRef<ReturnType<typeof setTimeout>|undefined>(undefined);
+  const flushing = useRef(false);
   const deleting = useRef(false);
   const latestState = useRef(state);
   latestState.current = state;
@@ -47,12 +51,13 @@ export function Provider({ children }: { children: ReactNode }) {
   }, []);
   useEffect(() => {
     document.documentElement.dataset.theme = state.theme;
-    if (!loaded) return;
+    if (!loaded || flushing.current) return;
     const revision = ++saveRevision.current;
     const timer = setTimeout(() => {
       if (deleting.current) return;
       writeQueue.current = writeQueue.current.catch(() => {}).then(() => writeState(state)).then(() => { if (saveRevision.current === revision) { setPersistedState(state); setSaveFailure(false); } }).catch(() => { if (saveRevision.current === revision) { setSaveFailure(true); } });
     }, 300);
+    saveTimer.current=timer;
     return () => clearTimeout(timer);
   }, [state, loaded]);
   useEffect(() => { if (!toast || toast.tone==='error' || toast.tone==='warning') return; const timer = setTimeout(() => setToast(null), 4200); return () => clearTimeout(timer); }, [toast]);
@@ -91,7 +96,19 @@ export function Provider({ children }: { children: ReactNode }) {
 
     } finally { deleting.current = false; }
   };
+  const closeDialog=useNativeClose(async()=>{
+    if(!loaded)return;
+    if(deleting.current)throw new Error('项目删除正在进行，请稍后再退出。');
+    flushing.current=true;
+    clearTimeout(saveTimer.current);
+    ++saveRevision.current;
+    try {
+      const snapshot=await flushLatestState(writeQueue.current,()=>latestState.current,writeState);
+      setPersistedState(snapshot);setSaveFailure(false);
+    } catch(e) {setSaveFailure(true);throw e;}
+    finally {flushing.current=false;}
+  });
   if (!loaded) return <div className="boot-screen"><img src="/mark.svg" alt="" /><h2>ScholarNoteLM</h2><p>{loadError || '正在打开你的研究空间…'}</p>{loadError && <button className="button" onClick={() => location.reload()}>重新加载</button>}</div>;
   const updateProject = (fn: (p: Project) => Project) => setState(current => ({ ...current, projects: current.projects.map(p => p.id === state.active ? fn(p) : p) }));
-  return <Context.Provider value={{ state, project, page, setPage, deleteProject, settingsTab,setSettingsTab,openSettings:tab=>requestNavigation(()=>{setSettingsTab(tab);setPageRaw('settings');}),updateProject, updateState: fn=>{const next=fn(latestState.current);if(next.active===latestState.current.active)setState(fn);else requestNavigation(()=>{setState(fn);setPageRaw('library');});}, paperId, setPaperId, readerReturnPage, openPaper: paper => requestNavigation(() => { if(pageRef.current!=='reader')setReaderReturnPage(pageRef.current); setPaperId(paper.id); setPageRaw('reader'); }), notify, toast, dismissToast, saveStatus }}>{children}</Context.Provider>;
+  return <Context.Provider value={{ state, project, page, setPage, deleteProject, settingsTab,setSettingsTab,openSettings:tab=>requestNavigation(()=>{setSettingsTab(tab);setPageRaw('settings');}),updateProject, updateState: fn=>{const next=fn(latestState.current);if(next.active===latestState.current.active)setState(fn);else requestNavigation(()=>{setState(fn);setPageRaw('library');});}, paperId, setPaperId, readerReturnPage, openPaper: paper => requestNavigation(() => { if(pageRef.current!=='reader')setReaderReturnPage(pageRef.current); setPaperId(paper.id); setPageRaw('reader'); }), notify, toast, dismissToast, saveStatus }}>{children}{closeDialog}</Context.Provider>;
 }
