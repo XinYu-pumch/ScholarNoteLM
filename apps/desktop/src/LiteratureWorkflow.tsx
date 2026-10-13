@@ -33,7 +33,7 @@ export default function LiteratureWorkflow({downloads,markdown,total,error,vecto
  const unprepared=Math.max(0,total-pdf-abstracts);
  const eligible=vectors?.eligibleDocuments??total;
  const vectorLatest=!!eligible&&vectors?.readyDocuments===eligible&&!vectors?.metadataPending;
- async function run(action:string,args:Record<string,unknown>={}){setBusy(true);try{const result=await rpc<{registered?:number;invalid?:unknown[]}>(action,{project:project.id,...args});downloadChanged();if(action==='markdown.reconcile')notify(`本地文件已检查 · 新增或替换 ${result.registered||0} 篇 PDF${result.invalid?.length?` · ${result.invalid.length} 个文件无效`:''}`);}catch(e){notify(message(e));}finally{setBusy(false);}}
+ async function run(action:string,args:Record<string,unknown>={}){setBusy(true);try{const result=await rpc<{registered?:number;invalid?:unknown[]}>(action,{project:project.id,...args});downloadChanged();if(action==='markdown.reconcile')notify(`本地文件已检查 · 新增或替换 ${result.registered||0} 篇 PDF${result.invalid?.length?` · ${result.invalid.length} 个文件无效`:''}`);}catch(e){notify(message(e),{tone:'error'});}finally{setBusy(false);}}
  const status=!markdown||!vectors?'正在核对文献状态…':flowActive?`${flow?.mode==='clear'?'清理项目':'一键更新'} · ${stageNames[flow?.stage||'waiting']||flow?.stage}`:batch?batch.state==='paused'?'下载已暂停':'正在下载缺失的 PDF':converting?'正在转换全文':indexing?'正在准备文献检索':!total?'先从检索工作台添加文献':vectorLatest&&!pending&&!unprepared?'当前文献均已准备完成':`${unprepared} 篇缺少可用材料 · ${pending} 篇待转换 · ${vectors?.readyDocuments??'—'} / ${total} 篇可用于问答`;
  function maintenance(value:Scope){setRedundant(false);setScope(value);}
  return <section className="literature-workflow" aria-label="文献准备流程">

@@ -21,7 +21,7 @@ export function pdfIdentityLabel(identity:PdfAsset['identity']):string{
 }
 export function PdfDetails({pmid,asset,item}:{pmid:string;asset?:PdfAsset;item?:DownloadItem}){
  const {project,notify,setPage}=useApp();const [busy,setBusy]=useState(false);
- async function act(fn:()=>Promise<unknown>){setBusy(true);try{await fn();downloadChanged();}catch(e){notify(message(e));}finally{setBusy(false);}}
+ async function act(fn:()=>Promise<unknown>){setBusy(true);try{await fn();downloadChanged();}catch(e){notify(message(e),{tone:'error'});}finally{setBusy(false);}}
  return <section className="pdf-details"><div className="section-heading"><h3>PDF 全文</h3><PdfStatus asset={asset} item={item}/></div>{asset?.exists?<><div className="pdf-facts"><span>来源 <b>{asset.source}</b></span><span>文件 <b>{mb(asset.bytes)} · {asset.pages} 页</b></span>{asset.version!==undefined&&<span>版本 <b>{asset.version}{asset.isManuscript?' · 作者手稿':''}</b></span>}<span>下载时间 <b>{stamp(asset.downloaded)}</b></span></div><p className="quiet small">{asset.selectionReason||pdfIdentityLabel(asset.identity)}</p><code className="pdf-path">{asset.path}</code><div className="download-actions"><button className="button primary compact" disabled={busy} onClick={()=>void act(()=>rpc('download.open',{project:project.id,pmid}))}><FileText size={14}/>打开 PDF</button><button className="button secondary compact" disabled={busy} onClick={()=>void act(()=>rpc('download.open',{project:project.id,pmid,folder:true}))}><FolderOpen size={14}/>所在文件夹</button></div></>:<p className="quiet small">{item?.error||'下载成功后，可在此打开 PDF。'}</p>}<div className="download-actions"><button className="text-button" onClick={()=>setPage('search')}>从 Zotero 导入文献及 PDF</button><button className="text-button" onClick={()=>setPage('tasks')}>查看任务与报告</button></div></section>;
 }
 export {default} from './TaskCenter';
@@ -31,7 +31,7 @@ export function DownloadSettings(){
  useEffect(()=>{void rpc<DownloadConfig>('download.settings').then(v=>{setCfg(v);setMirrors(v.mirrors.join('\n'));}).catch(e=>setError(message(e)));},[]);
  if(!cfg)return <p className="quiet">{error||'正在读取下载配置…'}</p>;
  const set=(patch:Partial<DownloadConfig>)=>{setSaved('');setCfg(v=>v?{...v,...patch}:v);};
- async function save(){if(!cfg||editingMirrors)return;setBusy(true);setError('');setSaved('');try{const value=await rpc<DownloadConfig>('download.settings.save',cfg);setCfg(value);setSaved('下载设置已保存');notify('下载设置已保存');}catch(e){setError(message(e));}finally{setBusy(false);}}
+ async function save(){if(!cfg||editingMirrors)return;setBusy(true);setError('');setSaved('');try{const value=await rpc<DownloadConfig>('download.settings.save',cfg);setCfg(value);setSaved('下载设置已保存');}catch(e){setError(message(e));}finally{setBusy(false);}}
  async function saveMirrors(){setBusy(true);setError('');setSaved('');try{const value=await rpc<DownloadConfig>('download.settings.save',{mirrors:mirrors.split('\n').map(v=>v.trim()).filter(Boolean)});setCfg(v=>v?{...v,mirrors:value.mirrors}:v);setMirrors(value.mirrors.join('\n'));setEditingMirrors(false);notify('Sci-Hub 镜像已保存');}catch(e){setError(message(e));}finally{setBusy(false);}}
  return <div className="download-settings"><h2>PDF 下载</h2><p className="quiet">管理全文来源和下载速度。</p>
  {error&&<div className="wb-alert" role="alert">{error}</div>}{saved&&<div className="wb-success" role="status"><Check size={15}/>{saved}</div>}

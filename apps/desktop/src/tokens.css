@@ -18,7 +18,7 @@
   /* Semantic */
   --green: #2e6b4f; --green-tint: rgb(46 107 79 / 10%);
   --ochre: #946312; --ochre-tint: rgb(148 99 18 / 11%);
-  --red: #b23a3a; --red-tint: rgb(178 58 58 / 9%); --danger: var(--red);
+  --red: #b23a3a; --red-tint: rgb(178 58 58 / 9%); --danger: var(--red); --on-danger: #fff;
   --purple-tint: rgb(98 76 140 / 9%);
   /* Legacy aliases kept for existing component rules */
   --banner: var(--panel); --banner-line: var(--line); --banner-icon: var(--subtle);
@@ -69,6 +69,7 @@
   --row-hover: rgb(255 255 255 / 3.5%); --track: #252528;
   --green: #7cc4a0; --green-tint: rgb(124 196 160 / 13%);
   --ochre: #e2b66b; --ochre-tint: rgb(226 182 107 / 13%);
+  --on-danger: #240d0d;
   --red: #f08c8c; --red-tint: rgb(240 140 140 / 13%);
   --purple-tint: rgb(170 150 220 / 13%);
   --avatar: #2c2c30; --scroll: rgb(255 255 255 / 18%);

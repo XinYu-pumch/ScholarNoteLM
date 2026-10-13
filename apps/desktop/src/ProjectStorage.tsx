@@ -17,6 +17,6 @@ export function StorageSettings(){
 
 export function ProjectFilesActions({disabled=false}:{disabled?:boolean}){
  const {project,notify}=useApp();const [busy,setBusy]=useState(false);
- async function pack(){setBusy(true);try{const r=await rpc<{path:string;pdf:number;abstracts:number}>('download.export',{project:project.id});notify(`已打包 ${r.pdf} 篇 PDF、${r.abstracts} 份摘要：${r.path}`);}catch(e){notify(message(e));}finally{setBusy(false);}}
- return <div className="project-file-tools"><button className="text-button" onClick={()=>void rpc('storage.open',{project:project.id}).catch(e=>notify(message(e)))}><FolderOpen size={14}/>打开项目文件夹</button><button className="text-button" disabled={disabled||busy} onClick={()=>void pack()}><Package size={14}/>{busy?'正在打包…':'打包当前文献'}</button></div>;
+ async function pack(){setBusy(true);try{const r=await rpc<{path:string;pdf:number;abstracts:number}>('download.export',{project:project.id});notify(`已打包 ${r.pdf} 篇 PDF、${r.abstracts} 份摘要：${r.path}`);}catch(e){notify(message(e),{tone:'error'});}finally{setBusy(false);}}
+ return <div className="project-file-tools"><button className="text-button" onClick={()=>void rpc('storage.open',{project:project.id}).catch(e=>notify(message(e),{tone:'error'}))}><FolderOpen size={14}/>打开项目文件夹</button><button className="text-button" disabled={disabled||busy} onClick={()=>void pack()}><Package size={14}/>{busy?'正在打包…':'打包当前文献'}</button></div>;
 }

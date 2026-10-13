@@ -50,13 +50,13 @@ export default function Library() {
   async function process(ids?: string[]) {
     setDownloadBusy(true);
     try { const chosen=ids?.filter(id=>eligible.some(p=>p.id===id)).map(id=>id.replace('PMID-',''));if(chosen&&!chosen.length)throw new Error('请选择当前纳入的 PubMed 文献');const r=await startDownload(project.id,chosen);notify(`已创建 ${r.count} 篇文献的下载批次`);setSelected([]); }
-    catch(e){notify(message(e));}finally{setDownloadBusy(false);}
+    catch(e){notify(message(e),{tone:'error'});}finally{setDownloadBusy(false);}
   }
   async function convertSelection(force=false) {
     setDownloadBusy(true);
     try { const pmids=selected.filter(id=>hasPdf(id)&&eligible.some(p=>p.id===id)).map(id=>id.replace('PMID-',''));if(!pmids.length)throw new Error('请选择已有 PDF 的当前文献');
       const result=await rpc<{count:number}>('markdown.start',{project:project.id,pmids,force,replaceEdited:force&&replaceEdited});notify(`已创建 ${result.count} 篇转换任务`);setReconvert(false);setSelected([]);downloadChanged();
-    }catch(e){notify(message(e));}finally{setDownloadBusy(false);}
+    }catch(e){notify(message(e),{tone:'error'});}finally{setDownloadBusy(false);}
   }
   return <div className="page library-page">
     <div className="page-heading"><div><h1>文献库<span className="heading-count">{papers.length}</span></h1></div><button className="button secondary compact" onClick={()=>setPage('search')}><Upload size={15}/>添加文献</button></div>

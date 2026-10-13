@@ -38,7 +38,7 @@ export default function TaskCenter(){
  const [busy,setBusy]=useState(''),[report,setReport]=useState<{text:string;path:string}|null>(null),[inspect,setInspect]=useState(false),[now,setNow]=useState(Date.now()/1000);
  const live=taskActive(batch?.state)||taskActive(md?.state)||taskActive(index?.state);
  useEffect(()=>{if(!live)return;const timer=setInterval(()=>setNow(Date.now()/1000),1000);return()=>clearInterval(timer);},[live]);
- async function act(key:string,action:string,args:Record<string,unknown>={}){setBusy(key);try{await rpc(action,{project:project.id,...args});downloadChanged();}catch(e){notify(message(e));}finally{setBusy('');}}
+ async function act(key:string,action:string,args:Record<string,unknown>={}){setBusy(key);try{await rpc(action,{project:project.id,...args});downloadChanged();}catch(e){notify(message(e),{tone:'error'});}finally{setBusy('');}}
  async function downloadAction(command:string){if(batch)await act('download','download.control',{id:batch.id,command});}
  async function retry(){if(!batch)return;setBusy('download');try{
   // A retry is a new run with its own denominator; original evidence stays in the old batch.
@@ -47,10 +47,10 @@ export default function TaskCenter(){
   if(!pmids.length)throw new Error('当前项目没有仍缺 PDF 的失败或延期文献');
   if(batch.config.downloadMode==='zotero'){await rpc('download.start',{project:project.id,pmids,mode:'zotero'});downloadChanged();}
   else await startDownload(project.id,pmids);
- }catch(e){notify(message(e));}finally{setBusy('');}}
+ }catch(e){notify(message(e),{tone:'error'});}finally{setBusy('');}}
  async function reportFor(kind:'download'|'vector',folder=false){try{
   const r=await rpc<{text:string;path:string}>(kind+'.report',{project:project.id,...(kind==='download'?{id:batch?.id}:{}),...(folder?{open:true,folder:true}:{})});if(!folder)setReport(r);
- }catch(e){notify(message(e));}}
+ }catch(e){notify(message(e),{tone:'error'});}}
  const {download:dw,markdown:mdWait,index:indexWait}=taskWaits(flow,batch,md,index);
  const dc=batch?.counts||{},processed=(dc.success||0)+(dc.skipped||0)+(dc.failed||0)+(dc.deferred||0);
  const runningStages=Array.from(new Set(batch?.items.filter(i=>i.state==='running').map(i=>i.stage)||[]));
@@ -66,7 +66,7 @@ export default function TaskCenter(){
     {anyDownload&&<button className="button secondary compact" disabled={!!busy||!!batch.control} onClick={()=>void downloadAction('cancel')}><Square size={13}/>取消</button>}
     {!anyDownload&&((dc.failed||0)+(dc.deferred||0)>0)&&<button className="button secondary compact" disabled={!!busy||flowActive||!markdown} onClick={()=>void retry()}><RotateCcw size={13}/>重试未获取项</button>}
    </>}>
-    {batch&&!dw&&<><div className="task-detail-actions"><button className="button secondary compact" onClick={()=>void reportFor('download')}><FileText size={14}/>查看下载报告</button><button className="text-button" onClick={()=>void reportFor('download',true)}>日志文件夹</button>{!!batch.bloomSummary?.hits&&<details className="technical-details"><summary>高级操作</summary><button className="text-button" disabled={!!busy||anyDownload||flowActive} onClick={async()=>{setBusy('download');try{await retryBloomDownloads(project.id);}catch(e){notify(message(e));}finally{setBusy('');}}}>重试 Bloom 命中未完成项</button></details>}</div>
+    {batch&&!dw&&<><div className="task-detail-actions"><button className="button secondary compact" onClick={()=>void reportFor('download')}><FileText size={14}/>查看下载报告</button><button className="text-button" onClick={()=>void reportFor('download',true)}>日志文件夹</button>{!!batch.bloomSummary?.hits&&<details className="technical-details"><summary>高级操作</summary><button className="text-button" disabled={!!busy||anyDownload||flowActive} onClick={async()=>{setBusy('download');try{await retryBloomDownloads(project.id);}catch(e){notify(message(e),{tone:'error'});}finally{setBusy('');}}}>重试 Bloom 命中未完成项</button></details>}</div>
      <p className="task-detail-note">{batch.config.downloadMode==='zotero'?'Zotero 本地导入':'标准下载'} · 本轮 {batch.items.length} 篇 · 未完成的文献可稍后重试。</p>
      <div className="task-sources">{Object.entries(batch.items.filter(i=>i.state==='success').reduce<Record<string,number>>((s,i)=>{const key=i.source||'其他来源';s[key]=(s[key]||0)+1;return s;},{})).map(([source,count])=><span key={source}>{source} <b>{count}</b></span>)}</div>
      <div className="task-item-list">{batch.items.map(i=><div key={i.pmid}><div><strong>{i.title||`PMID ${i.pmid}`}</strong><p>PMID {i.pmid} · {i.source||stageLabels[i.stage]||'等待处理'}</p>{i.error&&<p className="task-error">{i.error}</p>}</div><span>{recoveryLabel(i)}</span></div>)}</div></>}
