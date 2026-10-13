@@ -1,3 +1,4 @@
+import {t as tr} from './i18n';
 import {useEffect,useRef} from 'react';
 import {ChevronRight,Folder,FolderOpen,Search,X} from 'lucide-react';
 export type Collection={key:string;name:string;path:string;parentCollection?:string|false};
@@ -25,14 +26,14 @@ export default function ZoteroCollections({collections,selected,expanded,search,
    const children=collections.some(v=>v.parentCollection===c.key),isOpen=!!query||open.has(c.key),inherited=parents.get(c.key)!.some(k=>chosen.has(k));
    const checked=chosen.has(c.key)||inherited,mixed=!checked&&collections.some(v=>chosen.has(v.key)&&parents.get(v.key)!.includes(c.key));
    return <li key={c.key} role="treeitem" aria-label={c.name} aria-expanded={children?isOpen:undefined} aria-checked={mixed?'mixed':checked}>
-    <div className={`zotero-tree-row ${checked?'included':''} ${inherited?'inherited':''}`} data-selected={chosen.has(c.key)} style={{paddingLeft:8+depth*20}} title={c.path}>
-     {children?<button type="button" className="zotero-tree-chevron" aria-label={`${isOpen?'折叠':'展开'} ${c.path}`} disabled={disabled||!!query} onClick={()=>expand(c)}><ChevronRight size={15} style={{transform:isOpen?'rotate(90deg)':undefined}}/></button>:<span className="zotero-tree-chevron"/>}
-     <label><Check aria-label={`选择 ${c.path}`} checked={checked} mixed={mixed} disabled={disabled||inherited} onChange={()=>toggle(c)}/>{children&&isOpen?<FolderOpen size={17}/>:<Folder size={17}/>}<span>{c.name}</span></label>{inherited&&<small>已包含</small>}
+    <div className={`zotero-tree-row ${checked?'included':''} ${inherited?'inherited':''}`} data-selected={chosen.has(c.key)} style={{paddingLeft:8+depth*20}} title={tr(c.path)}>
+     {children?<button type="button" className="zotero-tree-chevron" aria-label={tr(`${isOpen?'折叠':'展开'} ${c.path}`)} disabled={disabled||!!query} onClick={()=>expand(c)}><ChevronRight size={15} style={{transform:isOpen?'rotate(90deg)':undefined}}/></button>:<span className="zotero-tree-chevron"/>}
+     <label><Check aria-label={tr("选择 {p0}",{p0:c.path})} checked={checked} mixed={mixed} disabled={disabled||inherited} onChange={()=>toggle(c)}/>{children&&isOpen?<FolderOpen size={17}/>:<Folder size={17}/>}<span>{c.name}</span></label>{inherited&&<small>{tr("已包含")}</small>}
     </div>{children&&isOpen&&<ul role="group">{nodes(c.key,depth+1)}</ul>}
    </li>;
   });
  }
- return <section className="zotero-tree-pane"><label className="zotero-tree-search"><Search size={16}/><input aria-label="搜索 Zotero 文件夹" placeholder="搜索文件夹…" value={search} disabled={disabled} onChange={e=>onSearch(e.target.value)}/>{search&&<button aria-label="清除文件夹搜索" disabled={disabled} onClick={()=>onSearch('')}><X size={14}/></button>}</label><div className="zotero-tree-tools"><span>我的文献库</span><button disabled={disabled||!!query} onClick={()=>onExpand([])}>全部折叠</button></div><div className="zotero-tree-scroll" ref={tree}><ul role="tree" aria-label="Zotero 文件夹" aria-multiselectable="true" onKeyDown={e=>{
+ return <section className="zotero-tree-pane"><label className="zotero-tree-search"><Search size={16}/><input aria-label={tr("搜索 Zotero 文件夹")} placeholder={tr("搜索文件夹…")} value={search} disabled={disabled} onChange={e=>onSearch(e.target.value)}/>{search&&<button aria-label={tr("清除文件夹搜索")} disabled={disabled} onClick={()=>onSearch('')}><X size={14}/></button>}</label><div className="zotero-tree-tools"><span>{tr("我的文献库")}</span><button disabled={disabled||!!query} onClick={()=>onExpand([])}>{tr("全部折叠")}</button></div><div className="zotero-tree-scroll" ref={tree}><ul role="tree" aria-label={tr("Zotero 文件夹")} aria-multiselectable="true" onKeyDown={e=>{
  if(e.key!=='ArrowDown'&&e.key!=='ArrowUp')return;const controls=Array.from(e.currentTarget.querySelectorAll<HTMLInputElement>('input:not(:disabled)'));const index=controls.indexOf(e.target as HTMLInputElement);if(index<0)return;e.preventDefault();controls[Math.max(0,Math.min(controls.length-1,index+(e.key==='ArrowDown'?1:-1)))]?.focus();
- }}>{nodes(false,0)}</ul>{query&&!matches.size&&<p className="zotero-tree-empty">没有匹配的文件夹</p>}{!collections.length&&<p className="zotero-tree-empty">{disabled?'正在连接 Zotero…':'个人文献库中没有文件夹'}</p>}</div><p className="zotero-tree-help">勾选父文件夹将自动包含全部子文件夹。</p></section>;
+ }}>{nodes(false,0)}</ul>{query&&!matches.size&&<p className="zotero-tree-empty">{tr("没有匹配的文件夹")}</p>}{!collections.length&&<p className="zotero-tree-empty">{disabled?tr("正在连接 Zotero…"):tr("个人文献库中没有文件夹")}</p>}</div><p className="zotero-tree-help">{tr("勾选父文件夹将自动包含全部子文件夹。")}</p></section>;
 }

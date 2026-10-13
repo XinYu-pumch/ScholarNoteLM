@@ -8,7 +8,10 @@ export function readState(): Promise<AppState> {
 async function loadState(): Promise<AppState> {
   await rpc('storage.initialize');
   // A fresh install starts without projects; the app shows the create-project screen.
-  const state=await rpc<AppState|null>('storage.state.read')??structuredClone(emptyState);
+  const saved=await rpc<AppState|null>('storage.state.read');
+  const initial=navigator.language.toLowerCase().startsWith('zh')?'zh':'en';
+  const state=saved??{...structuredClone(emptyState),uiLanguage:initial,defaultContentLanguage:initial};
+  state.uiLanguage??='zh';state.defaultContentLanguage??='zh';
   if (state.version !== 1 || !Array.isArray(state.projects) || (state.projects.length ? !state.projects.some(p => p.id === state.active) : state.active !== '')) throw new Error('保存的项目数据格式不兼容');
   return state;
 }

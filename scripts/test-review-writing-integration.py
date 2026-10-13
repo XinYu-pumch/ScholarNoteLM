@@ -4,6 +4,7 @@ from pathlib import Path
 from http.server import ThreadingHTTPServer,BaseHTTPRequestHandler
 ROOT=Path(__file__).resolve().parents[1];sys.path.insert(0,str(ROOT/'services/downloader'))
 import engine as e,storage,review_service as r,vector_service as v,retrieval_settings as rs
+TEST_LANGUAGE=os.environ.get('TEST_CONTENT_LANGUAGE')
 requests=[];bad_unit=None;slow=False;started=threading.Event();concurrent=0;peak=0;mutex=threading.Lock()
 class Handler(BaseHTTPRequestHandler):
  def log_message(self,*args):pass
@@ -60,7 +61,7 @@ try:
     if d['job']['state'] not in ('queued','running','stopping'):return d
     time.sleep(.2)
    raise AssertionError('worker timeout')
-  rpc('create',topic='肠道菌群综述')
+  rpc('create',**({'contentLanguage':TEST_LANGUAGE} if TEST_LANGUAGE else {}),topic='肠道菌群综述')
   rpc('import',revision=0,csv='Serial,Title\n1,免疫机制\n1.1,菌群调节\n1.1.1,短链脂肪酸\n1.1.2,调节性T细胞\n1.2,屏障功能\n2,研究方向\n')
   v.rpc(e,'settings.save',{'baseUrl':f'http://127.0.0.1:{server.server_port}/v1','model':'fixture-embedding','apiKey':'isolated-test-secret','autoIndex':False,'rpm':600,'tpm':120000})
   v.rpc(e,'test',{})
@@ -74,6 +75,7 @@ try:
   before_embeddings=len(requests);d=rpc('writing.start');d=wait()
   assert all('messages' in req for req in requests[before_embeddings:]),'Writing repeated recall'
   sent=[req['messages'] for req in requests[before_embeddings:]]
+  if TEST_LANGUAGE=='en':assert all('Write in English' in messages[0]['content'] for messages in sent)
   import review_bundle
   for prompt_file in prompt_files:
    package=json.loads(prompt_file.read_text())
@@ -96,6 +98,9 @@ try:
   assert all(p.is_file() for p in exported.values())
   from bs4 import BeautifulSoup
   html=BeautifulSoup(exported['html'].read_text(),'html.parser')
+  if TEST_LANGUAGE=='en':
+   assert html.html['lang']=='en'
+   assert html.find(id='toggle-ref').get_text()=='Citation details'
   assert len(html.select('.body-table'))==4
   assert len({figure['id'] for figure in html.select('.body-table')})==4
   for link in html.select('.content a[href^="#obj_"]'):assert html.find(id=link['href'][1:]) is not None

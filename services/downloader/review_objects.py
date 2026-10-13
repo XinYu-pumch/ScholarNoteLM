@@ -36,9 +36,9 @@ def anchor(block,node_id,index):
     raw=repr((key(block,node_id),node_id,index)).encode()
     return 'obj_'+hashlib.sha256(raw).hexdigest()[:24]
 
-def label(numbers,block,node_id):
+def label(numbers,block,node_id,language='zh'):
     identity=key(block,node_id)
-    return ('图 ' if identity[0]=='figure' else '表 ')+str(numbers[identity])
+    return (('Figure ' if identity[0]=='figure' else 'Table ') if language=='en' else ('图 ' if identity[0]=='figure' else '表 '))+str(numbers[identity])
 
 def resolve(text,targets,node_id):
     def replace(match):

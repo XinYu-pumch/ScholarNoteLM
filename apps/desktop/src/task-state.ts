@@ -1,3 +1,4 @@
+import {t as tr} from './i18n';
 import type {DownloadBatch} from './download-api';
 export const taskActive=(state?:string)=>!!state&&['queued','running','stopping'].includes(state);
 export const downloadHeld=(state?:string)=>taskActive(state)||state==='paused';
@@ -17,7 +18,7 @@ export function waitingStage(flow:Pipeline|null|undefined,kind:'download'|'markd
 }
 export function taskDuration(seconds:number){
  const s=Math.max(0,Math.floor(seconds));
- return s>=3600?`${Math.floor(s/3600)} 小时 ${Math.floor(s%3600/60)} 分`:s>=60?`${Math.floor(s/60)} 分 ${s%60} 秒`:`${s} 秒`;
+ return s>=3600?tr("{p0} 小时 {p1} 分",{p0:Math.floor(s/3600),p1:Math.floor(s%3600/60)}):s>=60?tr("{p0} 分 {p1} 秒",{p0:Math.floor(s/60),p1:s%60}):tr("{p0} 秒",{p0:s});
 }
 export function jobElapsed(job:{created?:number;finished?:number;state:string}|null|undefined,now:number){
  if(!job?.created)return undefined;

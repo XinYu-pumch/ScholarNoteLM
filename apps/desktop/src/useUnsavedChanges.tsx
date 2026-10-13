@@ -1,3 +1,4 @@
+import {t as tr} from './i18n';
 import {useEffect, useRef, useState} from 'react';
 import {Modal} from './ui';
 import {message} from './research-api';
@@ -52,13 +53,13 @@ export function useDraftGuard(options: {
     } catch (e) { if(mounted.current)setError(message(e));else {resolve.current?.(false);resolve.current=null;} }
     finally { savingRef.current = false; if(mounted.current)setSaving(false); }
   }
-  const dialog = open ? <Modal title="保存修改后离开？" subtitle={`${options.label}有未保存的修改。`} onClose={() => finish(false)}>
-    <p>保存成功后将继续刚才的操作；不保存会放弃本次修改。</p>
-    {error && <p className="wb-inline-error" role="alert">{error}</p>}
+  const dialog = open ? <Modal title={tr("保存修改后离开？")} subtitle={tr("{p0}有未保存的修改。",{p0:options.label})} onClose={() => finish(false)}>
+    <p>{tr("保存成功后将继续刚才的操作；不保存会放弃本次修改。")}</p>
+    {error && <p className="wb-inline-error" role="alert">{tr(error)}</p>}
     <div className="modal-actions draft-actions">
-      <button ref={continueButton} data-dialog-autofocus className="button secondary" disabled={saving} onClick={() => finish(false)}>继续编辑</button>
-      <button className="button secondary danger" disabled={saving} onClick={() => { finish(true); current.current.discard(); }}>不保存并离开</button>
-      <button className="button primary" disabled={saving} onClick={() => void saveAndLeave()}>{saving ? '正在保存…' : options.saveLabel || '保存并离开'}</button>
+      <button ref={continueButton} data-dialog-autofocus className="button secondary" disabled={saving} onClick={() => finish(false)}>{tr("继续编辑")}</button>
+      <button className="button secondary danger" disabled={saving} onClick={() => { finish(true); current.current.discard(); }}>{tr("不保存并离开")}</button>
+      <button className="button primary" disabled={saving} onClick={() => void saveAndLeave()}>{saving?tr("正在保存…"):options.saveLabel||tr("保存并离开")}</button>
     </div>
   </Modal> : null;
   return {dialog, leave: (action: () => void) => { void Promise.resolve(check()).then(allowed => { if(allowed)action(); }); }};

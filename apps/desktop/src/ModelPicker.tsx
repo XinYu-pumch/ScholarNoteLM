@@ -1,3 +1,4 @@
+import {t as tr} from './i18n';
 import {useQuery} from './useQuery';
 import {useEffect,useState} from 'react';
 import Select from './Select';
@@ -27,5 +28,5 @@ export default function ModelPicker({label,value,onChange,disabled=false}:{label
  const {profiles,activeProfile}=useModelPool();const current=profiles.find(p=>p.id===activeProfile);
  const choices=profiles.flatMap(p=>(p.models||[p.model]).filter(Boolean).map(model=>({value:JSON.stringify([p.id,model]),label:`${p.name} / ${model}`})));
  const selected=value.profileId?JSON.stringify([value.profileId,value.model||profiles.find(p=>p.id===value.profileId)?.model||'']):'';
- return <label className="workspace-model-picker"><span>{label}</span><Select aria-label={label} value={selected} disabled={disabled} onChange={e=>{const [profileId,model]=e.target.value?JSON.parse(e.target.value):['',''];onChange({profileId,model});}}><option value="">{current?.model?`默认 · ${current.name} / ${current.model}`:'默认 · 尚未配置模型'}</option>{selected&&!choices.some(c=>c.value===selected)&&<option value={selected} disabled>所选模型已移除，请重新选择</option>}{choices.map(c=><option key={c.value} value={c.value}>{c.label}</option>)}</Select></label>;
+ return <label className="workspace-model-picker"><span>{tr(label)}</span><Select aria-label={tr(label)} value={selected} disabled={disabled} onChange={e=>{const [profileId,model]=e.target.value?JSON.parse(e.target.value):['',''];onChange({profileId,model});}}><option value="">{current?.model?tr("默认 · {p0} / {p1}",{p0:current.name,p1:current.model}):tr("默认 · 尚未配置模型")}</option>{selected&&!choices.some(c=>c.value===selected)&&<option value={selected} disabled>{tr("所选模型已移除，请重新选择")}</option>}{choices.map(c=><option key={c.value} value={c.value}>{tr(c.label)}</option>)}</Select></label>;
 }

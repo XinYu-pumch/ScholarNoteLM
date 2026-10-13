@@ -109,6 +109,7 @@ fn db_at(root: &Path, project: Option<&str>) -> R<Connection> {
       CREATE TABLE IF NOT EXISTS corpora(id TEXT PRIMARY KEY, project TEXT NOT NULL, created INTEGER NOT NULL, signature TEXT NOT NULL, manifest TEXT NOT NULL);
       CREATE INDEX IF NOT EXISTS query_project ON queries(project);
       CREATE INDEX IF NOT EXISTS corpus_project ON corpora(project,created);
+      CREATE TABLE IF NOT EXISTS chat_locales(id TEXT PRIMARY KEY, language TEXT NOT NULL);
       CREATE TABLE IF NOT EXISTS chat_threads(id TEXT PRIMARY KEY, project TEXT NOT NULL, name TEXT NOT NULL, parent_id TEXT, data TEXT NOT NULL, created INTEGER NOT NULL, archived INTEGER NOT NULL DEFAULT 0);").map_err(err)?;
     // One-time per-query migration preserves the previous project defaults.
     c.execute("INSERT OR IGNORE INTO settings(key,value) SELECT 'queryFilters:' || q.id, COALESCE((SELECT value FROM settings WHERE key='filters:' || q.project), ?) FROM queries q", [json!({"start":"","end":"","sort":"relevance","mode":"explore","limit":100,"jcr":false,"quartiles":["Q1","Q2"],"unknown":"exclude"}).to_string()]).map_err(err)?;
@@ -1654,6 +1655,15 @@ pub fn stream_dispatch(
         &mut emit,
     )
 }
+fn content_locale(v: &Value) -> R<&str> {
+    match v.as_str().unwrap_or("zh") { "en" | "English" => Ok("en"), "zh" | "zh-CN" | "中文" => Ok("zh"), _ => Err("Unsupported content language / 不支持的内容语言".into()) }
+}
+fn chat_locale(c: &Connection,id: &str) -> R<String> {
+    Ok(c.query_row("SELECT language FROM chat_locales WHERE id=?",[id],|r|r.get(0)).optional().map_err(err)?.unwrap_or_else(||"zh".into()))
+}
+fn save_chat_locale(c: &Connection,id: &str,language: &str) -> R<()> {
+    c.execute("INSERT INTO chat_locales VALUES(?,?) ON CONFLICT(id) DO UPDATE SET language=excluded.language",params![id,language]).map_err(err)?;Ok(())
+}
 fn chat_list(c: &Connection, p: &str) -> R<Value> {
     let mut st=c.prepare("SELECT id,name,parent_id,created FROM chat_threads WHERE project=? AND archived=0 ORDER BY rowid DESC").map_err(err)?;
     let result=st.query_map([p],|r|Ok(json!({"id":r.get::<_,String>(0)?,"name":r.get::<_,String>(1)?,"parentId":r.get::<_,Option<String>>(2)?,"created":r.get::<_,u64>(3)?}))).map_err(err)?.collect::<Result<Vec<_>,_>>().map_err(err)?;
@@ -1668,7 +1678,7 @@ fn chat_get(c: &Connection, p: &str, id: &str) -> R<Value> {
         )
         .map_err(|_| "对话不存在或已归档")?;
     Ok(
-        json!({"id":id,"name":name,"parentId":parent,"messages":serde_json::from_str::<Value>(&data).map_err(err)?}),
+        json!({"id":id,"name":name,"parentId":parent,"contentLanguage":chat_locale(c,id)?,"messages":serde_json::from_str::<Value>(&data).map_err(err)?}),
     )
 }
 fn chat_lock(root: &Path, id: &str) -> R<std::fs::File> {
@@ -1708,9 +1718,11 @@ fn chat_stream(
     let _lock = chat_lock(root, &owned_id)?;
     let thread = chat_get(c, p, &owned_id)?;
     let cfg = profile(c, model_selection)?;
+    let language=if model_selection.get("contentLanguage").is_some() { content_locale(&model_selection["contentLanguage"])?.to_string() } else { chat_locale(c,&owned_id)? };
     let mut history: Vec<Value> = thread["messages"].as_array().cloned().unwrap_or_default();
     let mesh_snapshot = setting(c, "mesh", Value::Null)?;
-    let system="你是 ScholarNoteLM 的 PubMed 检索设计助手。用中文与用户讨论研究范围并设计检索式，不访问 PubMed、不试检索、不探索或猜测命中数，不声称已执行。根据需要澄清研究问题，给出一条宽范围基础检索及有价值的补充检索。同概念内 OR，必要概念间 AND，括号正确；自由词用 [tiab]，规范 MeSH 名称用 [MeSH Terms]。不要擅自添加日期或 JCR，它们由每条检索式单独配置。MeSH 名称将在本地索引核验，未确认的术语不要声称已核验。每条完整检索式放在单独的 ```pubmed 代码块内，并在其紧邻上方写 ### 检索式标题。代码块里只写检索式，解释放在代码块外。正常输出可读的 Markdown，不要用 JSON 包装回答。";
+    let system="你是 ScholarNoteLM 的 PubMed 检索设计助手。默认用中文与用户讨论研究范围并设计检索式；若用户明确要求本轮使用其他语言则遵循，不改变后续默认语言。不访问 PubMed、不试检索、不探索或猜测命中数，不声称已执行。根据需要澄清研究问题，给出一条宽范围基础检索及有价值的补充检索。同概念内 OR，必要概念间 AND，括号正确；自由词用 [tiab]，规范 MeSH 名称用 [MeSH Terms]。不要擅自添加日期或 JCR，它们由每条检索式单独配置。MeSH 名称将在本地索引核验，未确认的术语不要声称已核验。每条完整检索式放在单独的 ```pubmed 代码块内，并在其紧邻上方写 ### 检索式标题。代码块里只写检索式，解释放在代码块外。正常输出可读的 Markdown，不要用 JSON 包装回答。";
+    let system=if language=="en" { "You are ScholarNoteLM's PubMed search design assistant. Discuss scope and explain searches in English, unless the user explicitly asks for another language in this turn. Do not visit PubMed, run test searches, guess result counts, or claim execution. Clarify the research question when needed. Provide a broad baseline search and useful complementary searches. Use OR within concepts, AND between required concepts, and correct parentheses. Use [tiab] for free text and [MeSH Terms] for canonical MeSH names. Keep English biomedical terms and PubMed syntax regardless of reply language. Do not add dates or JCR filters; these are configured separately per query. MeSH names are checked against a local index: never claim unconfirmed names are verified. Put each complete query in a separate ```pubmed code block with a ### descriptive title immediately above. Only query syntax inside the block; explanations outside. Return readable Markdown, not JSON." } else { system };
     let mut messages = vec![json!({"role":"system","content":system})];
     for m in history.iter().skip(history.len().saturating_sub(12)) {
         if !s(m, "text").trim().is_empty() {
@@ -1718,7 +1730,7 @@ fn chat_stream(
         }
     }
     messages.push(json!({"role":"user","content":message}));
-    history.push(json!({"role":"user","text":message,"created":now()}));
+    history.push(json!({"role":"user","text":message,"contentLanguage":language,"promptVersion":"bilingual-prompts-v1","created":now()}));
     let save = |items: &Vec<Value>| -> R<()> {
         c.execute(
             "UPDATE chat_threads SET data=? WHERE id=? AND project=?",
@@ -1802,10 +1814,10 @@ fn chat_stream(
             .captures_iter(&text[..cap.get(0).unwrap().start()])
             .last()
             .map(|c| c[1].to_string())
-            .unwrap_or(format!("检索式 {}", queries.len() + 1));
+            .unwrap_or(format!("{} {}",if language=="en" {"Search"} else {"检索式"}, queries.len() + 1));
         queries.push(json!({"id":uid(),"name":title,"text":query,"purpose":"","meshCheck":mesh_check_at(root,&mesh_snapshot,query).unwrap_or(json!([]))}));
     }
-    history.push(json!({"role":"assistant","text":text,"reasoning":reasoning,"created":now(),"error":failure,"cancelled":cancelled,"result":{"queries":queries,"model":model,"modelLabel":model_label,"meshVersion":mesh_snapshot["version"]}}));
+    history.push(json!({"role":"assistant","text":text,"contentLanguage":language,"promptVersion":"bilingual-prompts-v1","reasoning":reasoning,"created":now(),"error":failure,"cancelled":cancelled,"result":{"queries":queries,"model":model,"modelLabel":model_label,"meshVersion":mesh_snapshot["version"]}}));
     save(&history)?;
     Ok(json!(history))
 }
@@ -2413,21 +2425,28 @@ pub fn dispatch(root: &Path, request: Value) -> R<Value> {
         }
         "chat.list" => chat_list(&c, p),
         "chat.get" => chat_get(&c, p, s(a, "id")),
+        "chat.language" => {
+            chat_get(&c,p,s(a,"id"))?;
+            save_chat_locale(&c,s(a,"id"),content_locale(&a["contentLanguage"])?)?;
+            chat_get(&c,p,s(a,"id"))
+        }
         "chat.new" | "chat.fork" | "chat.copy" => {
             valid_id(p)?;
             let _copy_lock = if action == "chat.copy" { Some(chat_lock(root, s(a, "id"))?) } else { None };
             let id = uid();
+            let mut language=content_locale(&a["contentLanguage"])?.to_string();
             let mut messages = json!([]);
             let mut parent = Value::Null;
             let mut name = if s(a, "name").trim().is_empty() {
-                "新对话".to_string()
+                if language=="en" {"New conversation".to_string()} else {"新对话".to_string()}
             } else {
                 s(a, "name").chars().take(80).collect()
             };
             if action == "chat.copy" {
                 let old = chat_get(&c, p, s(a, "id"))?;
+                language=chat_locale(&c,s(a,"id"))?;
                 messages = old["messages"].clone();
-                name = format!("副本 · {}", s(&old, "name").chars().take(75).collect::<String>());
+                name = format!("{} · {}",if language=="en" {"Copy"} else {"副本"}, s(&old, "name").chars().take(75).collect::<String>());
             }
             if action == "chat.fork" {
                 let old = chat_get(&c, p, s(a, "id"))?;
@@ -2436,6 +2455,7 @@ pub fn dispatch(root: &Path, request: Value) -> R<Value> {
                 if count > all.len() {
                     return Err("分支位置无效".into());
                 }
+                language=if count>0 {all[count-1]["contentLanguage"].as_str().unwrap_or("zh").to_string()} else {chat_locale(&c,s(a,"id"))?};
                 messages = json!(&all[..count]);
                 parent = a["id"].clone();
                 let count: u32 = c
@@ -2446,12 +2466,13 @@ pub fn dispatch(root: &Path, request: Value) -> R<Value> {
                     )
                     .map_err(err)?;
                 name = format!(
-                    "分支 {} · {}",
-                    count + 1,
+                    "{} {} · {}",
+                    if language=="en" {"Branch"} else {"分支"},count + 1,
                     s(&old, "name").chars().take(55).collect::<String>()
                 );
             }
             c.execute("INSERT INTO chat_threads(id,project,name,parent_id,data,created) VALUES(?,?,?,?,?,?)",params![id,p,name,parent.as_str(),messages.to_string(),now()]).map_err(err)?;
+            save_chat_locale(&c,&id,&language)?;
             chat_get(&c, p, &id)
         }
         "chat.archive_many" => {

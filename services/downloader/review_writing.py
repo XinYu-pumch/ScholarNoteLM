@@ -1,5 +1,6 @@
 """Resumable review writing, evidence scopes and deterministic tree assembly."""
 import compact_io
+import content_language as lang
 import review_content
 import review_manuscripts as manuscripts
 import asyncio,hashlib,html,json,os,re,subprocess,time,uuid,zipfile
@@ -24,6 +25,9 @@ def config(path,data=None):
     for k,lo,hi in [('contextChars',12000,500000)]:
         if type(cfg[k]) is not int or not lo<=cfg[k]<=hi:raise ValueError(f'{k} 必须在 {lo}–{hi} 之间')
     for k,limit in [('requirements',15000),('language',30),('profileId',200),('model',500)]:cfg[k]=outline.bounded(cfg[k],limit,k)
+    manifest=outline.read(path/'review.json',{})
+    if 'contentLanguage' in manifest:
+        cfg['language']=lang.label(manifest['contentLanguage']);cfg['promptVersion']=manifest.get('promptVersion',lang.VERSION)
     return cfg
 
 def tree_units(rows):
@@ -440,7 +444,8 @@ async def run(e,name,token,retriever_factory=None):
                         e.write_json(path/'writing-job.json',current)
 
 def display_document(e,name,rows=None,only_unit=None):
-    rows=rows if rows is not None else manuscripts.context(e,name)['rows'];path=outline.work(e,name)
+    ctx=manuscripts.context(e,name);language=lang.normalize(ctx.get('config',{}).get('language')) if ctx.get('config',{}).get('promptVersion') else 'zh'
+    rows=rows if rows is not None else ctx['rows'];path=outline.work(e,name)
     units=tree_units(rows);saved={u['id']:saved_unit(path,u) for u in units};numbers={};by_node={s['node_id']:s for value in saved.values() for s in value.get('sections',[])}
     for row in rows:
         for block in by_node.get(row['id'],{}).get('blocks',[]):
@@ -451,7 +456,7 @@ def display_document(e,name,rows=None,only_unit=None):
         value=saved[unit['id']]
         if not value:continue
         pool=review_bundle.make({'topic':'','config':{'language':'','requirements':''}},unit,value.get('evidence',{}))
-        for section in review_content.render_sections(value['sections'],pool['resources'],storage.project_dir(e.ROOT,e.PROJECT),numbers,pool['evidencePool']):result[section['node_id']]=section
+        for section in review_content.render_sections(value['sections'],pool['resources'],storage.project_dir(e.ROOT,e.PROJECT),numbers,pool['evidencePool'],language=language):result[section['node_id']]=section
     return result
 
 def assemble(e,name,include_blocks=False):

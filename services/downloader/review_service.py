@@ -1,5 +1,6 @@
 """Project-local review workspaces and outlines. No model requests from read/edit RPCs."""
 import compact_io
+import content_language as lang
 import asyncio,csv,hashlib,io,json,os,re,shutil,sqlite3,subprocess,sys,time,uuid
 from pathlib import Path
 from urllib.parse import urlsplit
@@ -95,7 +96,9 @@ def bounded(value,n,label):
     return value.strip()
 def inputs(a):return {'topic':bounded(a.get('topic',''),500,'综述主题'),'requirements':bounded(a.get('requirements',''),15000,'额外要求')}
 
-def full_prompt(user):return '【系统提示词】\n'+SYSTEM+'\n\n【用户提示词与全部摘要】\n'+user
+def full_prompt(user,system=None):
+    english=system==lang.OUTLINE_SYSTEM_EN
+    return ('[System prompt]\n' if english else '【系统提示词】\n')+(system or SYSTEM)+('\n\n[User prompt and abstracts]\n' if english else '\n\n【用户提示词与全部摘要】\n')+user
 
 def profile(e,pid=None,model=None):
     path=e.ROOT/'data/research/research.sqlite3'
@@ -168,7 +171,7 @@ def detail(e,name,vid):
     if csvpath.exists():
         try:rows=parse_csv(csvpath.read_text(encoding='utf-8-sig'))
         except ValueError as ex:error=str(ex)
-    return {'workspace':m,'version':v,'rows':nodes(e,path,rows),'csvError':error,'csv':csvpath.read_text(encoding='utf-8-sig') if csvpath.exists() else '', 'hasOriginal':original.exists(),'response':raw.read_text(encoding='utf8') if raw.exists() else '', 'path':str(path)}
+    return {'workspace':{**m,'contentLanguage':content_settings(e,name)[0]},'version':v,'rows':nodes(e,path,rows),'csvError':error,'csv':csvpath.read_text(encoding='utf-8-sig') if csvpath.exists() else '', 'hasOriginal':original.exists(),'response':raw.read_text(encoding='utf8') if raw.exists() else '', 'path':str(path)}
 
 
 def idle(v):
@@ -176,21 +179,32 @@ def idle(v):
 def revision(v,a):
     if a.get('revision')!=v['revision']:raise ValueError('此大纲已在其他窗口修改，请重新载入后再编辑')
 
+def content_settings(e,name):
+    m=manifest(e,name)
+    if 'contentLanguage' in m:return lang.normalize(m['contentLanguage']),m.get('promptVersion',lang.VERSION)
+    cfg=read(work(e,name)/'writing-settings.json',{})
+    return lang.normalize(cfg.get('language')),None
+
+def outline_prompt(e,name,data,text):
+    language,version=content_settings(e,name)
+    prompt=(lang.OUTLINE_EN if language=='en' else PROMPT).format(topic=data['topic'],extra='- '+data['requirements'] if data['requirements'] else '',abstracts=text)
+    return (lang.OUTLINE_SYSTEM_EN if language=='en' else SYSTEM),prompt,language,version
+
 def start(e,name,vid,a):
     v=vstate(e,name,vid);idle(v);revision(v,a);path=version(e,name,vid)
     data=inputs(a)
     if not data['topic']:raise ValueError('请填写综述主题')
     p=profile(e,a.get('profileId'),a.get('model'));raw,text,source=abstracts(e)
     if not source['abstractCount']:raise ValueError('当前 XML 没有可用摘要')
-    prompt=PROMPT.format(topic=data['topic'],extra='- '+data['requirements'] if data['requirements'] else '',abstracts=text)
+    system,prompt,language,prompt_version=outline_prompt(e,name,data,text)
     import review_manuscripts
     review_manuscripts.before_outline_change(e,name)
     token=uuid.uuid4().hex
     e.atomic(path/'source.xml',raw);e.atomic(path/'abstracts.txt',text)
-    e.write_json(path/'prompt.json',{'system':SYSTEM,'user':prompt})
-    e.atomic(path/'prompt.txt',full_prompt(prompt))
+    e.write_json(path/'prompt.json',{'system':system,'user':prompt,'contentLanguage':language,'promptVersion':prompt_version})
+    e.atomic(path/'prompt.txt',full_prompt(prompt,system))
     safe(path,'response.txt').unlink(missing_ok=True)  # Publish outline only after successful validation.
-    v.update(**data,state='queued',error='',token=token,source=source,profileId=p['id'],model=p['model'],profileName=p.get('name',''),received=0,reasoningCharacters=0,pid=0,owner=a.get('owner',0),revision=v['revision']+1,updated=time.time())
+    v.update(**data,contentLanguage=language,promptVersion=prompt_version,state='queued',error='',token=token,source=source,profileId=p['id'],model=p['model'],profileName=p.get('name',''),received=0,reasoningCharacters=0,pid=0,owner=a.get('owner',0),revision=v['revision']+1,updated=time.time())
     e.write_json(path/'outline-state.json',v)
     python=e.ROOT/('runtimes/downloader/Scripts/python.exe' if os.name=='nt' else 'runtimes/downloader/bin/python')
     try:
@@ -214,6 +228,7 @@ def rpc(e,op,a):
                         m=dict(manifest(e,d.name))
                         try:m['outlineCount']=len(parse_csv((d/'outline.csv').read_text(encoding='utf-8-sig')))
                         except (OSError,ValueError):m['outlineCount']=0
+                        m['contentLanguage']=content_settings(e,d.name)[0]
                         items.append(m)
             try:p=profile(e);model=p['model'];model_label=(p.get('name','')+'/' if p.get('name') else '')+model
             except ValueError:model='';model_label=''
@@ -223,7 +238,9 @@ def rpc(e,op,a):
         name=a.get('name','');path=work(e,name)
         if op=='create':
             if root(e).exists() and any(d.name.lower()==name.lower() for d in root(e).iterdir()):raise ValueError('该工作区名称已存在（不区分大小写）')
-            desc=bounded(a.get('description',''),2000,'综述描述');data=inputs(a)
+            desc=bounded(a.get('description',''),2000,'综述描述');data=inputs(a);language=lang.normalize(a.get('contentLanguage'));explicit_language='contentLanguage' in a
+            if a.get('templateWorkspace'):
+                template=detail(e,a['templateWorkspace'],'current');data=inputs(template['version'])
             source=a.get('outlineSource','llm')
             if source not in ('llm','file','workspace'):raise ValueError('综述框架来源无效')
             rows=parse_csv(a.get('csv','')) if source=='file' else []
@@ -231,7 +248,7 @@ def rpc(e,op,a):
             if source=='workspace':
                 source_name=storage.folder_name(a.get('sourceWorkspace',''))
                 original=detail(e,source_name,'current');idle(original['version'])
-                rows=checked_rows(original['rows']);data=inputs(original['version'])
+                rows=checked_rows(original['rows']);data=inputs(original['version']);language=content_settings(e,source_name)[0];explicit_language=explicit_language or content_settings(e,source_name)[1] is not None
                 origin.update(workspace=source_name,imported=time.time(),sha256=hashlib.sha256(to_csv(rows).encode()).hexdigest())
             if source=='file':
                 filename=bounded(a.get('fileName','outline.csv'),255,'CSV 文件名')
@@ -241,7 +258,7 @@ def rpc(e,op,a):
             stage=root(e)/('.creating-'+uuid.uuid4().hex)
             stage.mkdir()
             try:
-                e.write_json(stage/'review.json',{'name':name,'description':desc,'created':time.time(),'schema':2,'outlineSource':origin})
+                e.write_json(stage/'review.json',{'name':name,'description':desc,'created':time.time(),'schema':2,'outlineSource':origin,**({'contentLanguage':language,'promptVersion':lang.VERSION} if explicit_language else {})})
                 e.write_json(stage/'outline-state.json',{'id':'current','created':time.time(),'updated':time.time(),'revision':0,'state':'draft','error':'',**data})
                 if rows:
                     # Preserve the exact UTF-8 source, including a BOM when supplied.
@@ -257,6 +274,10 @@ def rpc(e,op,a):
             return writing.rpc(e,name,op.removeprefix('writing.'),a)
         if op in ('save','restore','import','start','delete'):
             writing.ensure_idle(e,name)
+        if op=='language':
+            writing.ensure_idle(e,name);idle(vstate(e,name,'current'))
+            if (path/'outline.csv').exists():raise ValueError('已有大纲，请创建另一语言的综述工作区')
+            m.update(contentLanguage=lang.normalize(a.get('contentLanguage')),promptVersion=lang.VERSION);e.write_json(path/'review.json',m);return detail(e,name,'current')
         if op=='describe':m['description']=bounded(a.get('description',''),2000,'综述描述');e.write_json(path/'review.json',m);return m
         if op=='delete':
             if a.get('confirm')!=name:raise ValueError('请确认要删除的综述工作区名称')
@@ -270,9 +291,9 @@ def rpc(e,op,a):
             if not data['topic']:raise ValueError('请填写综述主题')
             _,text,source=abstracts(e)
             if not source['abstractCount']:raise ValueError('当前 XML 没有可用摘要')
-            prompt=PROMPT.format(topic=data['topic'],extra='- '+data['requirements'] if data['requirements'] else '',abstracts=text)
-            dest=safe(vp,'prompt-preview.txt');e.atomic(dest,full_prompt(prompt))
-            return {'path':str(dest),'content':full_prompt(prompt),'abstractCount':source['abstractCount']}
+            system,prompt,language,prompt_version=outline_prompt(e,name,data,text)
+            dest=safe(vp,'prompt-preview.txt');e.atomic(dest,full_prompt(prompt,system))
+            return {'path':str(dest),'content':full_prompt(prompt,system),'abstractCount':source['abstractCount']}
         if op=='start':return start(e,name,vid,a)
         if op=='cancel':
             if v['state'] in ACTIVE:v.update(state='stopping',updated=time.time());e.write_json(vp/'outline-state.json',v)

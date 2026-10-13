@@ -1,5 +1,8 @@
 (() => {
   'use strict';
+  const english = document.documentElement.lang === 'en';
+  const translations = {"展开 ": "Expand ", "折叠 ": "Collapse ", "章节 ": "Section ", " 段引用素材": " source passages", "素材 ": "Source ", "（来源章节：": " (section: ", "）": ")", "完整原文表格": "Full source table", "关联图片": "Related image", " · 行 ": " · Lines ", " 的关联图片": " related image", "图片快照不可用": "Image snapshot unavailable", "资源之前的原文": "Text before the resource", "资源之后的原文": "Text after the resource", "当前小节未找到该 PMID 的素材。": "No materials found for this PMID in the current section.", "前往 PubMed · ": "Open PubMed · ", "查看 PMID ": "View sources for PMID ", " 的引用素材": ""};
+  const tr = value => english ? (translations[value] ?? value) : value;
   const stored = JSON.parse(document.getElementById('reference-data').textContent);
   const pooled = stored.format === 'offline-evidence-pool-v1';
   const db = pooled ? stored.scopes : stored;
@@ -90,7 +93,7 @@
       const toggle = item.querySelector('button');
       if (toggle) {
         toggle.setAttribute('aria-expanded', String(!collapsed.has(serial)));
-        toggle.setAttribute('aria-label', (collapsed.has(serial) ? '展开 ' : '折叠 ') + serial);
+        toggle.setAttribute('aria-label', (collapsed.has(serial) ? tr("展开 ") : tr("折叠 ")) + serial);
       }
     }
   }
@@ -116,13 +119,13 @@
     const entries = (db[scope] || {})[pmid] || [];
     const summary = document.createElement('div'); summary.className = 'source-summary';
     const title = document.createElement('strong'); title.textContent = 'PMID ' + pmid;
-    summary.append(title, document.createTextNode('章节 ' + scope + ' · ' + entries.length + ' 段引用素材'));
+    summary.append(title, document.createTextNode(tr("章节 ") + scope + ' · ' + entries.length + tr(" 段引用素材")));
     area.append(summary);
     entries.forEach((entryRef, index) => {
       const entry = pooled ? stored.entries[entryRef] : entryRef;
       const card = document.createElement('div'); card.className = 'card';
       const heading = document.createElement('div'); heading.className = 'ct';
-      heading.textContent = '素材 ' + String(index + 1).padStart(2, '0') + ' · PMID: ' + pmid + '（来源章节：' + scope + '）';
+      heading.textContent = tr("素材 ") + String(index + 1).padStart(2, '0') + ' · PMID: ' + pmid + tr("（来源章节：") + scope + tr("）");
       const content = document.createElement('div'); content.className = 'cb';
       if (typeof entry === 'object' && entry !== null) {
         // HTML is produced only by the exporter's escaping/allowlist renderer.
@@ -131,17 +134,17 @@
           const resource = pooled ? stored.resources[resourceRef] : resourceRef;
           const details = document.createElement('details'); details.className = 'source-resource';
           const label = document.createElement('summary');
-          label.textContent = (resource.kind === 'table' ? '完整原文表格' : '关联图片') + ' · 行 ' + resource.lineStart + '–' + resource.lineEnd;
+          label.textContent = (resource.kind === 'table' ? tr("完整原文表格") : tr("关联图片")) + tr(" · 行 ") + resource.lineStart + '–' + resource.lineEnd;
           details.append(label);
           const material = document.createElement('div'); material.className = 'source-resource-content';
           if (resource.kind === 'table') material.innerHTML = resource.html;
           else if (imageUrl(resource.dataUrl)) {
-            const img = document.createElement('img'); img.src = imageUrl(resource.dataUrl); img.alt = 'PMID ' + resource.pmid + ' 的关联图片'; material.append(img);
-          } else material.textContent = resource.error || '图片快照不可用';
+            const img = document.createElement('img'); img.src = imageUrl(resource.dataUrl); img.alt = 'PMID ' + resource.pmid + tr(" 的关联图片"); material.append(img);
+          } else material.textContent = resource.error || tr("图片快照不可用");
           details.append(material);
           for (const context of resource.context || []) {
             const nearby = document.createElement('details'); const title = document.createElement('summary');
-            title.textContent = context.position === 'before' ? '资源之前的原文' : '资源之后的原文';
+            title.textContent = context.position === 'before' ? tr("资源之前的原文") : tr("资源之后的原文");
             const paragraph = document.createElement('div'); paragraph.innerHTML = context.html;
             nearby.append(title, paragraph); details.append(nearby);
           }
@@ -162,17 +165,17 @@
       card.append(heading, content); area.append(card);
     });
     if (!entries.length) {
-      const tip = document.createElement('p'); tip.className = 'tip'; tip.textContent = '当前小节未找到该 PMID 的素材。'; area.append(tip);
+      const tip = document.createElement('p'); tip.className = 'tip'; tip.textContent = tr("当前小节未找到该 PMID 的素材。"); area.append(tip);
     }
     const link = document.createElement('a'); link.href = 'https://pubmed.ncbi.nlm.nih.gov/' + pmid + '/';
-    link.target = '_blank'; link.rel = 'noopener noreferrer'; link.textContent = '前往 PubMed · ' + pmid + ' ↗'; area.append(link);
+    link.target = '_blank'; link.rel = 'noopener noreferrer'; link.textContent = tr("前往 PubMed · ") + pmid + ' ↗'; area.append(link);
     setPanel('ref', true);
     area.scrollTop = 0;
     // Opening the desktop column changes line wrapping; keep the citation in view.
     if (!overlayRef.matches) button.scrollIntoView({block: 'nearest', behavior: 'instant'});
   }
   document.querySelectorAll('.lnk').forEach(button => {
-    button.setAttribute('aria-label', '查看 PMID ' + button.dataset.pmid + ' 的引用素材');
+    button.setAttribute('aria-label', tr("查看 PMID ") + button.dataset.pmid + tr(" 的引用素材"));
     button.setAttribute('aria-controls', 'ref');
     button.setAttribute('aria-pressed', 'false');
     button.addEventListener('click', () => show(button));

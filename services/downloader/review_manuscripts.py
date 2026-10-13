@@ -3,6 +3,7 @@
 Call mutations under review_service.lock. Reset uses a strict allowlist and
 never traverses exports or manuscripts. Frozen display blocks include images.
 """
+import content_language as lang
 import base64,hashlib,json,os,re,shutil,time,uuid
 import review_service as outline
 import manuscript_storage
@@ -89,7 +90,7 @@ def capture(e,name):
             refs[node['serial']]=entries
     partial=any(not saved[u['id']].get('sections') for u in units)
     # No live asset paths, provider secrets, or model lookups are needed to read/export this.
-    return {'topic':ctx['topic'] or name,'rows':[{'serial':r['serial'],'title':r['title']} for r in rows],
+    return {**({'contentLanguage':lang.normalize(ctx['config'].get('language'))} if ctx.get('config',{}).get('promptVersion') else {}),'topic':ctx['topic'] or name,'rows':[{'serial':r['serial'],'title':r['title']} for r in rows],
             'outlineHash':ctx['outlineHash'],'sections':sections,'blocks':blocks,'references':refs,'pmids':sorted(pmids,key=int),'partial':partial,
             'models':sorted({s.get('model','') for s in saved.values() if s.get('model')})}
 
@@ -137,11 +138,11 @@ def reset(e,name):
 
 def preview(value):
     blocks=[{'type':'markdown','text':'# '+value['topic']}]
-    if value['partial']:blocks.append({'type':'markdown','text':'> 草稿：部分章节尚未完成。'})
+    if value['partial']:blocks.append({'type':'markdown','text':'> Draft: some sections are incomplete.' if value.get('contentLanguage')=='en' else '> 草稿：部分章节尚未完成。'})
     for row in value['rows']:
         blocks.append({'type':'markdown','text':'#'*min(len(row['serial'].split('.')),6)+' '+row['serial']+' '+row['title']})
         blocks.extend(value['blocks'].get(row['serial'],[]))
-    if value['pmids']:blocks.append({'type':'markdown','text':'## 参考文献\n\n'+'\n'.join('- PMID: '+p for p in value['pmids'])})
+    if value['pmids']:blocks.append({'type':'markdown','text':('## References\n\n' if value.get('contentLanguage')=='en' else '## 参考文献\n\n')+'\n'.join('- PMID: '+p for p in value['pmids'])})
     return {'markdown':'','displayBlocks':blocks}
 
 def export(e,name,fmt,ident=None):
@@ -161,12 +162,12 @@ def export(e,name,fmt,ident=None):
                 if mime not in ('data:image/png','data:image/jpeg','data:image/gif','data:image/webp'):raise ValueError('图片格式无效')
                 relative='resources/'+hashlib.sha256(raw).hexdigest()+'.'+mime.split('/')[-1];e.atomic(bundle/relative,raw);return relative
             lines=['# '+value['topic'],'']
-            if value['partial']:lines+=['> 草稿：部分章节尚未完成。','']
-            for row in value['rows']:lines+=['#'*min(len(row['serial'].split('.')),6)+' '+row['serial']+' '+row['title'],'',review_content.markdown(value['blocks'].get(row['serial'],[]),image_file),'']
-            if value['pmids']:lines+=['## 参考文献','',*['- PMID: '+p+'. https://pubmed.ncbi.nlm.nih.gov/'+p for p in value['pmids']]]
+            if value['partial']:lines+=['> Draft: some sections are incomplete.' if value.get('contentLanguage')=='en' else '> 草稿：部分章节尚未完成。','']
+            for row in value['rows']:lines+=['#'*min(len(row['serial'].split('.')),6)+' '+row['serial']+' '+row['title'],'',review_content.markdown(value['blocks'].get(row['serial'],[]),image_file,language=value.get('contentLanguage','zh')),'']
+            if value['pmids']:lines+=['## References' if value.get('contentLanguage')=='en' else '## 参考文献','',*['- PMID: '+p+'. https://pubmed.ncbi.nlm.nih.gov/'+p for p in value['pmids']]]
             e.atomic(dest,'\n'.join(lines))
-        elif fmt=='html':e.atomic(dest,review_export.html_document(value['topic'],value['rows'],value['sections'],value['references'],value['partial'],value['blocks']))
-        else:review_export.word_document(dest,value['topic'],value['rows'],value['sections'],value['partial'],value['blocks'])
+        elif fmt=='html':e.atomic(dest,review_export.html_document(value['topic'],value['rows'],value['sections'],value['references'],value['partial'],value['blocks'],language=value.get('contentLanguage','zh')))
+        else:review_export.word_document(dest,value['topic'],value['rows'],value['sections'],value['partial'],value['blocks'],language=value.get('contentLanguage','zh'))
     except BaseException:
         shutil.rmtree(bundle);raise
     return {'path':str(dest),'partial':value['partial'],'manuscriptId':value['id']}

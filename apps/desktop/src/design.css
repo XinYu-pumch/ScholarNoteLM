@@ -863,3 +863,17 @@ input[type='checkbox'], input[type='radio'] { accent-color: var(--accent); }
  :is(button,.button,summary,.app-select-trigger,input:not([type=checkbox]):not([type=radio])) { min-height:var(--target-touch); }
  .icon-button,.query-actions>button { min-width:var(--target-touch); }
 }
+
+/* Language is a discrete preference; switching it does not alter content settings. */
+.language-switch { display:inline-flex; align-items:center; border:1px solid var(--line-strong); border-radius:var(--radius-control); padding:var(--space-1); gap:var(--space-1); flex-shrink:0; }
+.language-switch button { min-width:var(--target-min); min-height:var(--target-min); padding:0 var(--space-2); border:0; background:transparent; color:var(--muted); font:inherit; font-size:var(--fs-subhead); border-radius:var(--radius-sm); cursor:pointer; }
+.language-switch button[aria-pressed='true'] { color:var(--accent); background:var(--accent-soft); font-weight:var(--fw-semibold); }
+.content-language { display:inline-flex; align-items:center; gap:var(--space-2); flex-shrink:0; font-size:var(--fs-footnote); color:var(--muted); }
+.content-language .app-select { min-width:100px; }
+.review-content-language { display:flex; align-items:center; flex-wrap:wrap; gap:var(--space-3); margin-top:var(--space-3); }
+.language-preferences { margin-bottom:var(--space-6); }
+.boot-language { position:absolute; top:var(--space-4); right:var(--space-4); }
+.qa-header-actions,.wb-chat-heading,.paper-chat-controls { flex-wrap:wrap; }
+:root[lang='en'] .button { white-space:nowrap; }
+:root[lang='en'] .settings-nav button { min-width:0; }
+@media (max-width:1199px) { .qa-header-actions { gap:var(--space-2); } .content-language>span { max-width:105px; } }

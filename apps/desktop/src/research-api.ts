@@ -1,3 +1,4 @@
+import {uiLanguage,t as tr} from './i18n';
 import {forgetPage} from './page-memory';
 import {read,queryKey,invalidate} from './query-cache';
 export {peek as peekRpc} from './query-cache';
@@ -10,7 +11,7 @@ export type CorpusPaper=Paper & {pmid:string;doi:string;pmcid:string;included:bo
 export type MeshTerm={id:string;label:string;kind:string;scope:string;terms:string[];trees:string[]};
 export type Probe={count?:number;translation?:string;warnings?:unknown;errors?:unknown;error?:string;checked?:number;mesh?:{term:string;verified:boolean}[];samples?:CorpusPaper[]};
 export type Proposal={id:string;name:string;text:string;purpose:string;probe?:Probe;meshCheck?:{term:string;verified:boolean}[]};
-export type ChatMessage={modelLabel?:string;role:string;text:string;reasoning?:string;error?:string;cancelled?:boolean;created:number;result?:{queries:Proposal[];meshVersion:string;model:string;modelLabel?:string}};
+export type ChatMessage={contentLanguage?:'zh'|'en';promptVersion?:string;modelLabel?:string;role:string;text:string;reasoning?:string;error?:string;cancelled?:boolean;created:number;result?:{queries:Proposal[];meshVersion:string;model:string;modelLabel?:string}};
 export type WorkbenchData={sourceBusy?:boolean;queries:Query[];chats:ChatThread[];corpus:{snapshot:string;papers:CorpusPaper[];included:number;excluded:number;path:string}};
 export type Profile={visionModels?:string[];id:string;name:string;baseUrl:string;model:string;models?:string[];apiKey?:string;hasKey?:boolean;clearKey?:boolean;temperature:number|null;timeout:number};
 export type MeshStatus={version:string;year?:number;records:number;terms:number;counts?:Record<string,number>;built?:number;checked?:number;autoUpdate:boolean;includeScr?:boolean;includeScrPreference?:boolean;running:boolean;job?:{state:string;message:string}};
@@ -40,7 +41,7 @@ export async function rpc<T>(action:string,args:Record<string,unknown>={}):Promi
  if(/^zotero\.(start|cancel)$/.test(action))invalidate(typeof args.project==='string'?args.project:undefined,['workspace','zotero.status']);
  if(/^(query\.|jcr\.|library\.(start|clear)|markdown\.(start|reconcile|settings.save)|vector\.(start|settings.save|profile.activate|profile.delete)|storage\.)/.test(action))invalidate(typeof args.project==='string'?args.project:undefined,materialReads);
  if(/^(profile\.(save|delete)|pubmed.save)$/.test(action))invalidate(undefined,['profile.list','settings','review.list','review.writing.status']);
- if(/^(qa|chat)\.(new|rename|copy|fork|start|cancel|resume|regenerate|delete|delete_many|archive|archive_many)$/.test(action))invalidate(typeof args.project==='string'?args.project:undefined,[action.startsWith('qa.')?'qa.list':'chat.list',action.startsWith('qa.')?'qa.get':'chat.get'],/\.(delete|archive)(_many)?$/.test(action));
+ if(/^(qa|chat)\.(new|language|rename|copy|fork|start|cancel|resume|regenerate|delete|delete_many|archive|archive_many)$/.test(action))invalidate(typeof args.project==='string'?args.project:undefined,[action.startsWith('qa.')?'qa.list':'chat.list',action.startsWith('qa.')?'qa.get':'chat.get'],/\.(delete|archive)(_many)?$/.test(action));
  if(action==='download.settings.save')invalidate(undefined,['markdown.status']);
  if(action==='qa.settings.save')invalidate(undefined,['qa.settings']);
  if(action.startsWith('review.'))invalidate(typeof args.project==='string'?args.project:undefined,['review.list','review.get','review.writing.activity','review.writing.status','review.writing.section']);
@@ -53,11 +54,11 @@ if(typeof window!=='undefined'){
 }
 
 export function changed(){window.dispatchEvent(new Event('research-changed'));}
-export function stamp(v?:number){return v?new Date(v*1000).toLocaleString('zh-CN',{hour12:false}):'尚未执行';}
+export function stamp(v?:number){return v?new Date(v*1000).toLocaleString(uiLanguage()==='en'?'en-US':'zh-CN',{hour12:false}):tr('尚未执行');}
 export function message(e:unknown){return e instanceof Error?e.message:String(e);}
 export async function exportXml(project:string,run?:string){const result=await rpc<{path:string;content:string}>('xml.export',{project,run});if(!isTauri()){const url=URL.createObjectURL(new Blob([result.content],{type:'application/xml'}));const a=document.createElement('a');a.href=url;a.download=run?'query-pubmed.xml':'pubmed.xml';a.click();URL.revokeObjectURL(url);}return result.path;}
 
-export type ChatThread={id:string;name:string;parentId?:string;created:number;messages?:ChatMessage[]};
+export type ChatThread={contentLanguage?:'zh'|'en';id:string;name:string;parentId?:string;created:number;messages?:ChatMessage[]};
 export const defaultFilters=():Filters=>({start:'',end:'',sort:'relevance',mode:'explore',limit:30,jcr:false,quartiles:[],unknown:'exclude'});
 export type StreamEvent={type:string;text?:string;reasoning?:string;emittedAt?:number};
 export async function streamChat(args:Record<string,unknown>,onEvent:(event:StreamEvent)=>void):Promise<ChatMessage[]>{

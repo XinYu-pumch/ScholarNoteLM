@@ -1,4 +1,5 @@
 """Versioned, unit-scoped writing inputs. Retrieval ownership is provenance only."""
+import content_language as lang
 import base64,copy,hashlib,json,re
 from pathlib import Path
 import evidence_resources as assets
@@ -79,7 +80,7 @@ def make(snapshot,unit,evidence):
     return {'schemaVersion':VERSION,'unit':{'unit_id':unit['serial'],'title':unit['title'],'nodes':nodes,
         'ancestors':[{'node_id':n['serial'],'title':n['title']} for n in unit.get('ancestors',[])],
         'siblings':[{'node_id':n['serial'],'title':n['title']} for n in unit.get('siblings',[])]},
-        'task':{'topic':snapshot['topic'],'language':snapshot['config']['language'],'requirements':snapshot['config']['requirements']},
+        'task':{'topic':snapshot['topic'],'language':snapshot['config']['language'],'requirements':snapshot['config']['requirements'],**({'promptVersion':snapshot['config']['promptVersion']} if snapshot['config'].get('promptVersion') else {})},
         'retrieval':retrieval,'evidencePool':pool,'resources':resources,
         'outputContract':{'unit_id':unit['serial'],'sections':[{'node_id':n['node_id'],'title':n['title'],'blocks':[{'type':'markdown','text':'Body with [E1] / [R1] citations, or no citation for an introduction.'}]} for n in nodes]}}
 
@@ -167,7 +168,12 @@ def messages(bundle,folder,profile):
                 raw=read_file(folder,obj['imageFile']);parts.extend([{'type':'text','text':f"资源 {obj['id']} · PMID {obj['pmid']}"},{'type':'image_url','image_url':{'url':'data:'+obj['mime']+';base64,'+base64.b64encode(raw).decode()}}]);obj['imageInput']='attached'
             else:obj['imageInput']='not_provided';notes.append(obj['id']+' 未提供图像输入，只能参考邻近文字，不得声称已看过该图。')
         obj.pop('imageFile',None)
-    system=SYSTEM+'\n关联图表只按原文位置提供，不保证与问题相关。\n'+'\n'.join(notes)
+    modern=data['task'].get('promptVersion');english=bool(modern) and lang.normalize(data['task'].get('language'))=='en'
+    system=(lang.writing_system(data['task']['language'],SYSTEM) if modern else SYSTEM)+'\n'+('Associated figures and tables are linked by source location, not guaranteed relevance.' if english else '关联图表只按原文位置提供，不保证与问题相关。')+'\n'+'\n'.join(notes)
+    if english:
+        system=system.replace(' 未提供图像输入，只能参考邻近文字，不得声称已看过该图。',' has no image input. Use neighboring text only; do not claim to have seen the image.')
+        for part in parts:
+            if part.get('type')=='text':part['text']=part['text'].replace('资源 ','Resource ')
     text=dumps(data)
     return [{'role':'system','content':system},{'role':'user','content':[{'type':'text','text':text},*parts] if parts else text}]
 

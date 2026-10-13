@@ -12,16 +12,16 @@ export function runningSearchThreads(project:string){return [...sessions.values(
 export function forgetSearchSessions(project:string,ids:string[]){for(const id of ids)if(!searchSession(project,id)?.active)sessions.delete(key(project,id));changed();}
 export function dismissSearchError(project:string,threadId:string){const s=searchSession(project,threadId);if(s){s.error='';changed();}}
 /** Lives outside the mounted page: navigating never cancels another conversation. */
-export async function startSearchSession(project:string,threadId:string,text:string,base:ChatMessage[],modelLabel:string,selection:ModelSelection={profileId:'',model:''}){
+export async function startSearchSession(project:string,threadId:string,text:string,base:ChatMessage[],modelLabel:string,selection:ModelSelection={profileId:'',model:''},contentLanguage:'zh'|'en'='zh'){
  if(searchSession(project,threadId)?.active)return;
- const user:ChatMessage={role:'user',text,created:Date.now()/1000};
- const assistant:ChatMessage={role:'assistant',text:'',reasoning:'',modelLabel,created:Date.now()/1000};
+ const user:ChatMessage={role:'user',text,contentLanguage,created:Date.now()/1000};
+ const assistant:ChatMessage={role:'assistant',contentLanguage,text:'',reasoning:'',modelLabel,created:Date.now()/1000};
  const session:Session={project,threadId,streamId:crypto.randomUUID(),active:true,sequence:0,messages:[...base,user,assistant],error:''};
  sessions.set(key(project,threadId),session);beginSearchTrace(session.streamId);changed();
  // Coalesce bursts without making every token synchronously rerender the whole page.
  let timer:ReturnType<typeof setTimeout>|undefined;let latest:ChatMessage|undefined;let sequence=0;
  const publish=()=>{timer=undefined;if(latest){session.messages=[...base,user,latest];session.sequence=sequence;latest=undefined;changed();}};
- try{session.messages=await streamChat({...selection,project,chatId:threadId,message:text,streamId:session.streamId},event=>{if(event.type==='update'){
+ try{session.messages=await streamChat({...selection,contentLanguage,project,chatId:threadId,message:text,streamId:session.streamId},event=>{if(event.type==='update'){
   sequence=receiveSearchTrace(session.streamId,event.emittedAt);latest={...assistant,text:event.text||'',reasoning:event.reasoning||''};
   if(timer===undefined)timer=setTimeout(publish,50);
  }});}

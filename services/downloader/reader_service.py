@@ -1,4 +1,5 @@
 """Per-paper reading conversations. Full raw text is pinned once, never RAG-truncated."""
+import content_language as lang
 import copy,asyncio,base64,gzip,hashlib,json,os,re,sqlite3,subprocess,sys,time,uuid
 from contextlib import contextmanager,nullcontext
 import artifact_state,corpus_files,review_service,storage,vector_chunks
@@ -46,6 +47,8 @@ def branch(t,index,include=True):
         name=t['name'][:65]+' · 分支',created=time.time(),state='idle',error='')
     child.pop('run',None)
     child['messages']=child['messages'][:index+int(include)]
+    child['contentLanguage']=t['messages'][index].get('contentLanguage','zh')
+    if child['contentLanguage']=='en':child['name']=t['name'][:65]+' · Branch'
     if child['messages']:
         child['profileId']=child['messages'][-1].get('profileId',t['profileId'])
         child['model']=child['messages'][-1]['model']
@@ -148,7 +151,7 @@ def rpc(e,op,a):
             return {'threads':result}
     if op=='new':
         p=e.pmid(a.get('pmid'));document(e,p)
-        t={'id':uuid.uuid4().hex,'pmid':p,'name':'新对话','state':'idle','source':'','sourceKind':'','messages':[],'profileId':'','model':'','error':'','created':time.time()}
+        t={'id':uuid.uuid4().hex,'pmid':p,'contentLanguage':lang.normalize(a.get('contentLanguage')),'name':'New conversation' if lang.normalize(a.get('contentLanguage'))=='en' else '新对话','state':'idle','source':'','sourceKind':'','messages':[],'profileId':'','model':'','error':'','created':time.time()}
         with db(e) as c:put(c,t)
         return t
     if op=='start':return start(e,a)
@@ -156,6 +159,8 @@ def rpc(e,op,a):
         t=get(c,a.get('id'));before=t['state'];recover(e,t)
         if before!=t['state']:put(c,t)
         if op=='get':return t
+        if op=='language':
+            t['contentLanguage']=lang.normalize(a.get('contentLanguage'));put(c,t);return t
         if op=='fork':
             index=turn_index(t,a.get('turnId'))
             if t['messages'][index]['state']!='done':raise ValueError('请等待这条回答完成后再创建分支')
@@ -189,10 +194,11 @@ def start(e,a):
             if not d['ready']:raise ValueError(d['reason'])
             snapshot(e,d);t.update(source=d['version'],sourceKind=d['kind'])
         else:load_source(e,t['source'])
+        language=lang.normalize(t.get('contentLanguage'))
         if a.get('retry'):
             if not t['messages']:raise ValueError('没有可以重试的回答')
             index=turn_index(t,a['turnId']) if 'turnId' in a else len(t['messages'])-1
-            question=t['messages'][index]['question']
+            question=t['messages'][index]['question'];language=lang.normalize(t['messages'][index].get('contentLanguage'))
             if index<len(t['messages'])-1:
                 t=branch(t,index,include=False);tid=t['id']
             else:t['messages'].pop()
@@ -202,8 +208,8 @@ def start(e,a):
             if t['messages'] and t['messages'][-1]['state']!='done':raise ValueError('上一轮尚未成功，请先重试或新建对话')
         run=uuid.uuid4().hex
         t.update(state='queued',run=run,error='',profileId=p['id'],model=p['model'])
-        if not t['messages'] and t['name']=='新对话':t['name']=question[:40]
-        t['messages'].append({'id':uuid.uuid4().hex,'profileId':p['id'],'question':question,'text':'','reasoning':'','state':'queued','model':p['model'],'created':time.time()})
+        if not t['messages'] and t['name'] in ('新对话','New conversation'):t['name']=question[:40]
+        t['messages'].append({'id':uuid.uuid4().hex,'profileId':p['id'],'contentLanguage':language,'promptVersion':lang.VERSION,'question':question,'text':'','reasoning':'','state':'queued','model':p['model'],'created':time.time()})
         put(c,t)
     try:
         env={**os.environ,'SCHOLARNOTELM_ROOT':str(e.ROOT),'PYTHONDONTWRITEBYTECODE':'1'}
@@ -244,7 +250,11 @@ async def run(e,tid,run_id):
         try:
             if cancelled_first:raise review_llm.Cancelled()
             source=load_source(e,t['source']);profile=review_service.profile(e,t['profileId'],t['model'])
-            messages=[{'role':'system','content':SYSTEM},{'role':'user','content':f"全文信息（{'仅摘要' if source['kind']=='abstract' else '未清洗 Markdown 全文'}），PMID {source['pmid']}：\n<article_material>\n{source['text']}\n</article_material>"}]
+            language=t['messages'][-1].get('contentLanguage','zh')
+            system=(lang.READER_EN if language=='en' else SYSTEM.removesuffix('用中文回答，必要时保留英文术语。'))+'\n'+lang.instruction(language)
+            if not t['messages'][-1].get('promptVersion'):system=SYSTEM
+            messages=[{'role':'system','content':system},{'role':'user','content':f"全文信息（{'仅摘要' if source['kind']=='abstract' else '未清洗 Markdown 全文'}），PMID {source['pmid']}：\n<article_material>\n{source['text']}\n</article_material>"}]
+            if language=='en':messages[1]['content']=f"Article material ({'abstract only' if source['kind']=='abstract' else 'full uncleaned Markdown'}), PMID {source['pmid']}:\n<article_material>\n{source['text']}\n</article_material>"
             for turn in t['messages'][:-1]:
                 if turn['state']=='done':messages.extend([{'role':'user','content':turn['question']},{'role':'assistant','content':turn['text']}])
             messages.append({'role':'user','content':t['messages'][-1]['question']})

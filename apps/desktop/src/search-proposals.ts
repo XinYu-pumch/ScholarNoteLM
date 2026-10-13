@@ -1,3 +1,4 @@
+import {t as tr} from './i18n';
 import type {ChatMessage,Proposal,Query} from './research-api';
 
 export const queryTextKey=(text:string)=>text.trim().replace(/\s+/g,' ');
@@ -16,7 +17,7 @@ export function proposalBlocks(message:ChatMessage):{offset:number;proposal:Prop
   const known=message.result?.queries?.find(q=>queryTextKey(q.text)===queryTextKey(text));
   const queryLike=/\[(?:tiab|mesh terms|mh|title\/abstract|tw)\]/i.test(text)&&/\b(?:AND|OR|NOT)\b/.test(text);
   if(!text||(!known&&language!=='pubmed'&&!(['','text','plaintext'].includes(language)&&queryLike)))continue;
-  const title=[...message.text.slice(0,match.index).matchAll(/^ {0,3}#{1,6}\s+(.+?)\s*#*\s*$/gm)].at(-1)?.[1]||`检索式 ${blocks.length+1}`;
+  const title=[...message.text.slice(0,match.index).matchAll(/^ {0,3}#{1,6}\s+(.+?)\s*#*\s*$/gm)].at(-1)?.[1]||tr("检索式 {p0}",{p0:blocks.length+1});
   blocks.push({offset:match.index,proposal:known||{id:`block-${match.index}`,name:title,text,purpose:''}});
  }
  return blocks;

@@ -1,3 +1,4 @@
+import {t as tr} from './i18n';
 import {useEffect,useLayoutEffect,useRef,useState} from 'react';
 import {ChevronLeft,ChevronRight,Minus,Plus,Search} from 'lucide-react';
 import {rpc,message} from './research-api';
@@ -27,7 +28,7 @@ function PdfPage({pdf,number,size,scale,renderScale,root}:{pdf:PDFDocumentProxy;
   // Stage a replacement off-screen; never clear a readable page while PDF.js works.
   const layer=document.createElement('div'),canvas=document.createElement('canvas'),text=document.createElement('div');
   layer.className='paper-pdf-raster';layer.style.visibility='hidden';layer.setAttribute('aria-hidden','true');
-  canvas.setAttribute('aria-label',`论文 PDF 第 ${number} 页`);text.className='textLayer';layer.append(canvas,text);target.append(layer);setError('');
+  canvas.setAttribute('aria-label',tr("论文 PDF 第 {p0} 页",{p0:number}));text.className='textLayer';layer.append(canvas,text);target.append(layer);setError('');
   void (async()=>{try{
    const page=await pdf.getPage(number);if(!alive)return;
    const viewport=page.getViewport({scale:renderScale});
@@ -43,7 +44,7 @@ function PdfPage({pdf,number,size,scale,renderScale,root}:{pdf:PDFDocumentProxy;
   }catch(e){if(alive)setError(message(e));}})();
   return()=>{alive=false;render?.cancel();textLayer?.cancel();if(published.current?.layer!==layer){layer.remove();canvas.width=0;canvas.height=0;}};
  },[pdf,number,renderScale,visible]);
- return <div ref={host} className="paper-pdf-page" data-pdf-page={number} role="region" aria-label={`PDF 第 ${number} 页`} style={{width:size.width*scale,height:size.height*scale}}>{error&&<p className="wb-alert" role="alert">第 {number} 页：{error}</p>}</div>;
+ return <div ref={host} className="paper-pdf-page" data-pdf-page={number} role="region" aria-label={tr("PDF 第 {p0} 页",{p0:number})} style={{width:size.width*scale,height:size.height*scale}}>{error&&<p className="wb-alert" role="alert">{tr("第")}{number} {tr("页：")}{tr(error)}</p>}</div>;
 }
 
 export default function PdfReader({project,pmid,version,size,position,onPosition}:{project:string;pmid:string;version:string;size:number;position:ReadingPosition;onPosition:(v:ReadingPosition)=>void}){
@@ -110,14 +111,14 @@ export default function PdfReader({project,pmid,version,size,position,onPosition
  function applyZoom(){const value=Number(zoomInput.replace('%','').trim());if(value===Math.round(scale*100)){setZoomInput(String(value));return;}if(Number.isFinite(value)&&value>0)changeZoom(String(value/100));else setZoomInput(String(Math.round(scale*100)));}
  async function find(){if(!pdf||!query.trim())return;const id=++searchId.current;setFinding(true);setSearched(false);const hits:number[]=[];try{for(let n=1;n<=pdf.numPages;n++){const content=await (await pdf.getPage(n)).getTextContent();if(id!==searchId.current)return;if(content.items.map(x=>'str'in x?x.str:'').join(' ').toLocaleLowerCase().includes(query.trim().toLocaleLowerCase()))hits.push(n);}setFound(hits);setSearched(true);if(hits.length)jump(hits[0]);}catch(e){if(id===searchId.current)setError(message(e));}finally{if(id===searchId.current)setFinding(false);}}
  return <div className="paper-pdf"><div className="paper-pdf-tools">
-  <button className="icon-button" aria-label="上一页" disabled={!pdf||page<=1} onClick={()=>jump(page-1)}><ChevronLeft size={16}/></button>
-  <label><input aria-label="PDF 页码" inputMode="numeric" value={pageInput} onChange={e=>setPageInput(e.target.value)} onBlur={()=>{const n=Number(pageInput);if(Number.isInteger(n)&&n>0)jump(n);else setPageInput(String(page));}} onKeyDown={e=>{if(e.key==='Enter')e.currentTarget.blur();}}/> / {pdf?.numPages||'…'}</label>
-  <button className="icon-button" aria-label="下一页" disabled={!pdf||page>=pdf.numPages} onClick={()=>jump(page+1)}><ChevronRight size={16}/></button>
-  <button className="icon-button" aria-label="缩小 PDF" disabled={!pdf||scale<=.1} onClick={()=>changeZoom(String(scale/1.1))}><Minus size={15}/></button>
-  <label className="paper-pdf-zoom"><input aria-label="PDF 缩放百分比" title="10%–800%，也可用触控板捏合或 Ctrl/Command + 滚轮缩放" inputMode="decimal" disabled={!pdf} value={zoomInput} onChange={e=>setZoomInput(e.target.value)} onBlur={applyZoom} onKeyDown={e=>{if(e.key==='Enter')e.currentTarget.blur();}}/>%</label>
-  <button className="icon-button" aria-label="放大 PDF" disabled={!pdf||scale>=8} onClick={()=>changeZoom(String(scale*1.1))}><Plus size={15}/></button>
-  <button className="text-button" disabled={!pdf} onClick={()=>changeZoom('fit')}>适合宽度</button>
-  <form onSubmit={e=>{e.preventDefault();void find();}}><input aria-label="搜索 PDF 文字" placeholder="查找文字" value={query} onChange={e=>{setQuery(e.target.value);setSearched(false);}}/><button className="icon-button" aria-label="查找" disabled={!pdf||finding||!query.trim()}><Search size={15}/></button></form>
- </div>{searched&&<div className="paper-search-results">{found.length?<>匹配页：{found.map(n=><button key={n} className="text-button" onClick={()=>jump(n)}>{n}</button>)}</>:<>没有匹配文字（扫描件可能没有文字层）</>}</div>}{error&&<p role="alert" className="wb-alert">{error}</p>}
- <div className="paper-pdf-scroll" ref={scroll} onScroll={save}>{!pdf&&<p className="quiet">正在读取 PDF… {loading}%</p>}<div className="paper-pdf-pages" ref={pages}>{pdf&&sizes.map((s,i)=><PdfPage key={i} pdf={pdf} number={i+1} size={s} scale={scale} renderScale={renderScale??scale} root={scroll.current}/>)}</div></div></div>;
+  <button className="icon-button" aria-label={tr("上一页")} disabled={!pdf||page<=1} onClick={()=>jump(page-1)}><ChevronLeft size={16}/></button>
+  <label><input aria-label={tr("PDF 页码")} inputMode="numeric" value={pageInput} onChange={e=>setPageInput(e.target.value)} onBlur={()=>{const n=Number(pageInput);if(Number.isInteger(n)&&n>0)jump(n);else setPageInput(String(page));}} onKeyDown={e=>{if(e.key==='Enter')e.currentTarget.blur();}}/> / {pdf?.numPages||'…'}</label>
+  <button className="icon-button" aria-label={tr("下一页")} disabled={!pdf||page>=pdf.numPages} onClick={()=>jump(page+1)}><ChevronRight size={16}/></button>
+  <button className="icon-button" aria-label={tr("缩小 PDF")} disabled={!pdf||scale<=.1} onClick={()=>changeZoom(String(scale/1.1))}><Minus size={15}/></button>
+  <label className="paper-pdf-zoom"><input aria-label={tr("PDF 缩放百分比")} title={tr("10%–800%，也可用触控板捏合或 Ctrl/Command + 滚轮缩放")} inputMode="decimal" disabled={!pdf} value={zoomInput} onChange={e=>setZoomInput(e.target.value)} onBlur={applyZoom} onKeyDown={e=>{if(e.key==='Enter')e.currentTarget.blur();}}/>%</label>
+  <button className="icon-button" aria-label={tr("放大 PDF")} disabled={!pdf||scale>=8} onClick={()=>changeZoom(String(scale*1.1))}><Plus size={15}/></button>
+  <button className="text-button" disabled={!pdf} onClick={()=>changeZoom('fit')}>{tr("适合宽度")}</button>
+  <form onSubmit={e=>{e.preventDefault();void find();}}><input aria-label={tr("搜索 PDF 文字")} placeholder={tr("查找文字")} value={query} onChange={e=>{setQuery(e.target.value);setSearched(false);}}/><button className="icon-button" aria-label={tr("查找")} disabled={!pdf||finding||!query.trim()}><Search size={15}/></button></form>
+ </div>{searched&&<div className="paper-search-results">{found.length?<>{tr("匹配页：")}{found.map(n=><button key={n} className="text-button" onClick={()=>jump(n)}>{n}</button>)}</>:<>{tr("没有匹配文字（扫描件可能没有文字层）")}</>}</div>}{error&&<p role="alert" className="wb-alert">{tr(error)}</p>}
+ <div className="paper-pdf-scroll" ref={scroll} onScroll={save}>{!pdf&&<p className="quiet">{tr("正在读取 PDF…")}{loading}%</p>}<div className="paper-pdf-pages" ref={pages}>{pdf&&sizes.map((s,i)=><PdfPage key={i} pdf={pdf} number={i+1} size={s} scale={scale} renderScale={renderScale??scale} root={scroll.current}/>)}</div></div></div>;
 }

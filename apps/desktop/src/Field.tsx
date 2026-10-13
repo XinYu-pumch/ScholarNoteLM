@@ -1,3 +1,4 @@
+import {t as tr} from './i18n';
 import {Children,cloneElement,isValidElement,useId,useState,type ReactNode,type HTMLAttributes,type InputHTMLAttributes,type FocusEvent,type ChangeEvent,type InvalidEvent} from 'react';
 /** Labels retain their existing layout; native validity gets persistent inline feedback. */
 export default function Field({children,...props}:HTMLAttributes<HTMLLabelElement>){
@@ -7,7 +8,7 @@ export default function Field({children,...props}:HTMLAttributes<HTMLLabelElemen
   const p=node.props;
   const read=(element:HTMLInputElement)=>{
    const v=element.validity;
-   return v.valid?'':v.valueMissing?'请填写此项':v.typeMismatch?'请检查输入格式':v.patternMismatch?'格式不正确，请按提示填写':v.rangeUnderflow?`不得小于 ${element.min}`:v.rangeOverflow?`不得大于 ${element.max}`:v.stepMismatch?'请填写允许的数值':element.validationMessage;
+   return v.valid?'':v.valueMissing?'请填写此项':v.typeMismatch?'请检查输入格式':v.patternMismatch?'格式不正确，请按提示填写':v.rangeUnderflow?tr("不得小于 {p0}",{p0:element.min}):v.rangeOverflow?tr("不得大于 {p0}",{p0:element.max}):v.stepMismatch?'请填写允许的数值':element.validationMessage;
   };
   return cloneElement(node,{
    'aria-invalid':error?true:p['aria-invalid'],
@@ -17,5 +18,5 @@ export default function Field({children,...props}:HTMLAttributes<HTMLLabelElemen
    onChange:(e:ChangeEvent<HTMLInputElement>)=>{if(error)setError(read(e.currentTarget));p.onChange?.(e);}
   });
  };
- return <label {...props}>{Children.map(children,control)}{error&&<span id={id} className="field-error" role="alert">{error}</span>}</label>;
+ return <label {...props}>{Children.map(children,control)}{error&&<span id={id} className="field-error" role="alert">{tr(error)}</span>}</label>;
 }

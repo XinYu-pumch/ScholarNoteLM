@@ -1,3 +1,4 @@
+import {t as tr} from './i18n';
 import {useEffect,useId,useLayoutEffect,useRef,useState,type ReactNode} from 'react';
 import {createPortal} from 'react-dom';
 import {ChevronDown,MoreHorizontal} from 'lucide-react';
@@ -33,9 +34,9 @@ export default function StageMenu({children,label='更多操作',icon=false}:{ch
   return()=>{document.removeEventListener('keydown',escape);document.removeEventListener('pointerdown',outside);document.removeEventListener('focusin',focus);window.removeEventListener('stage-menu-open',other);};
  },[open,id]);
  function show(keyboard:false|'first'|'last'){keyboardOpen.current=keyboard;window.dispatchEvent(new CustomEvent('stage-menu-open',{detail:id}));setOpen(true);if(keyboard)panel.current?.querySelector<HTMLButtonElement>('button:not(:disabled)')?.focus();}
- return <><button ref={trigger} type="button" className={icon?'icon-button action-menu-trigger':'stage-menu-trigger'} title={label} aria-label={label} aria-haspopup="menu" aria-expanded={open} aria-controls={open?id:undefined}
-  onClick={e=>open?close():show(e.detail===0?'first':false)} onKeyDown={e=>{if(e.key==='ArrowDown'||e.key==='ArrowUp'){e.preventDefault();show(e.key==='ArrowUp'?'last':'first');}if(e.key==='Escape')close(true);}}>{icon?<MoreHorizontal size={18}/>:<>更多<ChevronDown size={12}/></>}</button>
-  {open&&createPortal(<div ref={panel} id={id} role="menu" aria-label={label} className="stage-action-popover" style={{visibility:'hidden'}}
+ return <><button ref={trigger} type="button" className={icon?'icon-button action-menu-trigger':'stage-menu-trigger'} title={tr(label)} aria-label={tr(label)} aria-haspopup="menu" aria-expanded={open} aria-controls={open?id:undefined}
+  onClick={e=>open?close():show(e.detail===0?'first':false)} onKeyDown={e=>{if(e.key==='ArrowDown'||e.key==='ArrowUp'){e.preventDefault();show(e.key==='ArrowUp'?'last':'first');}if(e.key==='Escape')close(true);}}>{icon?<MoreHorizontal size={18}/>:<>{tr("更多")}<ChevronDown size={12}/></>}</button>
+  {open&&createPortal(<div ref={panel} id={id} role="menu" aria-label={tr(label)} className="stage-action-popover" style={{visibility:'hidden'}}
    onClickCapture={e=>{const b=(e.target as Element).closest('button');if(b&&!b.disabled)trigger.current?.focus();}} onClick={e=>{const b=(e.target as Element).closest('button');if(b&&!b.disabled)close();}}
    onKeyDown={e=>{
     if(e.key==='Escape'){e.preventDefault();e.stopPropagation();close(true);return;}

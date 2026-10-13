@@ -70,7 +70,7 @@ button:focus-visible, a:focus-visible { outline: 2px solid #779785; outline-offs
 .section-number { color: #68816e; font-size: .82em; font-weight: 500; font-variant-numeric: tabular-nums; padding-right: 8px; }
 .sec.depth-1 { padding-top: 34px; margin-top: 52px; border-top: 1px solid var(--line); }
 .document-header + .sec.depth-1 { padding-top: 0; margin-top: 0; border-top: 0; }
-.content { font-family: "Iowan Old Style", "Palatino Linotype", "Songti SC", "Noto Serif CJK SC", "SimSun", Georgia, serif; font-size: 17px; line-height: 1.95; color: #384139; overflow-wrap: anywhere; }
+.content { font-family: inherit; font-size: 17px; line-height: 1.95; color: #384139; overflow-wrap: anywhere; }
 .content p { margin: 0 0 1.1em; }
 .content strong { color: #223e30; font-weight: 600; }
 .content ul, .content ol { padding-left: 1.5em; }

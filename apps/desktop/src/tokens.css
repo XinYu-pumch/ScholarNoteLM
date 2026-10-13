@@ -36,7 +36,7 @@
   --preview-dark-bg:#202023; --preview-dark-panel:#19191b; --preview-dark-line:#55555b; --preview-dark-accent:#8fb6dd;
   /* Type */
   --font-ui: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'PingFang SC', 'Hiragino Sans GB', 'Segoe UI', 'Microsoft YaHei', sans-serif;
-  --font-display: ui-serif, 'New York', 'Iowan Old Style', 'Songti SC', 'STSong', 'Source Han Serif SC', 'Noto Serif CJK SC', Georgia, serif;
+  --font-display: var(--font-ui);
   --font-reading: var(--font-display);
   --font-code: 'SF Mono', ui-monospace, 'SFMono-Regular', Menlo, Consolas, monospace;
   --font-mono: var(--font-code);

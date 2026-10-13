@@ -39,7 +39,7 @@ def resolve_citations(text,sources):
     text=normalize_evidence_ids(text,sources)
     return dedupe_citations(re.sub(r'\[([ER][0-9]+)\]',lambda m:'(PMID: '+sources[m[1]]['pmid']+')' if m[1] in sources else m[0],text))
 
-def render_sections(sections,resources,project,numbers=None,evidence=None):
+def render_sections(sections,resources,project,numbers=None,evidence=None,language='zh'):
     """Resolve only selected resources from the frozen pool, with document-wide numbering."""
     import evidence_resources
     from review_export import resource_html,generated_table_html,markdown_html
@@ -50,7 +50,7 @@ def render_sections(sections,resources,project,numbers=None,evidence=None):
             if objects.key(block,section['node_id']) is None:continue
             objects.register(numbers,block,section['node_id'])
             ident=block['resource_id'] if block['type']=='resource' else block['table_id']
-            targets.setdefault(ident,[]).append({'node_id':section['node_id'],'label':objects.label(numbers,block,section['node_id']),'anchor':objects.anchor(block,section['node_id'],index)})
+            targets.setdefault(ident,[]).append({'node_id':section['node_id'],'label':objects.label(numbers,block,section['node_id'],language),'anchor':objects.anchor(block,section['node_id'],index)})
     for section in sections:
         item=copy.deepcopy(section);blocks=[];sid=section['node_id'];structured=section.get('citationPoolVersion')==objects.VERSION
         sources={r['id']:r for r in [*(section.get('citationRefs',[])),*(evidence or []),*resources]}
@@ -62,7 +62,7 @@ def render_sections(sections,resources,project,numbers=None,evidence=None):
             blocks.append({'type':'notice','text':'旧版正文的图表编号尚未绑定对象，文中的图号、表号可能与装配标签不一致；重新生成此写作单元后可使用统一编号。'})
         for index,block in enumerate(incoming):
             if block['type']=='markdown':blocks.append({'type':'markdown','text':resolve(block['text'])});continue
-            common={'anchor':objects.anchor(block,sid,index),'label':objects.label(numbers,block,sid)}
+            common={'anchor':objects.anchor(block,sid,index),'label':objects.label(numbers,block,sid,language)}
             if block['type']=='table':
                 entry={**block,**common,'title':resolve(block['title']),'columns':[resolve(c) for c in block['columns']],
                     'rows':[[resolve(c) for c in row] for row in block['rows']],'notes':resolve(block['notes'])}
@@ -77,10 +77,10 @@ def render_sections(sections,resources,project,numbers=None,evidence=None):
                 if block.get('imageInput')!='attached':raise ValueError('未提供给模型的图片不能装配进正文')
                 entry['dataUrl']=evidence_resources.image_data(project,obj)
             blocks.append(entry)
-        item['displayBlocks']=blocks;item['markdown']=markdown(blocks);result.append(item)
+        item['displayBlocks']=blocks;item['markdown']=markdown(blocks,language=language);result.append(item)
     return result
 
-def markdown(blocks,image_writer=None):
+def markdown(blocks,image_writer=None,language='zh'):
     parts=[]
     for block in blocks:
         if block['type']=='markdown':parts.append(strip_source_links(dedupe_citations(block['text'])));continue
@@ -90,8 +90,8 @@ def markdown(blocks,image_writer=None):
             parts.extend(['**'+block['label']+' · '+block['title']+'**',objects.table_markdown(block)])
             if block['notes']:parts.append(block['notes'])
             continue
-        label=block['label'];parts.append('**'+label+' · 原文'+('表格' if block['kind']=='table' else '图片')+'** (PMID: '+block['pmid']+')')
+        label=block['label'];parts.append('**'+label+(' · Source '+('table' if block['kind']=='table' else 'image') if language=='en' else ' · 原文'+('表格' if block['kind']=='table' else '图片'))+'** (PMID: '+block['pmid']+')')
         if block['kind']=='table':parts.append(strip_source_links(block['content']))
         elif image_writer:parts.append('!['+label+']('+image_writer(block)+')')
-        else:parts.append('['+label+'：图片见正文预览或 HTML / Word 导出]')
+        else:parts.append('['+label+(': see the image in the preview or HTML / Word export]' if language=='en' else '：图片见正文预览或 HTML / Word 导出]'))
     return '\n\n'.join(parts)

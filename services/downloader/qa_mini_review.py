@@ -1,4 +1,5 @@
 """Round-based question answering using the review retrieval and resource contracts."""
+import content_language as lang
 import asyncio,copy,json,time
 import corpus_files as files
 import vector_chunks as chunks
@@ -23,10 +24,10 @@ ASSESS+='\n'+HISTORY_TOOLS
 WRITE=bundle_api.SYSTEM+'''\n本任务是回答用户问题的小综述，按 materialBundle.outputContract 输出一个写作单元。综合整个共享池联合回答，不为每个 query 独立写一遍。不重复问题标题；需要分层时用加粗段首。用中文回答，用户指定其他语言则遵循。source citations 和图表协议与综述相同。根据 stopReason 和 coverage 明确尚存缺口，不将材料缺失断言为研究不存在。没有字数上限，按问题需要完整论述。'''
 
 
-def make_bundle(question,run_id,evidence):
+def make_bundle(question,run_id,evidence,language=None):
     node={'id':run_id,'serial':'answer','title':question}
     unit={'serial':'answer','title':question,'nodes':[node],'leaves':[node]}
-    snapshot={'topic':question,'config':{'language':'按用户要求，默认中文','requirements':'回答用户问题，保留证据边界。'}}
+    snapshot={'topic':question,'config':{'language':lang.label(language) if language else '按用户要求，默认中文','requirements':'Answer the question and preserve evidence limitations.' if language=='en' else '回答用户问题，保留证据边界。'}}
     bundle=bundle_api.make(snapshot,unit,{run_id:{'query':question,'chunks':evidence}})
     return bundle,unit
 
@@ -35,6 +36,7 @@ def messages(project,profile,messages,payload):
     """Attach each real image once with the same R ID used by the review contract."""
     packed=copy.deepcopy(payload);parts=[];notes=[]
     task=packed.get('task',packed)
+    english=task['materialBundle']['task'].get('language')=='English'
     for obj in task['materialBundle']['resources']:
         if obj['kind']=='figure':
             if profile.get('model') in profile.get('visionModels',[]) and obj.get('assetPath'):
@@ -44,6 +46,10 @@ def messages(project,profile,messages,payload):
             else:
                 obj['imageInput']='not_provided';notes.append(obj['id']+' 未发送图像，只能依据附近文字，不能声称看过图片或插入原图。')
         obj.pop('assetPath',None)
+    if english:
+        notes=[n.replace(' 未发送图像，只能依据附近文字，不能声称看过图片或插入原图。',' has no image input. Use nearby text only; do not claim to have seen the image or insert it.') for n in notes]
+        for part in parts:
+            if part.get('type')=='text':part['text']=part['text'].replace('资源 ','Resource ')
     out=[dict(m) for m in messages];out[0]['content']+='\n'+'\n'.join(notes)
     text=json.dumps(packed,ensure_ascii=False)
     out[-1]['content']=[{'type':'text','text':text},*parts] if parts else text
@@ -78,11 +84,16 @@ def decode_answer(raw,bundle,unit,profile,project):
     sections,errors=bundle_api.decode(value,checked,unit,profile)
     if errors:raise ValueError('问答格式校验未通过：'+'；'.join(dict.fromkeys(str(issue) for issues in errors.values() for issue in issues)))
     if bundle['evidencePool'] and not sections[0]['citationRefs']:raise ValueError('回答没有提供池内证据引用')
-    rendered=review_content.render_sections(sections,bundle['resources'],project,evidence=bundle['evidencePool'])[0]
+    rendered=review_content.render_sections(sections,bundle['resources'],project,evidence=bundle['evidencePool'],language='en' if bundle['task']['language']=='English' else 'zh')[0]
     return rendered
 
 
 async def run(e,snapshot,cfg,planner,answer,records,papers,coverage,llm,save,event,finish_event,check,add,evidence,path,verify_materials,prepare_retrieval=None):
+    language=lang.normalize(snapshot.get('contentLanguage')) if snapshot.get('promptVersion') else None;english=language=='en'
+    plan_prompt=lang.PLAN_EN if english else PLAN
+    assess_prompt=lang.ASSESS_EN if english else ASSESS
+    direct_prompt=lang.DIRECT_EN if english else DIRECT
+    write_system=(lang.writing_system(language,bundle_api.SYSTEM)+'\n'+lang.WRITE_EN if english else lang.WRITING_ZH+WRITE[len(bundle_api.SYSTEM):]) if language else WRITE
     question=snapshot['question'];run_id=snapshot['id'];project=files.base(e)
     seen=set();history=[];aspects=[];examined=set();warnings=[]
     rcfg=snapshot.get('retrievalConfig') or retrieval.settings.snapshot(e.ROOT)
@@ -94,13 +105,13 @@ async def run(e,snapshot,cfg,planner,answer,records,papers,coverage,llm,save,eve
             table_start+=sum(b['type']=='table' for b in previous.get('sourceBlocks') or [])
         return result
     def checkpoint():
-        e.write_json(path/'evidence.json',evidence);e.write_json(path/'retrieval.json',history);e.write_json(path/'history-evidence.json',history_payload(make_bundle(question,run_id,evidence)[0]))
+        e.write_json(path/'evidence.json',evidence);e.write_json(path/'retrieval.json',history);e.write_json(path/'history-evidence.json',history_payload(make_bundle(question,run_id,evidence,language)[0]))
         save(readingCoverage={**coverage,'candidateChunks':len({h['chunkId'] for r in history for h in r['hits']}),
             'assessedChunks':0,'examinedChunks':len(examined),'examinedPapers':len({r['metadata']['pmid'] for r in evidence if r['id'] in examined}),
             'poolChunks':len(evidence),'poolPapers':len({r['metadata']['pmid'] for r in evidence}),
             'citedChunks':0,'paperRead':[]})
     def material():
-        bundle,_=make_bundle(question,run_id,evidence)
+        bundle,_=make_bundle(question,run_id,evidence,language)
         return {'question':question,'history':snapshot['history'],'aspects':aspects,'materialBundle':bundle,
                 'retrieval':history,'qualityWarnings':warnings,'historyEvidence':history_payload(bundle),'route':route}
     async def planning(stage,payload,prompt):
@@ -121,7 +132,7 @@ async def run(e,snapshot,cfg,planner,answer,records,papers,coverage,llm,save,eve
                 for row in result['rows']:add(row)
                 history_results.append(result)
                 history_bindings.update((result['runId'],ident) for ident in result['bindings'])
-                finish_event(step,result=history_payload(make_bundle(question,run_id,evidence)[0])[-1],reason='已按历史引用取回原文并绑定本轮编号')
+                finish_event(step,result=history_payload(make_bundle(question,run_id,evidence,language)[0])[-1],reason='已按历史引用取回原文并绑定本轮编号')
                 if result['unavailable']:warnings.append({'stage':'读取历史证据','reason':'部分历史证据不在当前文献范围或快照不可用：'+', '.join(result['unavailable'])})
             except ValueError as exc:
                 warnings.append({'stage':'读取历史证据','reason':str(exc)});finish_event(step,status='warning',reason=str(exc))
@@ -130,14 +141,14 @@ async def run(e,snapshot,cfg,planner,answer,records,papers,coverage,llm,save,eve
     async def assess(round_no,min_rounds):
         while True:
             decision=await planning('判断问答材料',{**material(),'round':round_no,'minRounds':min_rounds,'maxRounds':cfg['maxRounds'],
-                'previousQueries':sorted(seen),'maxQueries':cfg['queriesPerRound']},ASSESS)
+                'previousQueries':sorted(seen),'maxQueries':cfg['queriesPerRound']},assess_prompt)
             if not await read_history(decision.get('historyRequests',[])):return decision
-    plan=await planning('拆解问答问题',{'question':question,'history':snapshot['history'],'maxQueries':cfg['queriesPerRound']},PLAN)
+    plan=await planning('拆解问答问题',{'question':question,'history':snapshot['history'],'maxQueries':cfg['queriesPerRound']},plan_prompt)
     route=plan.get('route','research');save(intent=route,workflow=POLICY,rcsEnabled=False)
     event('intent',route=route,reason=plan.get('reason',''),status='done')
     if route in ('chat','clarify'):
         raw=await llm(answer,'澄清问题' if route=='clarify' else '对话回复',
-                      {'question':question,'history':snapshot['history'],'route':route,'guidance':plan.get('reason','')},DIRECT,structured=False)
+                      {'question':question,'history':snapshot['history'],'route':route,'guidance':plan.get('reason','')},direct_prompt,structured=False)
         await verify_materials();save(answer=raw,state='done',phase='已完成',round=0,finished=time.time(),stopReason='无需文献检索',
                         citationRefs=[],usedEvidence=[],citationValidation={'status':'not_applicable','problems':[]});return
     aspects=plan['aspects'];pending=queries(plan['queries'],cfg['queriesPerRound'],seen)
@@ -164,7 +175,7 @@ async def run(e,snapshot,cfg,planner,answer,records,papers,coverage,llm,save,eve
             # Never silently skip the lower bound or repeat the old query to fake a round.
             repair=await planning('补充问答查询',{**material(),'round':round_no,'minRounds':cfg['minRounds'],'maxRounds':cfg['maxRounds'],
                 'previousQueries':sorted(seen),'maxQueries':cfg['queriesPerRound'],'previousCoverage':decision.get('coverage',[])},
-                ASSESS+'\n上一轮没有提供可执行的新 query；本轮必须针对尚未解决的要点或反证与适用边界提出新查询。')
+                assess_prompt+('\nThe last round supplied no executable new query. Propose new queries targeting unresolved aspects, counterevidence and boundaries.' if english else '\n上一轮没有提供可执行的新 query；本轮必须针对尚未解决的要点或反证与适用边界提出新查询。'))
             await read_history(repair.get('historyRequests',[]))
             pending=queries(repair['queries'],cfg['queriesPerRound'],seen)
             if not pending:raise ValueError('模型未提出新的补查 query，未虚增检索轮数；可继续检查点重试')
@@ -200,17 +211,18 @@ async def run(e,snapshot,cfg,planner,answer,records,papers,coverage,llm,save,eve
     if not evidence:
         await verify_materials()
         save(answer='当前检索范围内未获得可用证据，无法据此给出研究结论；这不代表相关研究不存在。',state='done',finished=time.time(),citationValidation={'status':'no_evidence'});return
-    bundle,unit=make_bundle(question,run_id,evidence)
+    bundle,unit=make_bundle(question,run_id,evidence,language)
     await verify_materials()
     e.write_json(path/'answer-bundle.json',bundle)
     payload={**material(),'coverage':decision['coverage'],'stopReason':stop}
-    write_prompt=WRITE+('\n本轮只改写 historyEvidence.sourceBlocks：保留其论断边界与引用关系，可删减、翻译、重排或整合为表格；不得从材料中增加新结论。旧编号已由程序换为本轮编号。' if route=='rewrite' else '')
+    write_prompt=write_system+('\n本轮只改写 historyEvidence.sourceBlocks：保留其论断边界与引用关系，可删减、翻译、重排或整合为表格；不得从材料中增加新结论。旧编号已由程序换为本轮编号。' if route=='rewrite' else '')
     def decode_output(raw):
         rendered=decode_answer(raw,bundle,unit,answer,project)
         if route=='rewrite':
             original={value for old in payload['historyEvidence'] for value in old['referenceMap'].values() if value.startswith(('E','R'))}
             if any(r['id'] not in original for r in rendered['citationRefs']):raise ValueError('纯改写不得新增历史正式回答未引用的证据或图表引用')
         return rendered
+    if english and route=='rewrite':write_prompt=write_system+'\nRewrite only historyEvidence.sourceBlocks. Preserve claim boundaries and citation bindings. You may shorten, translate, reorder or synthesize a table, but add no new conclusions. The app has remapped old citation IDs.'
     raw=await llm(answer,'撰写问答',payload,write_prompt,structured=False)
     # A returned model response confirms this material was sent, even if its
     # formatting later fails validation. Pure rewrites do not run assess().
@@ -219,7 +231,7 @@ async def run(e,snapshot,cfg,planner,answer,records,papers,coverage,llm,save,eve
     try:rendered=decode_output(raw)
     except ValueError as exc:
         save(formatRepair={'reason':str(exc),'state':'running'})
-        raw=await llm(answer,'修复问答格式',{**payload,'invalidOutput':raw,'formatError':str(exc)},write_prompt+'\n只修复输出结构、证据 ID、交叉引用格式及错误的材料范围表述，保留有依据的内容；返回完整 JSON。',structured=False)
+        raw=await llm(answer,'修复问答格式',{**payload,'invalidOutput':raw,'formatError':str(exc)},write_prompt+('\nRepair only output structure, evidence IDs, object cross-references and incorrect material-scope claims. Preserve supported content and return complete JSON.' if english else '\n只修复输出结构、证据 ID、交叉引用格式及错误的材料范围表述，保留有依据的内容；返回完整 JSON。'),structured=False)
         try:rendered=decode_output(raw)
         except ValueError as failure:
             save(formatRepair={'reason':str(failure),'state':'failed'})

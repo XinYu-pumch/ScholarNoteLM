@@ -65,7 +65,7 @@ def generated_table_html(block):
     rows=''.join('<tr>'+''.join('<td>'+inline(c)+'</td>' for c in row)+'</tr>' for row in block['rows'])
     return '<table><thead><tr>'+header+'</tr></thead><tbody>'+rows+'</tbody></table>'
 
-def blocks_html(blocks):
+def blocks_html(blocks,language='zh'):
     from bs4 import BeautifulSoup
     parts=[]
     for block in blocks:
@@ -83,22 +83,22 @@ def blocks_html(blocks):
             if not re.fullmatch(r'data:image/(?:png|jpeg|gif|webp);base64,[A-Za-z0-9+/=]+',data):raise ValueError('正文图片快照格式无效')
             content=f'<img src="{data}" alt="{label} · PMID {pmid}" loading="lazy">'
         context=''.join(str(markdown_html(p['text'])) for p in block.get('context',[]))
-        details='<details class="body-resource-context"><summary>原文邻近文字（不保证为完整图注）</summary>'+context+'</details>' if context else ''
-        parts.append(f'<figure class="body-resource"{anchor} data-resource-id="{html.escape(block["resourceId"],quote=True)}">{content}<figcaption>{label} · 原文资源 (PMID: {pmid})</figcaption>{details}</figure>')
+        details='<details class="body-resource-context"><summary>'+('Neighboring text (may not be the full caption)' if language=='en' else '原文邻近文字（不保证为完整图注）')+'</summary>'+context+'</details>' if context else ''
+        parts.append(f'<figure class="body-resource"{anchor} data-resource-id="{html.escape(block["resourceId"],quote=True)}">{content}<figcaption>{label} · {'Source resource' if language=='en' else '原文资源'} (PMID: {pmid})</figcaption>{details}</figure>')
     return BeautifulSoup(''.join(parts),'html.parser')
 
-def html_document(topic,rows,sections,references,partial,section_blocks=None):
+def html_document(topic,rows,sections,references,partial,section_blocks=None,language='zh'):
     from bs4 import NavigableString
     toc=[];body=[]
     for index,row in enumerate(rows):
         sid=row['serial'];safe_sid=html.escape(sid,quote=True);title=html.escape(row['title']);depth=len(sid.split('.'));level=min(depth,6)
         has_children=index+1<len(rows) and rows[index+1]['serial'].startswith(sid+'.')
-        toggle=(f'<button class="toc-toggle" type="button" aria-expanded="true" aria-label="折叠 {safe_sid}">⌄</button>' if has_children else '<span class="toc-spacer"></span>')
+        toggle=(f'<button class="toc-toggle" type="button" aria-expanded="true" aria-label="{'Collapse' if language=='en' else '折叠'} {safe_sid}">⌄</button>' if has_children else '<span class="toc-spacer"></span>')
         toc.append(f'<div class="toc-item" data-serial="{safe_sid}" data-depth="{depth}" style="--indent:{min(depth-1,5)*12}px">{toggle}<a href="#s-{safe_sid}"><span class="toc-number">{safe_sid}</span><span>{title}</span></a></div>')
         body.append(f'<section id="s-{safe_sid}" class="sec depth-{level}"><h{level}><span class="section-number">{safe_sid}</span> {title}</h{level}>')
         text=sections.get(sid,'')
         if text:
-            soup=blocks_html(section_blocks[sid]) if section_blocks is not None and sid in section_blocks else markdown_html(text)
+            soup=blocks_html(section_blocks[sid],language) if section_blocks is not None and sid in section_blocks else markdown_html(text)
             for node in list(soup.find_all(string=True)):
                 if node.parent.name in ('code','pre','a'):continue
                 matches=list(re.finditer(r'[（(]\s*PMID\s*[:：]\s*([^）)]+)[）)]',str(node),re.I))
@@ -132,9 +132,24 @@ def html_document(topic,rows,sections,references,partial,section_blocks=None):
 {''.join(body)}<footer class="document-footer"><span>ScholarNoteLM</span><span>文献综述 · {stamp}</span></footer></article></main>
 <aside id="ref" aria-label="引用详情" hidden><div class="panel-heading"><div><span class="eyebrow">SOURCE MATERIAL</span><h2>引用详情</h2></div><button class="panel-close" data-close="ref" type="button" aria-label="关闭引用详情">×</button></div><div id="area" aria-live="polite"><div class="tip"><span class="tip-symbol" aria-hidden="true">↗</span><strong>从引用回到原文</strong><p>点击正文中的 PMID，查看该章节使用的文献素材。</p></div></div></aside>
 <script id="reference-data" type="application/json">{data}</script><script>{script}</script></body></html>'''
+    if language=='en':
+        document = f'''<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>{html.escape(topic)}</title><style>{css}</style></head>
+<body class="toc-open">
+<a class="skip-link" href="#main">Skip to article</a>
+<header class="reader-bar"><div class="brand"><span class="brand-mark" aria-hidden="true">S</span>ScholarNoteLM<span class="brand-divider">/</span><span class="bar-title">Review reader</span></div>
+<div class="reader-actions"><button id="toggle-toc" type="button" aria-controls="toc" aria-expanded="true">Contents</button><button id="toggle-ref" type="button" aria-controls="ref" aria-expanded="false">Citation details</button><button id="print" type="button">Print / PDF</button></div></header>
+<div class="reading-progress" aria-hidden="true"><span id="progress"></span></div>
+<button id="scrim" type="button" aria-label="Close sidebar" hidden></button>
+<nav id="toc" aria-label="Contents"><div class="panel-heading"><div><span class="eyebrow">CONTENTS</span><h2>Contents <span class="count">{len(rows)}</span></h2></div><button class="panel-close" data-close="toc" type="button" aria-label="Close contents">×</button></div><div class="toc-list">{''.join(toc)}</div><div class="toc-footer">Reading progress <span id="progress-label">0%</span></div></nav>
+<main id="main" tabindex="-1"><article class="document"><header class="document-header"><div class="eyebrow">LITERATURE REVIEW <span>Literature review</span></div><h1>{html.escape(topic)}</h1><div class="document-meta"><span>{len(rows)} sections</span><span>{len(pmids)} cited papers</span><time>Exported {stamp}</time></div>{'<p class="draft">Draft · Includes incomplete or outdated sections</p>' if partial else ''}</header>
+{''.join(body)}<footer class="document-footer"><span>ScholarNoteLM</span><span>Literature review · {stamp}</span></footer></article></main>
+<aside id="ref" aria-label="Citation details" hidden><div class="panel-heading"><div><span class="eyebrow">SOURCE MATERIAL</span><h2>Citation details</h2></div><button class="panel-close" data-close="ref" type="button" aria-label="Close citation details">×</button></div><div id="area" aria-live="polite"><div class="tip"><span class="tip-symbol" aria-hidden="true">↗</span><strong>Inspect the sources</strong><p>Click a PMID in the article to inspect the materials used for that section.</p></div></div></aside>
+<script id="reference-data" type="application/json">{data}</script><script>{script}</script></body></html>'''
     return html_compaction.compact_html(document)
 
-def word_document(dest,topic,rows,sections,partial,section_blocks=None):
+def word_document(dest,topic,rows,sections,partial,section_blocks=None,language='zh'):
     from docx import Document
     from docx.shared import Pt,Inches
     import base64,io
@@ -143,12 +158,12 @@ def word_document(dest,topic,rows,sections,partial,section_blocks=None):
     from docx.oxml.ns import qn
     from bs4 import NavigableString
     doc=Document();normal=doc.styles['Normal'];normal.font.name='Arial';normal.font.size=Pt(11)
-    cjk='Songti SC' if sys.platform=='darwin' else 'Microsoft YaHei'
+    cjk='PingFang SC' if sys.platform=='darwin' else 'Microsoft YaHei'
     for style_name in ['Normal','Title',*[f'Heading {i}' for i in range(1,10)]]:
         style=doc.styles[style_name];style.font.name='Arial';style._element.get_or_add_rPr().rFonts.set(qn('w:eastAsia'),cjk)
     title=doc.add_heading(topic,0);title.alignment=WD_PARAGRAPH_ALIGNMENT.CENTER
-    doc.add_paragraph('生成时间：'+time.strftime('%Y-%m-%d %H:%M'))
-    if partial:doc.add_paragraph('草稿：含未完成或待更新章节。')
+    doc.add_paragraph(('Generated: ' if language=='en' else '生成时间：')+time.strftime('%Y-%m-%d %H:%M'))
+    if partial:doc.add_paragraph('Draft: includes incomplete or outdated sections.' if language=='en' else '草稿：含未完成或待更新章节。')
     doc.add_page_break()
     def inline(p,node,bold=False,italic=False):
         if isinstance(node,NavigableString):
@@ -197,9 +212,9 @@ def word_document(dest,topic,rows,sections,partial,section_blocks=None):
     for row in rows:
         sid=row['serial'];doc.add_heading(sid+' '+row['title'],min(len(sid.split('.')),9))
         text=sections.get(sid,'')
-        if text:blocks(blocks_html(section_blocks[sid]) if section_blocks is not None and sid in section_blocks else markdown_html(text));used.update(re.findall(r'\d+',','.join(re.findall(r'PMID\s*[:：]\s*([\d\s,，、;；]+)',text,re.I))))
+        if text:blocks(blocks_html(section_blocks[sid],language) if section_blocks is not None and sid in section_blocks else markdown_html(text));used.update(re.findall(r'\d+',','.join(re.findall(r'PMID\s*[:：]\s*([\d\s,，、;；]+)',text,re.I))))
     if used:
-        doc.add_page_break();doc.add_heading('参考文献',1)
+        doc.add_page_break();doc.add_heading('References' if language=='en' else '参考文献',1)
         for pmid in sorted(used,key=int):
             p=doc.add_paragraph();p.add_run(f'[PMID: {pmid}] ').bold=True
             link=OxmlElement('w:hyperlink');link.set(qn('r:id'),doc.part.relate_to(f'https://pubmed.ncbi.nlm.nih.gov/{pmid}/','http://schemas.openxmlformats.org/officeDocument/2006/relationships/hyperlink',is_external=True))
