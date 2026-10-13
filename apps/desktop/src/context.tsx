@@ -1,3 +1,4 @@
+import {forgetPage} from './page-memory';
 import {useNativeClose} from './useNativeClose';
 import {flushLatestState} from './exitProtocol';
 import {canNavigate, requestNavigation} from './navigation';
@@ -12,6 +13,8 @@ type Context = {
   settingsTab: string; setSettingsTab: (tab: string) => void; openSettings: (tab: string) => void;
   updateProject: (update: (p: Project) => Project) => void;
   updateState: (update: (s: AppState) => AppState) => void;
+  createProject: (project: Project, folder: string) => Promise<void>;
+  retrySave: () => Promise<void>;
   deleteProject: (id: string) => Promise<void>;
   readerReturnPage: Page; openPaper: (paper: Paper) => void; paperId: string; setPaperId: (id: string) => void;
   notify: (message: string, options?: {tone?: NoticeTone; key?: string; scope?: string}) => void; toast: Notice | null; dismissToast: () => void; saveStatus: string;
@@ -82,6 +85,21 @@ export function Provider({ children }: { children: ReactNode }) {
     sync(); window.addEventListener('research-changed',sync);
     return () => { alive=false; window.removeEventListener('research-changed',sync); };
   }, [loaded,state.active]);
+  const retrySave = async () => {
+    clearTimeout(saveTimer.current); ++saveRevision.current;
+    flushing.current=true;
+    try {const snapshot=await flushLatestState(writeQueue.current,()=>latestState.current,writeState);setPersistedState(snapshot);setSaveFailure(false);}
+    catch(e){setSaveFailure(true);throw e;}finally{flushing.current=false;}
+  };
+  const createProject = async (project: Project, folder: string) => {
+    clearTimeout(saveTimer.current); ++saveRevision.current; flushing.current=true;
+    try {
+      await writeQueue.current.catch(()=>{});
+      await rpc('storage.register',{project:project.id,folder,data:project});
+      const next={...latestState.current,active:project.id,projects:[...latestState.current.projects.filter(p=>p.id!==project.id),project]};
+      await writeState(next);latestState.current=next;setState(next);setPersistedState(next);setSaveFailure(false);setPageRaw('library');
+    } finally {flushing.current=false;}
+  };
   const deleteProject = async (id: string) => {
     if (deleting.current) throw new Error('项目删除正在进行');
     if (!await canNavigate()) throw new Error('请先保存或取消当前编辑，再删除项目');
@@ -91,7 +109,7 @@ export function Provider({ children }: { children: ReactNode }) {
       await writeQueue.current.catch(() => {});
       await writeState(latestState.current);
       const result = await rpc<{state:AppState;deleted:boolean}>('storage.delete',{project:id,confirm:id});
-      setState(result.state);setPersistedState(result.state);setSaveFailure(false);
+      forgetPage(id);setState(result.state);setPersistedState(result.state);setSaveFailure(false);
       setPageRaw('library');setPaperId('');
 
     } finally { deleting.current = false; }
@@ -110,5 +128,5 @@ export function Provider({ children }: { children: ReactNode }) {
   });
   if (!loaded) return <div className="boot-screen"><img src="/mark.svg" alt="" /><h2>ScholarNoteLM</h2><p>{loadError || '正在打开你的研究空间…'}</p>{loadError && <button className="button" onClick={() => location.reload()}>重新加载</button>}</div>;
   const updateProject = (fn: (p: Project) => Project) => setState(current => ({ ...current, projects: current.projects.map(p => p.id === state.active ? fn(p) : p) }));
-  return <Context.Provider value={{ state, project, page, setPage, deleteProject, settingsTab,setSettingsTab,openSettings:tab=>requestNavigation(()=>{setSettingsTab(tab);setPageRaw('settings');}),updateProject, updateState: fn=>{const next=fn(latestState.current);if(next.active===latestState.current.active)setState(fn);else requestNavigation(()=>{setState(fn);setPageRaw('library');});}, paperId, setPaperId, readerReturnPage, openPaper: paper => requestNavigation(() => { if(pageRef.current!=='reader')setReaderReturnPage(pageRef.current); setPaperId(paper.id); setPageRaw('reader'); }), notify, toast, dismissToast, saveStatus }}>{children}{closeDialog}</Context.Provider>;
+  return <Context.Provider value={{ state, project, page, setPage, createProject, retrySave, deleteProject, settingsTab,setSettingsTab,openSettings:tab=>requestNavigation(()=>{setSettingsTab(tab);setPageRaw('settings');}),updateProject, updateState: fn=>{const next=fn(latestState.current);if(next.active===latestState.current.active)setState(fn);else requestNavigation(()=>{setState(fn);setPageRaw('library');});}, paperId, setPaperId, readerReturnPage, openPaper: paper => requestNavigation(() => { if(pageRef.current!=='reader')setReaderReturnPage(pageRef.current); setPaperId(paper.id); setPageRaw('reader'); }), notify, toast, dismissToast, saveStatus }}>{children}{closeDialog}</Context.Provider>;
 }

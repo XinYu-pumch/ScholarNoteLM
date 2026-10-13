@@ -1,3 +1,4 @@
+import {isSendShortcut} from './keyboard';
 import SearchResponse,{ProposalActions} from './SearchResponse';
 import {renderSearchTrace} from './search-stream-diagnostics';
 import {queryTextKey} from './search-proposals';
@@ -22,7 +23,7 @@ export default function SearchChat({queries,onAdd}:{queries:Query[];onAdd:(q:Pro
  useEffect(()=>{const onEscape=(event:KeyboardEvent)=>{if(event.key!=='Escape'||event.defaultPrevented||document.querySelector('dialog[open], [role="listbox"]'))return;if(threadsOpen&&window.matchMedia('(max-width:900px)').matches)setThreadsOpen(false);};window.addEventListener('keydown',onEscape);return()=>window.removeEventListener('keydown',onEscape);},[threadsOpen]);
  const [threads,setThreads]=useState<ChatThread[]>(()=>peekRpc<ChatThread[]>('chat.list',{project:project.id})||[]);const [current,setCurrent]=useState<ChatThread|null>(()=>peekRpc<ChatThread>('chat.get',{project:project.id,id:localStorage.getItem(`scholar-chat:${project.id}`)||''})||null);const [storedMessages,setMessages]=useState<ChatMessage[]>(current?.messages||[]);
  const modelChoice=useWorkspaceModel(`${project.id}:search`);const modelLabel=modelChoice.label;
- const [draft,setDraft]=usePageState(`${project.id}:search:draft`,'');const [pending,setPending]=useState(false);const [error,setError]=useState('');const [editing,setEditing]=useState<number|null>(null);const [editText,setEditText]=useState('');
+ const [draft,setDraft]=usePageState(`${project.id}:search:${current?.id||'new'}:draft`,'');const [pending,setPending]=useState(false);const [error,setError]=useState('');const [editing,setEditing]=usePageState<number|null>(`${project.id}:search:${current?.id||'new'}:editing`,null);const [editText,setEditText]=usePageState(`${project.id}:search:${current?.id||'new'}:editText`,'');
  const alive=useRef(true);const scroll=useRef<HTMLDivElement>(null);const following=useRef(true);const input=useRef<HTMLTextAreaElement>(null);
  useSearchSessions();const session=searchSession(project.id,current?.id);const streaming=!!session?.active;
  const messages=session?.messages||storedMessages;const runningIds=runningSearchThreads(project.id);const activity=runningIds.join(',');
@@ -39,9 +40,9 @@ export default function SearchChat({queries,onAdd}:{queries:Query[];onAdd:(q:Pro
 
  useEffect(()=>{void list().then(items=>{if(alive.current)setCurrent(c=>c?{...c,name:items.find(t=>t.id===c.id)?.name||c.name}:c);}).catch(()=>{});},[project.id,activity]);
  const list=async()=>{const items=await rpc<ChatThread[]>('chat.list',{project:project.id});if(alive.current)setThreads(items);return items;};
- async function choose(id:string){const t=await rpc<ChatThread>('chat.get',{project:project.id,id});if(!alive.current)return;setCurrent(t);setMessages(t.messages||[]);setEditing(null);setError('');following.current=pageMemory<{following:boolean}>(`${project.id}:search:scroll:${id}`)?.following??true;localStorage.setItem(`scholar-chat:${project.id}`,id);}
+ async function choose(id:string){const t=await rpc<ChatThread>('chat.get',{project:project.id,id});if(!alive.current)return;setCurrent(t);setMessages(t.messages||[]);setError('');following.current=pageMemory<{following:boolean}>(`${project.id}:search:scroll:${id}`)?.following??true;localStorage.setItem(`scholar-chat:${project.id}`,id);}
  async function action(fn:()=>Promise<void>){setPending(true);setError('');try{await fn();}catch(e){if(alive.current)setError(message(e));}finally{if(alive.current)setPending(false);}}
- async function create(){const t=await rpc<ChatThread>('chat.new',{project:project.id});await list();await choose(t.id);setDraft('');input.current?.focus();return t;}
+ async function create(){const t=await rpc<ChatThread>('chat.new',{project:project.id});await list();await choose(t.id);input.current?.focus();return t;}
 
  useEffect(()=>{alive.current=true;void action(async()=>{const items=await list();const saved=localStorage.getItem(`scholar-chat:${project.id}`);const id=items.find(t=>t.id===saved)?.id||items[0]?.id;if(id)await choose(id);else {setCurrent(null);setMessages([]);}});return()=>{alive.current=false;};},[project.id]);
  const restoredScroll=useRef('');const lastScrollTop=useRef(0);const pointerReading=useRef(false);
@@ -52,7 +53,7 @@ export default function SearchChat({queries,onAdd}:{queries:Query[];onAdd:(q:Pro
   lastScrollTop.current=el.scrollTop;
  },[current?.id,messages]);
  async function send(value=draft,target=current,base=messages){
-  if(!value.trim()||pending||searchSession(project.id,target?.id)?.active)return;
+  if(!modelChoice.ready||!value.trim()||pending||searchSession(project.id,target?.id)?.active)return;
   setError('');setEditing(null);setPending(true);following.current=true;
   try{
    let t=target;if(!t){t=await create();base=[];}
@@ -61,11 +62,11 @@ export default function SearchChat({queries,onAdd}:{queries:Query[];onAdd:(q:Pro
   }catch(e){if(alive.current)setError(message(e));}
   finally{if(alive.current)setPending(false);}
  }
- async function fork(keepCount:number,resend?:string){if(!current)return;const t=await rpc<ChatThread>('chat.fork',{project:project.id,id:current.id,keepCount});await list();await choose(t.id);if(resend!==undefined)await send(resend,t,t.messages||[]);else{setDraft('');notify('已创建分支，原对话完整保留');input.current?.focus();}}
+ async function fork(keepCount:number,resend?:string){if(!current)return;const t=await rpc<ChatThread>('chat.fork',{project:project.id,id:current.id,keepCount});await list();await choose(t.id);if(resend!==undefined)await send(resend,t,t.messages||[]);else{notify('已创建分支，原对话完整保留');input.current?.focus();}}
  async function regenerate(index:number){let user=index-1;while(user>=0&&messages[user].role!=='user')user--;if(user>=0)await fork(user,messages[user].text);}
  async function changeConversation(fn:()=>Promise<void>){setPending(true);try{await fn();}finally{if(alive.current)setPending(false);}}
  async function renameConversation(id:string,name:string){await changeConversation(async()=>{await rpc('chat.rename',{project:project.id,id,name});await list();if(current?.id===id){setCurrent(c=>c?{...c,name}:c);}});}
- async function duplicateConversation(id:string){await changeConversation(async()=>{const t=await rpc<ChatThread>('chat.copy',{project:project.id,id});await list();await choose(t.id);setDraft('');notify('已复制对话，可在副本中独立继续');});}
+ async function duplicateConversation(id:string){await changeConversation(async()=>{const t=await rpc<ChatThread>('chat.copy',{project:project.id,id});await list();await choose(t.id);notify('已复制对话，可在副本中独立继续');});}
  async function deleteConversations(ids:string[]){await changeConversation(async()=>{await rpc('chat.archive_many',{project:project.id,ids});forgetSearchSessions(project.id,ids);const items=await list();if(current&&ids.includes(current.id)){setCurrent(null);setMessages([]);setDraft('');if(items.length)await choose(items[0].id);else localStorage.removeItem(`scholar-chat:${project.id}`);}});}
  return <div className="search-chat-layout">
   {threadsOpen&&<button className="conversation-backdrop" aria-label="关闭检索对话侧栏" onClick={()=>setThreadsOpen(false)}/>}<aside className="chat-sidebar" hidden={!threadsOpen}><div className="chat-list-heading"><span>我的对话</span><button className="icon-button" aria-label="收起对话侧栏" onClick={()=>setThreadsOpen(false)}><PanelLeft size={15}/></button><button title="新建对话" aria-label="新建对话" disabled={pending} onClick={()=>void action(async()=>{await create();})}><Plus size={17}/></button></div><ConversationList items={threads} currentId={current?.id} className="chat-thread-list" label="文献检索对话" disabled={pending} runningIds={runningIds} onChoose={id=>void action(()=>choose(id))} onRename={renameConversation} onCopy={duplicateConversation} onDelete={deleteConversations}/></aside>
@@ -77,13 +78,13 @@ export default function SearchChat({queries,onAdd}:{queries:Query[];onAdd:(q:Pro
     {messages.map((m,i)=>{const live=streaming&&i===messages.length-1&&m.role==='assistant';return <article data-turn-id={m.role==='user'?String(i):undefined} tabIndex={-1} className={`chat-message ${m.role}`} key={`${current?.id||'new'}-${i}`}>
      <div className="chat-speaker">{m.role==='user'?'你':(m.modelLabel||m.result?.modelLabel||m.result?.model||modelLabel||'检索助手')}{live&&<span className="chat-live">正在回复<span> ···</span></span>}</div>
      <div className="chat-bubble">
-      {editing===i?<div className="chat-edit"><textarea aria-label="编辑用户消息" autoFocus value={editText} onChange={e=>setEditText(e.target.value)} onKeyDown={e=>{if(e.key==='Enter'&&(e.metaKey||e.ctrlKey)&&!e.nativeEvent.isComposing){e.preventDefault();if(editText.trim())void action(()=>fork(i,editText));}}}/><div><button className="button secondary compact" onClick={()=>setEditing(null)}>取消</button><button className="button primary compact" disabled={busy||!editText.trim()} onClick={()=>void action(()=>fork(i,editText))}>在新分支重发</button></div></div>:m.role==='user'?<p>{m.text}</p>:<SearchResponse message={m} live={live}/>}
+      {editing===i?<div className="chat-edit"><textarea aria-label="编辑用户消息" autoFocus value={editText} onChange={e=>setEditText(e.target.value)} onKeyDown={e=>{if(isSendShortcut(e)){e.preventDefault();if(editText.trim())void action(()=>fork(i,editText));}}}/><div><button className="button secondary compact" onClick={()=>setEditing(null)}>取消</button><button className="button primary compact" disabled={busy||!editText.trim()} onClick={()=>void action(()=>fork(i,editText))}>在新分支重发</button></div></div>:m.role==='user'?<p>{m.text}</p>:<SearchResponse message={m} live={live}/>}
 
      </div>
      {!live&&<div className="chat-message-actions">{m.role==='user'?<button disabled={busy} onClick={()=>{setEditing(i);setEditText(m.text);}}><Pencil size={13}/>编辑重发</button>:<><button disabled={!m.text} onClick={()=>void copy(responseText(m))}><Copy size={13}/>复制</button><button disabled={busy} onClick={()=>void action(()=>regenerate(i))}><RotateCcw size={13}/>重新生成</button></>}<button disabled={busy} onClick={()=>void action(()=>fork(i+1))}><GitBranch size={13}/>从这里开启新对话</button></div>}
     </article>;})}
    </div></ProposalActions.Provider>
-   <form className="wb-composer" onSubmit={e=>{e.preventDefault();if(!busy)void send();}}><textarea ref={input} aria-label="研究需求" placeholder="描述你的研究问题…" value={draft} onChange={e=>setDraft(e.target.value)} onKeyDown={e=>{if(e.key==='Enter'&&(e.metaKey||e.ctrlKey)&&!e.nativeEvent.isComposing){e.preventDefault();if(!busy&&draft.trim())void send();}}} rows={2}/><div><span>Enter 换行 · {navigator.platform.includes('Mac')?'⌘':'Ctrl'} + Enter 发送</span>{streaming?<button type="button" className="button secondary compact" onClick={()=>{if(current)void stopSearchSession(project.id,current.id).catch(e=>setError(message(e)));}}><Square size={13}/>停止生成</button>:<button className="button primary compact" disabled={busy||!draft.trim()}><Send size={14}/>发送</button>}</div></form>
+   {!modelChoice.ready&&<p id="search-send-reason" className="action-reason">请先在设置中配置模型，并选择检索模型。</p>}<form className="wb-composer" onSubmit={e=>{e.preventDefault();if(!busy)void send();}}><textarea ref={input} aria-label="研究需求" placeholder="描述你的研究问题…" value={draft} onChange={e=>setDraft(e.target.value)} onKeyDown={e=>{if(isSendShortcut(e)){e.preventDefault();if(!busy&&draft.trim())void send();}}} rows={2}/><div><span>Enter 换行 · {navigator.platform.includes('Mac')?'⌘':'Ctrl'} + Enter 发送</span>{streaming?<button type="button" className="button secondary compact" onClick={()=>{if(current)void stopSearchSession(project.id,current.id).catch(e=>setError(message(e)));}}><Square size={13}/>停止生成</button>:<button className="button primary compact" aria-describedby={!modelChoice.ready?'search-send-reason':undefined} disabled={busy||!modelChoice.ready||!draft.trim()}><Send size={14}/>发送</button>}</div></form>
   </section>
  </div>;
 }

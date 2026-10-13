@@ -25,7 +25,7 @@
 }
 .qa-page .qa-header h1 {
   letter-spacing: -.5px;
-  font-weight: 600;
+  font-weight: var(--fw-semibold);
   font-size: var(--fs-title2)
 }
 .qa-page .qa-header p {
@@ -123,7 +123,7 @@
 }
 .qa-page .qa-answer-head strong {
   font-size: var(--fs-footnote);
-  font-weight: 600
+  font-weight: var(--fw-semibold)
 }
 .qa-page .qa-answer-head>span:last-child {
   margin-left: auto;
@@ -157,11 +157,11 @@
   letter-spacing: -.3px;
   margin: 28px 0 16px;
   font-size: var(--fs-title3);
-  font-weight: 600
+  font-weight: var(--fw-semibold)
 }
 .qa-page .qa-answer h3 {
   font-size: var(--fs-callout);
-  font-weight: 600;
+  font-weight: var(--fw-semibold);
   margin: 24px 0 12px
 }
 .qa-page .qa-answer>:first-child {
@@ -176,7 +176,7 @@
   margin: 8px 0
 }
 .qa-answer strong {
-  font-weight: 600
+  font-weight: var(--fw-semibold)
 }
 .qa-answer blockquote {
   border-left: 2px solid var(--chat-accent);
@@ -226,7 +226,7 @@
   overflow: hidden
 }
 .qa-trace-toggle strong {
-  font-weight: 500;
+  font-weight: var(--fw-medium);
   font-size: var(--fs-footnote);
   white-space: nowrap;
   color: var(--chat-accent)
@@ -308,7 +308,7 @@
 }
 .qa-validation>summary strong {
   font-size: var(--fs-footnote);
-  font-weight: 500
+  font-weight: var(--fw-medium)
 }
 .qa-validation>summary>span {
   margin-left: auto;
@@ -369,7 +369,7 @@
   display: none
 }
 .qa-sources>summary strong {
-  font-weight: 500;
+  font-weight: var(--fw-medium);
   color: var(--chat-ink)
 }
 .qa-sources>summary svg:last-child {
@@ -399,7 +399,7 @@
   font-size: var(--fs-footnote);
   line-height: 1.7;
   display: block;
-  font-weight: 500
+  font-weight: var(--fw-medium)
 }
 .qa-source-row small {
   display: block;
@@ -525,7 +525,7 @@
 }
 .search-chat-layout .chat-speaker {
   color: var(--chat-muted);
-  font-weight: 500
+  font-weight: var(--fw-medium)
 }
 .search-chat-layout .chat-message.user .chat-speaker {
   text-align: right
@@ -598,7 +598,7 @@
 }
 .qa-reasoning>button strong {
   font-size: var(--fs-footnote);
-  font-weight: 500;
+  font-weight: var(--fw-medium);
   color: var(--chat-ink)
 }
 .qa-reasoning>button>span {
@@ -644,7 +644,7 @@
   height: 12px;
   border-radius: var(--radius-xs);
   background: var(--chat-accent);
-  animation: reasoning-pulse 1.2s ease-in-out infinite
+  animation: reasoning-pulse var(--dur-pulse) ease-in-out infinite
 }
 @keyframes reasoning-pulse{
 50% {
@@ -747,7 +747,7 @@ to {
   display: block;
   position: absolute;
   inset: 0;
-  background: rgb(20 24 35 / 24%);
+  background: var(--backdrop);
   z-index: 40
 }}
 @media(max-width:900px){
@@ -767,7 +767,7 @@ to {
   display: block;
   position: absolute;
   inset: 0;
-  background: rgb(20 24 35 / 24%);
+  background: var(--backdrop);
   z-index: 30
 }
 .search-chat-layout,.qa-page {

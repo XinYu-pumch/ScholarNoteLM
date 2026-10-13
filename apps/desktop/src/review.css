@@ -155,13 +155,13 @@
   height: 5px;
   border-radius: 50%;
   background: var(--accent);
-  animation: review-pulse 1.2s ease-in-out infinite
+  animation: review-pulse var(--dur-pulse) ease-in-out infinite
 }
 .review-pulse i:nth-child(2) {
-  animation-delay: .2s
+  animation-delay: var(--dur-base)
 }
 .review-pulse i:nth-child(3) {
-  animation-delay: .4s
+  animation-delay: var(--dur-slow)
 }@keyframes review-pulse{
 50% {
   opacity: .25;
@@ -194,7 +194,7 @@
 }
 .review-outline-heading h3 span {
   font-size: var(--fs-footnote);
-  font-weight: 400;
+  font-weight: var(--fw-regular);
   color: var(--muted);
   margin-left: 9px
 }
@@ -253,7 +253,7 @@
   line-height: 1.6
 }
 .review-outline-row.level-1 input {
-  font-weight: 600
+  font-weight: var(--fw-semibold)
 }
 .review-outline-row textarea:focus,.review-outline-row textarea:hover {
   border-color: var(--line);
@@ -364,7 +364,7 @@
 .review-tabs>button.selected {
   color: var(--accent);
   border-bottom-color: var(--accent);
-  font-weight: 600
+  font-weight: var(--fw-semibold)
 }
 .writing-setup {
   border: 1px solid var(--line);
@@ -490,7 +490,7 @@
   overflow-wrap: anywhere;
   font-family: var(--font-reading);
   font-size: var(--fs-title2);
-  font-weight: 500;
+  font-weight: var(--fw-medium);
   line-height: 1.4
 }
 .writing-body-toolbar .text-button {
@@ -554,7 +554,7 @@
   color: var(--accent)
 }
 .writing-evidence-card strong {
-  font-weight: 500
+  font-weight: var(--fw-medium)
 }
 .writing-evidence-card small {
   display: block;
@@ -647,7 +647,7 @@
   font-size: var(--fs-footnote);
   line-height: 1.5;
   outline: none;
-  transition: border-color .15s,box-shadow .15s
+  transition: border-color var(--dur-fast),box-shadow var(--dur-fast)
 }
 .writing-fields input:focus,.writing-setup .review-extra textarea:focus {
   border-color: var(--accent);
@@ -683,7 +683,7 @@
 }
 .writing-batch-progress progress::-webkit-progress-value {
   background: var(--accent);
-  transition: width .25s
+  transition: width var(--dur-slow)
 }
 .writing-batch-counts {
   display: flex;
@@ -753,7 +753,7 @@
 }
 .writing-markdown th {
   background: var(--accent-soft);
-  font-weight: 600
+  font-weight: var(--fw-semibold)
 }
 .body-resource {
   margin: 24px 0;
@@ -805,7 +805,7 @@
   scroll-margin-top: 20px
 }
 .body-table figcaption {
-  font-weight: 600
+  font-weight: var(--fw-semibold)
 }
 .body-table figcaption p {
   margin: 0 0 10px
@@ -853,7 +853,7 @@
 }
 .review-configuration>summary strong {
   color: var(--text);
-  font-weight: 500;
+  font-weight: var(--fw-medium);
   margin-right: 12px
 }
 .review-configuration[open]>summary {
@@ -905,7 +905,7 @@
   display: block;
   position: absolute;
   inset: 0;
-  background: rgb(20 24 35 / 24%);
+  background: var(--backdrop);
   z-index: 20
 }
 .writing-tree,.writing-body {
@@ -981,7 +981,7 @@
 
 
 .review-configuration-heading {display:flex;align-items:center;justify-content:space-between;gap:16px;padding:14px 16px;border-bottom:1px solid var(--line)}
-.review-configuration-heading h3 {margin:0;font-size:var(--fs-body);font-weight:600}
+.review-configuration-heading h3 {margin:0;font-size:var(--fs-body);font-weight: var(--fw-semibold)}
 .review-configuration .review-input-card {margin:0;border:0}
 .review-generation-actions>.review-toolbar {flex-wrap:wrap;justify-content:flex-end}
 

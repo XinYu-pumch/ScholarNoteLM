@@ -1,3 +1,4 @@
+import {useEffect} from 'react';
 import {useTabs} from './useTabs';
 import {usePageState} from './page-memory';
 import {useVectors} from './Vector';
@@ -43,7 +44,8 @@ export default function Library() {
   const [status, setStatus] = usePageState(`${project.id}:library:status`,'all');
   const [sort, setSort] = usePageState(`${project.id}:library:sort`,'added');
   const [grid, setGrid] = usePageState(`${project.id}:library:grid`,false);
-  const [selected, setSelected] = useState<string[]>([]);
+  const [selected, setSelected] = usePageState<string[]>(`${project.id}:library:selected`,[]);
+  useEffect(()=>{setSelected(ids=>ids.filter(id=>project.papers.some(p=>p.id===id)));},[project.papers]);
   const [detail, setDetail] = useState<Paper | null>(null);
   const filtered = papers.filter(p => (tab !== 'starred' || p.starred) && (tab !== 'fulltext' || (p.status === 'indexed'||p.status === 'pdf')) && (tab !== 'converted' || isConverted(p.id)) && (tab !== 'needs' || (p.researchManaged?!sourcePrepared(p.id):p.status !== 'indexed')) && (status === 'all' || p.status === status) && `${p.title} ${p.author} ${p.tag} ${p.journal}`.toLowerCase().includes(query.toLowerCase())).sort((a, b) => sort === 'year' ? b.year - a.year : sort === 'title' ? a.title.localeCompare(b.title) : 0);
   function toggle(id: string) { setSelected(current => current.includes(id) ? current.filter(v => v !== id) : [...current, id]); }

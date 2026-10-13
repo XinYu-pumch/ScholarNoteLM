@@ -1,33 +1,23 @@
-import { chromium, expect } from '@playwright/test';
-import { mkdir } from 'node:fs/promises';
-const browser = await chromium.launch({ headless: true });
-const page = await browser.newPage({ viewport: { width: 1440, height: 1000 }, deviceScaleFactor: 1 });
-const errors = [];
-page.on('pageerror', e => errors.push(e.message));
-await mkdir('docs/screenshots', { recursive: true });
-await page.goto('http://127.0.0.1:1420');
-await page.getByRole('heading', { name: '文献库' }).waitFor();
-await expect(page.locator('.save-state')).toContainText('已保存到本地');
-await page.screenshot({ path: 'docs/screenshots/library.png' });
-await page.getByRole('button', { name: '切换主题', exact: true }).click();
-await expect(page.locator('.save-state')).toContainText('已保存到本地');
-await page.mouse.move(0, 0);
-await page.screenshot({ path: 'docs/screenshots/dark.png' });
-await page.getByRole('button', { name: '切换主题', exact: true }).click();
-await expect(page.locator('.save-state')).toContainText('已保存到本地');
-await page.getByRole('navigation', { name: '主导航' }).getByRole('button', { name: '文献问答', exact: true }).click();
-await page.mouse.move(0, 0);
-await page.screenshot({ path: 'docs/screenshots/chat.png' });
-await page.getByRole('navigation', { name: '主导航' }).getByRole('button', { name: '综述工作台' }).click();
-await page.mouse.move(0, 0);
-await page.screenshot({ path: 'docs/screenshots/review.png' });
-await page.getByRole('navigation', { name: '主导航' }).getByRole('button', { name: '项目概览', exact: true }).click();
-await page.mouse.move(0, 0);
-await page.screenshot({ path: 'docs/screenshots/overview.png' });
-await page.setViewportSize({ width: 390, height: 844 });
-await page.getByRole('button', { name: '打开导航', exact: true }).click();
-await page.getByRole('navigation', { name: '主导航' }).getByRole('button', { name: '文献问答', exact: true }).click();
-await expect(page.locator('.sidebar')).toHaveCSS('left', '-230px');
-await page.screenshot({ path: 'docs/screenshots/mobile.png' });
-console.log(JSON.stringify({ errors }));
-await browser.close();
+/** Read-only validator for snapshots gathered through the supported browser UI tools.
+ * Create an isolated root with create-design-fixture.py; start Vite with that root.
+ * Capture DOM geometry (read-only) and screenshots with CUA, then pass the JSON:
+ * node scripts/visual-check.mjs <snapshot.json>
+ * No implicit connection to the user's 1420 server and no obsolete overview/save-state assertions.
+ */
+import assert from 'node:assert/strict';import {readFile,realpath} from 'node:fs/promises';import {resolve,relative} from 'node:path';
+const file=process.argv[2];assert.ok(file,'Pass a captured Design System snapshot JSON.');
+const report=JSON.parse(await readFile(file,'utf8'));const root=await realpath(report.fixtureRoot);
+const tmp=await realpath(new URL('../tmp/',import.meta.url));assert.ok(relative(tmp,root)&&!relative(tmp,root).startsWith('..'),'Only isolated tmp fixtures may be verified.');
+await readFile(resolve(root,'.design-system-fixture'),'utf8');
+assert.ok(report.views?.length>=6,'Capture desktop dimensions, both themes and a stress viewport.');
+for(const view of report.views){
+ assert.ok(view.width>0&&view.height>0);assert.ok(['light','dark'].includes(view.theme));
+ assert.equal(view.pageOverflow,false,`${view.page} ${view.width}: whole-page overflow`);
+ assert.deepEqual(view.unnamedButtons,[],`${view.page}: unnamed controls`);
+ assert.equal(view.overviewPresent,false,'Removed overview must not return');
+ assert.equal(view.globalSavedText,false,'Global saved status must remain removed');
+ if(view.composer)assert.ok(view.composer.width>0&&view.composer.height>0,`${view.page}: composer missing`);
+}
+for(const size of ['900x650','1024x768','1440x940','360x780'])assert.ok(report.views.some(v=>`${v.width}x${v.height}`===size),`Missing ${size}`);
+assert.ok(report.views.some(v=>v.theme==='dark'));assert.ok(report.views.some(v=>v.theme==='light'));
+assert.deepEqual(report.consoleErrors,[]);console.log(JSON.stringify({passed:true,views:report.views.length,fixture:relative(tmp,root)}));

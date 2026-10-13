@@ -69,8 +69,8 @@
   color: var(--muted)
 }
 .pdf-facts b {
-  font-weight: 500;
-  color: var(--text,#293e35)
+  font-weight: var(--fw-medium);
+  color: var(--text)
 }
 .pdf-path {
   display: block;
@@ -123,7 +123,7 @@
 .pdf-connection-card .wb-check {grid-row:2;align-self:center}
 .pdf-connection-card .pdf-connection-field {grid-row:3}
 .pdf-connection-card p {grid-row:4;align-self:start}
-.pdf-mirrors>summary {display:flex;align-items:center;gap:8px;cursor:pointer;list-style:none;font-size:var(--fs-callout);font-weight:500}
+.pdf-mirrors>summary {display:flex;align-items:center;gap:8px;cursor:pointer;list-style:none;font-size:var(--fs-callout);font-weight: var(--fw-medium)}
 .pdf-mirrors>summary::-webkit-details-marker {display:none}
 .pdf-mirrors[open]>summary>svg {transform:rotate(90deg)}
 .pdf-mirrors .pdf-mirrors-body {padding:16px 0 0;gap:12px}

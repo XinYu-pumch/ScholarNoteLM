@@ -75,7 +75,7 @@
   font-size: var(--fs-footnote)
 }
 .turn-located {
-  animation: turn-locate 1.6s ease-out
+  animation: turn-locate var(--dur-locate) ease-out
 }@keyframes turn-locate{
 from {
   background-color: var(--accent-soft)

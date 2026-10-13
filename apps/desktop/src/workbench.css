@@ -28,7 +28,7 @@
 .wb-toolbar h2 span {
   color: var(--muted);
   font-size: var(--fs-footnote);
-  font-weight: 400
+  font-weight: var(--fw-regular)
 }
 .wb-toolbar p {
   font-size: var(--fs-footnote);
@@ -108,7 +108,7 @@
   gap: 8px;
   font-size: var(--fs-footnote);
   color: var(--muted);
-  font-weight: 500
+  font-weight: var(--fw-medium)
 }
 .wb-form input:not([type=checkbox]),.wb-form textarea,.wb-form select,.wb-search-inline input {
   width: 100%;
@@ -202,7 +202,7 @@
 }
 .wb-chat-intro h2 {
   font-family: Georgia,'Songti SC',serif;
-  font-weight: 400;
+  font-weight: var(--fw-regular);
   font-size: var(--fs-title1);
   margin: 16px 0
 }
@@ -406,7 +406,7 @@
 .wb-mesh-counts b {
   font-family: Georgia,serif;
   font-size: var(--fs-title1);
-  font-weight: 400
+  font-weight: var(--fw-regular)
 }
 .wb-mesh-counts span {
   font-size: var(--fs-footnote);
@@ -486,7 +486,7 @@
   text-align: left
 }
 .query-table th {
-  font-weight: 500;
+  font-weight: var(--fw-medium);
   color: var(--muted);
   padding: 0 7px;
   border-bottom: 1px solid var(--line);
@@ -710,7 +710,7 @@
 .chat-thread-list>button.selected {
   color: var(--accent);
   background: var(--accent-soft);
-  font-weight: 500
+  font-weight: var(--fw-medium)
 }
 .chat-thread-list>button:hover {
   background: var(--accent-wash)
@@ -826,7 +826,7 @@
 .chat-markdown h1,.chat-markdown h2,.chat-markdown h3,.chat-markdown h4 {
   font-size: var(--fs-body);
   margin: 20px 0 9px;
-  font-weight: 600
+  font-weight: var(--fw-semibold)
 }
 .chat-markdown ul,.chat-markdown ol {
   padding-left: 21px;
@@ -898,7 +898,7 @@
 }
 .chat-reasoning summary>svg:last-child {
   margin-left: auto;
-  transition: transform .15s
+  transition: transform var(--dur-fast)
 }
 .chat-reasoning[open] summary>svg:last-child {
   transform: rotate(180deg)
@@ -915,7 +915,7 @@
   font-size: var(--fs-footnote)
 }
 .chat-live span {
-  animation: pulse 1.5s ease-in-out infinite
+  animation: pulse var(--dur-spin) ease-in-out infinite
 }
 .chat-proposal-action {
   border-top: 1px solid var(--line);
@@ -934,7 +934,7 @@
 }
 .chat-proposal-action strong {
   font-size: var(--fs-footnote);
-  font-weight: 500
+  font-weight: var(--fw-medium)
 }
 .chat-proposal-action small {
   font-size: var(--fs-footnote);
@@ -1208,7 +1208,7 @@
 .chat-proposal-action h4 {
   font-size: var(--fs-footnote);
   line-height: 1.65;
-  font-weight: 500;
+  font-weight: var(--fw-medium);
   margin: 0
 }
 .proposal-source {
@@ -1285,7 +1285,7 @@
 }
 .model-settings-heading h2 {
   font-size: var(--fs-headline);
-  font-weight: 500
+  font-weight: var(--fw-medium)
 }
 .model-settings-heading p {
   font-size: var(--fs-footnote);
@@ -1420,7 +1420,7 @@
 .model-ncbi strong {
   font-size: var(--fs-footnote);
   color: var(--text);
-  font-weight: 500
+  font-weight: var(--fw-medium)
 }
 .model-ncbi small {
   font-size: var(--fs-footnote);
@@ -1639,7 +1639,7 @@
 .chat-stream-reasoning { white-space: pre-wrap; overflow-wrap: anywhere; line-height: 1.8; }
 .batch-filter-form {display:grid;gap:18px}
 .batch-filter-form>section {padding:16px;border:1px solid var(--line);border-radius:var(--radius-control)}
-.batch-filter-form .batch-filter-toggle {display:flex;align-items:center;gap:9px;font-weight:600;margin-bottom:14px}
+.batch-filter-form .batch-filter-toggle {display:flex;align-items:center;gap:9px;font-weight: var(--fw-semibold);margin-bottom:14px}
 .batch-filter-form fieldset {display:grid;gap:12px;margin:0;padding:0;border:0;min-width:0}
 .batch-filter-form fieldset:disabled {opacity:.5}
 .batch-filter-form fieldset label {display:grid;gap:8px;font-size:var(--fs-subhead)}

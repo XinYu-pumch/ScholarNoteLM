@@ -89,7 +89,7 @@
 }}
 .artifact-state {
   font-size: var(--fs-footnote);
-  font-weight: 400;
+  font-weight: var(--fw-regular);
   border-radius: var(--radius-sm);
   padding: 3px 6px;
   white-space: nowrap;
@@ -153,7 +153,7 @@
   border: 0
 }
 .workflow-summary strong {
-  font-weight: 500;
+  font-weight: var(--fw-medium);
   font-variant-numeric: tabular-nums;
   display: inline-block;
   font-size: var(--fs-title2);
@@ -201,7 +201,7 @@
 }.workflow-summary strong small {
   display: inline;
   font-size: var(--fs-footnote);
-  font-weight: 400
+  font-weight: var(--fw-regular)
 }.workflow-summary>div>small {
   white-space: nowrap;
   overflow: hidden;

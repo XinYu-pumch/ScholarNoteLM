@@ -1,7 +1,7 @@
+import {isComposing} from './keyboard';
 import {Children,isValidElement,useEffect,useId,useLayoutEffect,useRef,useState,type ReactNode,type SelectHTMLAttributes,type KeyboardEvent} from 'react';
 import {createPortal} from 'react-dom';
 import {Check,ChevronDown} from 'lucide-react';
-import './select.css';
 type Option={value:string;label:string;disabled:boolean};
 type Props=Omit<SelectHTMLAttributes<HTMLSelectElement>,'onChange'|'multiple'|'size'> & {onChange?:(event:{target:{value:string}})=>void};
 function text(node:ReactNode):string{return Children.toArray(node).map(n=>isValidElement<{children?:ReactNode}>(n)?text(n.props.children):String(n)).join('');}
@@ -20,6 +20,7 @@ export default function Select({children,value,defaultValue,onChange,disabled,id
  function show(){if(disabled)return;trigger.current?.focus();setContainer(trigger.current?.closest('dialog')||document.body);setActive(Math.max(0,options.findIndex(o=>o.value===selected&&!o.disabled)));setOpen(true);}
  function pick(index:number){const opt=options[index];if(!opt||opt.disabled)return;setLocal(opt.value);onChange?.({target:{value:opt.value}});close(true);}
  function key(e:KeyboardEvent){
+  if(isComposing(e))return;
   if(e.key==='Escape'&&open){e.preventDefault();e.stopPropagation();close(true);return;}
   if(e.key==='Tab'){close();return;}
   if(['Enter',' ','ArrowDown','ArrowUp','Home','End'].includes(e.key)){
@@ -36,7 +37,7 @@ export default function Select({children,value,defaultValue,onChange,disabled,id
  useEffect(()=>{const list=menu.current;const row=list?.children[active] as HTMLElement|undefined;if(!list||!row)return;if(row.offsetTop<list.scrollTop)list.scrollTop=row.offsetTop;else if(row.offsetTop+row.offsetHeight>list.scrollTop+list.clientHeight)list.scrollTop=row.offsetTop+row.offsetHeight-list.clientHeight;},[active,open]);
  return <span className={`app-select ${className||''}`}>
   {name&&<input type="hidden" name={name} value={selected}/>}
-  <button ref={trigger} id={uid} type="button" role="combobox" aria-label={rest['aria-label']} aria-labelledby={rest['aria-labelledby']} aria-describedby={rest['aria-describedby']} aria-required={required} aria-haspopup="listbox" aria-expanded={open} aria-controls={open?`${uid}-list`:undefined} aria-activedescendant={open?`${uid}-option-${active}`:undefined} className="app-select-trigger" disabled={disabled} title={rest.title||chosen?.label} onClick={()=>open?close():show()} onKeyDown={key} onDoubleClick={e=>e.stopPropagation()} onBlur={e=>{if(!menu.current?.contains(e.relatedTarget as Node))close();}}><span>{chosen?.label||selected||'请选择'}</span><ChevronDown size={14}/></button>
+  <button ref={trigger} id={uid} type="button" role="combobox" aria-label={rest['aria-label']} aria-labelledby={rest['aria-labelledby']} aria-describedby={rest['aria-describedby']} aria-required={required} aria-invalid={rest['aria-invalid']} aria-haspopup="listbox" aria-expanded={open} aria-controls={open?`${uid}-list`:undefined} aria-activedescendant={open?`${uid}-option-${active}`:undefined} className="app-select-trigger" disabled={disabled} title={rest.title||chosen?.label} onClick={()=>open?close():show()} onKeyDown={key} onDoubleClick={e=>e.stopPropagation()} onBlur={e=>{if(!menu.current?.contains(e.relatedTarget as Node))close();}}><span>{chosen?.label||selected||'请选择'}</span><ChevronDown size={14}/></button>
   {open&&container&&createPortal(<div ref={menu} id={`${uid}-list`} role="listbox" aria-label={rest['aria-label']} className="app-select-menu" style={{position:'fixed',...position}} onPointerDown={e=>e.preventDefault()} onClick={e=>e.stopPropagation()}>{options.length?options.map((o,i)=><div key={`${o.value}-${i}`} id={`${uid}-option-${i}`} role="option" aria-selected={o.value===selected} aria-disabled={o.disabled} className={`app-select-option ${i===active?'active':''} ${o.value===selected?'selected':''}`} onPointerMove={()=>{if(!o.disabled)setActive(i);}} onClick={()=>pick(i)}><span>{o.label}</span>{o.value===selected&&<Check size={14}/>}</div>):<div className="app-select-empty">暂无可选项</div>}</div>,container)}
  </span>;
 }

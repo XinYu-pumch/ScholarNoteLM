@@ -10,11 +10,13 @@ export function useDraftGuard(options: {
   save: () => Promise<void>;
   discard: () => void;
   saveLabel?: string;
+  scope?: 'page' | 'dialog';
 }) {
   const current = useRef(options);
   current.current = options;
   const resolve = useRef<((allowed: boolean) => void) | null>(null);
   const savingRef = useRef(false);
+  const mounted = useRef(true);
   const continueButton = useRef<HTMLButtonElement>(null);
   const [open, setOpen] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -28,16 +30,18 @@ export function useDraftGuard(options: {
     return new Promise<boolean>(done => { resolve.current = done; });
   };
   useEffect(() => {
-    const unregister = registerNavigationGuard(check);
+    mounted.current=true;
+    const unregister = registerNavigationGuard(check,options.scope==='dialog'?1:0);
     const beforeUnload = (event: BeforeUnloadEvent) => {
       if (current.current.dirty || savingRef.current) { event.preventDefault(); event.returnValue = ''; }
     };
     window.addEventListener('beforeunload', beforeUnload);
-    return () => { unregister(); resolve.current?.(false); resolve.current = null; window.removeEventListener('beforeunload', beforeUnload); };
+    return () => { mounted.current=false; unregister(); if(!savingRef.current){resolve.current?.(false); resolve.current = null;} window.removeEventListener('beforeunload', beforeUnload); };
   }, []);
   function finish(allowed: boolean) {
     if (savingRef.current) return;
-    setOpen(false); resolve.current?.(allowed); resolve.current = null;
+    const done=resolve.current;resolve.current=null;
+    if(mounted.current)setOpen(false);done?.(allowed);
   }
   async function saveAndLeave() {
     if (savingRef.current) return;
@@ -45,15 +49,15 @@ export function useDraftGuard(options: {
     try {
       await current.current.save();
       savingRef.current = false; finish(true);
-    } catch (e) { setError(message(e)); }
-    finally { savingRef.current = false; setSaving(false); }
+    } catch (e) { if(mounted.current)setError(message(e));else {resolve.current?.(false);resolve.current=null;} }
+    finally { savingRef.current = false; if(mounted.current)setSaving(false); }
   }
   const dialog = open ? <Modal title="保存修改后离开？" subtitle={`${options.label}有未保存的修改。`} onClose={() => finish(false)}>
     <p>保存成功后将继续刚才的操作；不保存会放弃本次修改。</p>
     {error && <p className="wb-inline-error" role="alert">{error}</p>}
     <div className="modal-actions draft-actions">
       <button ref={continueButton} data-dialog-autofocus className="button secondary" disabled={saving} onClick={() => finish(false)}>继续编辑</button>
-      <button className="button secondary danger" disabled={saving} onClick={() => { current.current.discard(); finish(true); }}>不保存并离开</button>
+      <button className="button secondary danger" disabled={saving} onClick={() => { finish(true); current.current.discard(); }}>不保存并离开</button>
       <button className="button primary" disabled={saving} onClick={() => void saveAndLeave()}>{saving ? '正在保存…' : options.saveLabel || '保存并离开'}</button>
     </div>
   </Modal> : null;

@@ -47,3 +47,27 @@ test('notification severity chooses accessible status and never marks failure as
     if(tone!=='success')assert.doesNotMatch(html,/lucide-check/);
   }
 });
+
+test('modal drafts finish before page drafts and pending automatic writes',async()=>{
+ const seen=[];
+ const a=registerNavigationGuard(()=>{seen.push('page');return true;});
+ const b=registerNavigationGuard(()=>{seen.push('autosave');return true;},-1);
+ const c=registerNavigationGuard(()=>{seen.push('modal');return true;},1);
+ assert.equal(await canNavigate(),true);assert.deepEqual(seen,['modal','page','autosave']);a();b();c();
+});
+test('a dismissed child may unregister the parent before the next guard runs',async()=>{
+ const parent=registerNavigationGuard(()=>assert.fail('unmounted editor must not run'));
+ const child=registerNavigationGuard(()=>{parent();return true;},1);
+ assert.equal(await canNavigate(),true);child();
+});
+test('Chinese IME never submits with command/control Enter, including WebKit keyCode 229',async()=>{
+ const source=await readFile(new URL('../apps/desktop/src/keyboard.ts',import.meta.url),'utf8');
+ const js=ts.transpileModule(source,{compilerOptions:{target:ts.ScriptTarget.ES2022,module:ts.ModuleKind.ES2022}}).outputText;
+ const {isSendShortcut}=await import(`data:text/javascript;base64,${Buffer.from(js).toString('base64')}`);
+ const event={key:'Enter',metaKey:true,ctrlKey:false,nativeEvent:{isComposing:false,keyCode:13}};
+ assert.equal(isSendShortcut(event),true);
+ assert.equal(isSendShortcut({...event,metaKey:false}),false);
+ assert.equal(isSendShortcut({...event,nativeEvent:{isComposing:true,keyCode:13}}),false);
+ assert.equal(isSendShortcut({...event,nativeEvent:{isComposing:false,keyCode:229}}),false);
+ assert.equal(isSendShortcut({...event,metaKey:false,ctrlKey:true}),true);
+});

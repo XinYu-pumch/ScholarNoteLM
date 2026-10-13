@@ -6,13 +6,13 @@
 .evidence-resource {
   margin: 8px 0;
   padding: 10px;
-  border: 1px solid var(--border,#d5dcd8);
+  border: 1px solid var(--border);
   border-radius: var(--radius-md);
   overflow-wrap: anywhere
 }
 .evidence-resource summary {
   cursor: pointer;
-  font-weight: 600
+  font-weight: var(--fw-semibold)
 }
 .evidence-resource img {
   display: block;
@@ -29,7 +29,7 @@
   font-size: var(--fs-footnote)
 }
 .resource-table td,.resource-table th {
-  border: 1px solid var(--border,#d5dcd8);
+  border: 1px solid var(--border);
   padding: 6px;
   white-space: normal;
   min-width: 60px

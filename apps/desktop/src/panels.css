@@ -189,7 +189,7 @@
   background: var(--chat-user);
   color: var(--chat-accent);
   box-shadow: inset 2px 0 var(--chat-accent);
-  font-weight: 500
+  font-weight: var(--fw-medium)
 }
 .qa-thread-list>p {
   font-size: var(--fs-footnote);
