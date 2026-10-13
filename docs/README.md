@@ -27,7 +27,7 @@
 | 综述共享材料包与图表引用协议 | [review-shared-pool.md](review-shared-pool.md)、[review-resource-blocks.md](review-resource-blocks.md) |
 | 文件生命周期与“最新”判定 | [ARTIFACT_LIFECYCLE.md](ARTIFACT_LIFECYCLE.md) |
 | 系统资源与项目存储 | [PROJECT_STORAGE.md](PROJECT_STORAGE.md) |
-| Design System：视觉、组件、布局、交互、任务状态与迁移验收 | [UI_DESIGN.md](UI_DESIGN.md) |
+| Design System：视觉、组件、布局、交互、任务状态与迁移验收 | [UI_DESIGN.md](UI_DESIGN.md)、[验收矩阵](design-system/acceptance.md) |
 
 ## 评估与待办
 
