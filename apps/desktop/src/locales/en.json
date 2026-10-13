@@ -1535,5 +1535,8 @@
   "该工作区名称已存在（不区分大小写）": "A workspace with this name already exists (case-insensitive).",
   "此记录无需恢复": "This run does not need resuming.",
   "分支位置无效": "Invalid branch point.",
-  "请选择分支位置": "Select a branch point."
+  "请选择分支位置": "Select a branch point.",
+  "第 {p0} 行未提供分区": "Row {p0}: quartile not provided",
+  "；": "; ",
+  "{p0} 篇失败": "{p0} papers failed"
 }

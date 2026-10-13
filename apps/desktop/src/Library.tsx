@@ -22,7 +22,7 @@ export default function Library() {
   const {data:vectors,error:vectorError}=useVectors(project.id);
   const artifact=(id:string)=>{const pmid=id.replace('PMID-','');const indexed=vectors?.items.find(i=>i.pmid===pmid);if(indexed)return indexed;const local=markdown?.items.find(i=>i.pmid===pmid);return local?{pmid,pdfState:local.pdfState,markdownState:local.markdownState,vectorState:'checking',sourceKind:local.pdf?'fulltext':'pubmed_abstract'}:undefined;};
   function artifactLabel(key:'pdfState'|'markdownState'|'vectorState',state:string,abstractOnly:boolean){
-   const name={pdfState:'PDF',markdownState:'转换文本',vectorState:'检索材料'}[key];
+   const name=tr({pdfState:'PDF',markdownState:'转换文本',vectorState:'检索材料'}[key]);
    if(state==='latest')return key==='pdfState'?'已有 PDF':key==='markdownState'?'已转换':abstractOnly?'摘要可用于问答':'可用于问答';
    if(state==='outdated')return tr("{p0}需更新",{p0:name});
    if(state==='invalid')return tr("{p0}不可用",{p0:name});
