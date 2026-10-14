@@ -1,6 +1,5 @@
 """Quota admission and delayed-success throughput, with no remote API calls."""
-import hashlib,importlib.util,json,sys,tempfile,time,threading,unittest
-from contextlib import contextmanager
+import hashlib,importlib.util,json,math,sys,tempfile,time,threading,unittest
 from pathlib import Path
 from types import SimpleNamespace
 from unittest.mock import patch
@@ -81,32 +80,45 @@ class QuotaThroughputTests(unittest.TestCase):
   self.assertGreater(count,100) # Continues making progress beyond the first window.
  def test_tokenizer_scope_never_leaks_across_models_providers_or_revisions(self):
   for delta in [{'model':'jina-embeddings-v3'},{'modelRevision':'custom'},{'baseUrl':'https://example.test/v1'}]:
-   with patch('httpx.stream',side_effect=AssertionError('must not download')):
+   with patch.object(Path,'read_bytes',side_effect=AssertionError('must not read tokenizer')):
     self.assertIsNone(budget.jina_costs(self.root,{**self.cfg,**delta},['text'],lambda:None))
+ def test_bundled_tokenizer_has_pinned_checksum_and_attribution(self):
+  path=budget.JINA_V4_ASSET
+  self.assertEqual(path.stat().st_size,11421896)
+  self.assertEqual(hashlib.sha256(path.read_bytes()).hexdigest(),budget.JINA_V4_SHA256)
+  self.assertIn(budget.JINA_V4_REVISION,(path.parent/'NOTICE').read_text())
+  self.assertTrue((path.parent/'LICENSE').is_file())
  @unittest.skipUnless(importlib.util.find_spec('tokenizers'),'Tokenizer lives in the index worker runtime')
- def test_tokenizer_download_failure_and_corruption_fall_back_without_partial_asset(self):
-  import httpx
-  for error in [httpx.ConnectError('offline'),ValueError('invalid asset')]:
-   with patch('httpx.stream',side_effect=error):
-    self.assertIsNone(budget.jina_costs(self.root,self.cfg,['text'],lambda:None))
-   directory=self.root/'cache/embedding-tokenizers/jina-embeddings-v4'
-   self.assertFalse(directory.exists() and list(directory.iterdir()))
-  @contextmanager
-  def corrupt(*args,**kwargs):
-   yield SimpleNamespace(raise_for_status=lambda:None,iter_bytes=lambda _:iter([b'corrupt tokenizer']))
-  with patch('httpx.stream',side_effect=corrupt):
+ def test_missing_corrupt_or_oversized_resource_falls_back_without_network_or_cache(self):
+  path=self.root/'tokenizer.json'
+  with patch.object(budget,'JINA_V4_ASSET',path),patch('socket.socket.connect',side_effect=AssertionError('must stay offline')):
    self.assertIsNone(budget.jina_costs(self.root,self.cfg,['text'],lambda:None))
-  self.assertFalse(list(directory.iterdir()))
+   path.write_bytes(b'corrupt tokenizer')
+   self.assertIsNone(budget.jina_costs(self.root,self.cfg,['text'],lambda:None))
+   with patch.object(budget,'MAX_ASSET_BYTES',1),patch.object(Path,'read_bytes',side_effect=AssertionError('must reject oversized asset before reading')):
+    self.assertIsNone(budget.jina_costs(self.root,self.cfg,['text'],lambda:None))
+  self.assertEqual(list(self.root.iterdir()),[path])
  @unittest.skipUnless(importlib.util.find_spec('tokenizers'),'Tokenizer lives in the index worker runtime')
- def test_cached_tokenizer_counts_entire_text_and_checks_digest(self):
+ def test_tokenizer_counts_entire_text_without_stored_truncation(self):
   from tokenizers import Tokenizer,models,pre_tokenizers
   tokenizer=Tokenizer(models.WordLevel({'[UNK]':0,'word':1},unk_token='[UNK]'));tokenizer.pre_tokenizer=pre_tokenizers.Whitespace()
-  # Stored truncation must never silently shorten the budget or API input.
-  tokenizer.enable_truncation(2)
-  path=self.root/'cache/embedding-tokenizers/jina-embeddings-v4/tokenizer.json';path.parent.mkdir(parents=True);tokenizer.save(str(path))
+  # Stored truncation and padding must never change full-text budgets.
+  tokenizer.enable_truncation(2);tokenizer.enable_padding(length=200)
+  path=self.root/'tokenizer.json';tokenizer.save(str(path))
   digest=hashlib.sha256(path.read_bytes()).hexdigest()
-  with patch.object(budget,'JINA_V4_SHA256',digest),patch('httpx.stream',side_effect=AssertionError('cache should be used')):
+  with patch.object(budget,'JINA_V4_ASSET',path),patch.object(budget,'JINA_V4_SHA256',digest):
    self.assertEqual(budget.jina_costs(self.root,self.cfg,['word '*100],lambda:None),[113])
+ @unittest.skipUnless(importlib.util.find_spec('tokenizers'),'Tokenizer lives in the index worker runtime')
+ def test_official_bundle_works_offline_with_empty_root_without_copying_assets(self):
+  from tokenizers import Tokenizer
+  texts=['Primary membranous nephropathy.','原发性膜性肾病 🧬','蛋白尿 proteinuria. '*3000]
+  tokenizer=Tokenizer.from_file(str(budget.JINA_V4_ASSET));tokenizer.no_truncation();tokenizer.no_padding()
+  expected=[math.ceil(len(tokenizer.encode(t).ids)*1.05)+8 for t in texts]
+  with patch('socket.socket.connect',side_effect=AssertionError('must stay offline')):
+   self.assertEqual(budget.jina_costs(self.root,self.cfg,texts,lambda:None),expected)
+   self.assertEqual(budget.jina_costs(self.root/'another-root',self.cfg,texts,lambda:None),expected)
+  self.assertGreater(expected[-1],8192)
+  self.assertEqual(list(self.root.iterdir()),[])
  def test_stop_during_tokenizer_setup_propagates(self):
   def stop():raise InterruptedError('stopped')
   with self.assertRaises(InterruptedError):budget.jina_costs(self.root,self.cfg,['text'],stop)
