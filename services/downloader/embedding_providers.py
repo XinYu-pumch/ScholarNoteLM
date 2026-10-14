@@ -6,7 +6,7 @@ PRESETS=(
     {'id':'siliconflow','name':'siliconflow','baseUrl':'https://api.siliconflow.cn/v1/embeddings',
      'model':'Pro/BAAI/bge-m3','batchSize':32,'concurrency':4,'rpm':1800,'tpm':450000,'timeout':120,'adaptive':True},
     {'id':'jina','name':'jina','baseUrl':'https://api.jina.ai/v1/embeddings',
-     'model':'jina-embeddings-v5-text-nano','batchSize':32,'concurrency':2,'rpm':100,'tpm':100000,'timeout':120,'adaptive':True},
+     'model':'jina-embeddings-v4','batchSize':32,'concurrency':2,'rpm':100,'tpm':100000,'timeout':120,'adaptive':True},
 )
 
 def presets():

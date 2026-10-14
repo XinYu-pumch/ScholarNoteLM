@@ -12,11 +12,11 @@
 | 预设 | 模型 | 每批文本数 | 并发 | RPM | TPM |
 | --- | --- | --- | --- | --- | --- |
 | siliconflow | `Pro/BAAI/bge-m3` | 32 | 4 | 1800 | 450000 |
-| jina | `jina-embeddings-v5-text-nano` | 32 | 2 | 100 | 100000 |
+| jina | `jina-embeddings-v4` | 32 | 2 | 100 | 100000 |
 
 这四个参数与自动速度开关属于各自配置，不是全局参数。两套预设默认开启自动速度；每批文本数、并发显示为灰色且不可编辑，保存的手动值不限制自动调度。关闭自动速度后恢复使用这些手动值。RPM/TPM 始终参与限速；自动调度也根据延迟、429、网络错误调整批量与并发。预设配额可按实际账号修改，并非服务商所有账号的统一配额。
 
-Jina 地址为 `https://api.jina.ai/v1/embeddings`。默认 text-nano 支持 8192 token、768 维多语言文本向量，适合优先考虑轻量文本检索的配置；不宣称已在本应用的生物医学语料上达到 bge-m3 同等效果。模型列表实时获取，只保留支持文本输入的单向量嵌入模型，排除聊天、OCR、重排与 ColBERT 多向量模型。v3/v4/v5 按用途发送 `retrieval.passage`（文献）与 `retrieval.query`（问题），请求浮点向量并禁用静默截断。Jina 的协议签名独立于旧通用请求，旧 Jina 索引需更新；其他服务商的签名保持不变。
+Jina 地址为 `https://api.jina.ai/v1/embeddings`，新配置预设默认选择 `jina-embeddings-v4`；已有配置的模型和当前项目索引保持原样，不随预设更新迁移。模型列表实时获取，只保留支持文本输入的单向量嵌入模型，排除聊天、OCR、重排与 ColBERT 多向量模型。v3/v4/v5 按用途发送 `retrieval.passage`（文献）与 `retrieval.query`（问题），请求浮点向量并禁用静默截断。Jina 的协议签名独立于旧通用请求，旧 Jina 索引需更新；其他服务商的签名保持不变。
 
 官方参考：[模型规格](https://jina.ai/embeddings/)、[模型 API](https://api.jina.ai/v1/models)、[限额仪表盘](https://jina.ai/api-dashboard/rate-limit/)。仪表盘与新版 API 文档的免费限额目前不一致，预设采用较保守的 100 RPM / 100000 TPM。更便宜的模型不代表赠送 token 数会增加，免费额度消耗以账号账单为准。
 
