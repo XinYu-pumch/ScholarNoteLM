@@ -108,7 +108,11 @@ def register(root,a):
     if name.lower() in {v.lower() for v in cfg['projects'].values()}:raise ValueError('项目文件夹名称已使用（不区分大小写）')
     dest=Path(cfg['workspace'])/name
     if dest.exists():raise ValueError('目标文件夹已存在，请换一个名称')
+    import embedding_profiles,project_embedding
+    from types import SimpleNamespace
+    model=embedding_profiles.active(SimpleNamespace(ROOT=root))
     cfg['projects'][pid]=name;layout(dest);atomic(dest/'project.json',a['data']);atomic(root/'config/storage.json',cfg)
+    if model.get('id'):atomic(dest/'metadata/embedding-model.json',project_embedding.selection(model))
     return status(root,pid)
 
 def delete_project(root,a):

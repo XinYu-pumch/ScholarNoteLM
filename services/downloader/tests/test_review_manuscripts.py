@@ -99,4 +99,25 @@ class ManuscriptTests(unittest.TestCase):
   e.write_json(self.path/'writing-job.json',{'state':'running','pid':os.getpid()})
   with self.assertRaisesRegex(ValueError,'撰写'):self.call('writing.reset',confirm=True)
 
+ def test_partial_manuscripts_are_history_only_and_draft_export_does_not_archive(self):
+  self.seed();unit=w.tree_units(w.rows_at(e,self.path))[0]
+  (self.path/'review_parts'/f'section_{unit["serial"]}.json').unlink()
+  self.assertIsNone(m.save(e,'Test'));self.assertEqual(m.listing(e,'Test'),[])
+  exported=m.export(e,'Test','html');self.assertTrue(exported['partial'])
+  self.assertEqual(m.listing(e,'Test',drafts=True),[])
+  archived=m.reset(e,'Test');self.assertTrue(archived['partial'])
+  self.assertEqual(m.listing(e,'Test'),[]);self.assertEqual(len(m.listing(e,'Test',drafts=True)),1)
+  self.assertTrue(m.get(e,'Test',archived['id'])['partial'])
+ def test_missing_node_is_not_complete_even_when_group_file_exists(self):
+  self.seed();unit=w.tree_units(w.rows_at(e,self.path))[0]
+  cached=r.read(self.path/'sections'/f'{unit["id"]}.json');cached['sections'].pop()
+  e.write_json(self.path/'sections'/f'{unit["id"]}.json',cached)
+  e.write_json(self.path/'review_parts'/f'section_{unit["serial"]}.json',{'unit_id':unit['serial'],'sections':cached['sections']})
+  self.assertTrue(m.capture(e,'Test')['partial']);self.assertIsNone(m.save(e,'Test'))
+ def test_rename_preserves_workspace_artifacts(self):
+  self.seed();before=(self.path/'outline.csv').read_bytes()
+  renamed=self.call('describe',newName='Renamed',description='Updated')
+  self.assertEqual(renamed['name'],'Renamed');self.assertFalse(self.path.exists())
+  self.assertEqual((r.work(e,'Renamed')/'outline.csv').read_bytes(),before)
+  self.assertEqual(len(list((r.work(e,'Renamed')/'sections').glob('*.json'))),2)
 if __name__=='__main__':unittest.main()

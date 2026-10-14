@@ -39,7 +39,7 @@ export async function rpc<T>(action:string,args:Record<string,unknown>={}):Promi
  if(cachedReads.has(action))return read(queryKey(action,args),async()=>{const value=await transport<T>(action,args);observeMaterials(action,args,value);return value;},action==='profile.list'?500:80);
  const result=await transport<T>(action,args);
  if(/^zotero\.(start|cancel)$/.test(action))invalidate(typeof args.project==='string'?args.project:undefined,['workspace','zotero.status']);
- if(/^(query\.|jcr\.|library\.(start|clear)|markdown\.(start|reconcile|settings.save)|vector\.(start|settings.save|profile.activate|profile.delete)|storage\.)/.test(action))invalidate(typeof args.project==='string'?args.project:undefined,materialReads);
+ if(/^(query\.|jcr\.|library\.(start|clear)|markdown\.(start|reconcile|settings.save)|vector\.(start|settings.save|profile.activate|profile.delete|project.bind)|storage\.)/.test(action))invalidate(typeof args.project==='string'?args.project:undefined,materialReads);
  if(/^(profile\.(save|delete)|pubmed.save)$/.test(action))invalidate(undefined,['profile.list','settings','review.list','review.writing.status']);
  if(/^(qa|chat)\.(new|language|rename|copy|fork|start|cancel|resume|regenerate|delete|delete_many|archive|archive_many)$/.test(action))invalidate(typeof args.project==='string'?args.project:undefined,[action.startsWith('qa.')?'qa.list':'chat.list',action.startsWith('qa.')?'qa.get':'chat.get'],/\.(delete|archive)(_many)?$/.test(action));
  if(action==='download.settings.save')invalidate(undefined,['markdown.status']);

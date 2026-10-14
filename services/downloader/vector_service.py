@@ -11,8 +11,8 @@ ACTIVE=('queued','running','stopping')
 TEST_TEXT='ScholarNoteLM embedding connection test.'
 def endpoint(cfg):return cfg['baseUrl'].rstrip('/') if cfg['baseUrl'].rstrip('/').endswith('/embeddings') else cfg['baseUrl'].rstrip('/')+'/embeddings'
 def config(e):
-    import embedding_profiles
-    return embedding_profiles.active(e)
+    import project_embedding
+    return project_embedding.config(e)
 def public(cfg):return {**{k:v for k,v in cfg.items() if k!='apiKey'},'hasKey':bool(cfg.get('apiKey'))}
 def profile(cfg):
     identity=[cfg['baseUrl'],cfg['model'],cfg.get('modelRevision',''),chunks.TEMPLATE]
@@ -23,7 +23,7 @@ def settings(e):
     import retrieval_settings,embedding_profiles
     data=embedding_profiles.store(e)
     return {'profiles':[{**public({**DEFAULTS,**p}),'verified':retrieval_settings.verified(e.ROOT,{**DEFAULTS,**p})} for p in data['profiles']],
-            'presets':providers.presets(),'activeProfile':data['activeProfile'],'apiVerified':retrieval_settings.verified(e.ROOT,cfg),'config':public(cfg),'configured':bool(cfg['baseUrl'] and cfg['model']),'runtimeReady':(e.ROOT/('runtimes/marker/Scripts/python.exe' if os.name=='nt' else 'runtimes/marker/bin/python')).is_file(),'splitter':{'version':chunks.SPLITTER,'maxChars':8192,'minChars':1,'method':'period-balanced'}}
+            'projectModel':public(cfg),'presets':providers.presets(),'activeProfile':data['activeProfile'],'apiVerified':retrieval_settings.verified(e.ROOT,cfg),'config':public(cfg),'configured':bool(cfg['baseUrl'] and cfg['model']),'runtimeReady':(e.ROOT/('runtimes/marker/Scripts/python.exe' if os.name=='nt' else 'runtimes/marker/bin/python')).is_file(),'splitter':{'version':chunks.SPLITTER,'maxChars':8192,'minChars':1,'method':'period-balanced'}}
 def validated(e,a):
     import embedding_profiles
     cfg=embedding_profiles.form(e,a)
@@ -355,6 +355,13 @@ def rpc(e,action,a):
     if action=='models':
         import embedding_profiles
         return embedding_profiles.models(e,a)
+    if action=='project.bind':
+        if not a.get('project'):raise ValueError('请选择要绑定模型的项目')
+        import embedding_profiles,retrieval_settings,project_embedding
+        cfg=embedding_profiles.get(e,a.get('id'))
+        if not retrieval_settings.verified(e.ROOT,cfg):raise ValueError('请先测试该配置的连接')
+        if read_job(e) and read_job(e).get('state') in ACTIVE:raise ValueError('请先停止当前索引任务')
+        project_embedding.bind(e,cfg);return settings(e)
     if action=='profile.activate':
         import embedding_profiles,retrieval_settings
         cfg=embedding_profiles.get(e,a.get('id'))

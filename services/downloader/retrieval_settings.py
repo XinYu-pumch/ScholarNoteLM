@@ -25,14 +25,17 @@ def mark_verified(e,cfg,dimension):
         if old.get('fingerprint'):entries[old['fingerprint']]={k:v for k,v in old.items() if k!='verifications'}
         current={'fingerprint':fingerprint(cfg),'dimension':dimension,'verifiedAt':time.time()};entries[current['fingerprint']]=current
         e.write_json(path,{**current,'verifications':entries})
-def snapshot(root):
+def snapshot(root,project=None):
     import vector_service as v
-    cfg=read(root)
-    if cfg['method']=='api':cfg['embeddingFingerprint']=fingerprint(v.config(SimpleNamespace(ROOT=root)))
+    cfg=read(root);emb=v.config(SimpleNamespace(ROOT=root,PROJECT=project))
+    if cfg['method']=='api':cfg['embeddingFingerprint']=fingerprint(emb)
+    if project:
+        cfg['embeddingProfile']=emb.get('id','')
+        cfg['embeddingModel']={k:emb.get(k,'') for k in ('id','name','baseUrl','model','modelRevision')}
     return cfg
 def public(e):
     import vector_service as v
-    cfg=read(e.ROOT);emb=v.config(e)
+    cfg=read(e.ROOT);emb=v.config(e);cfg['embeddingProfile']=emb.get('id','')
     return {'config':cfg,'apiVerified':verified(e.ROOT,emb),
             'apiModel':((emb.get('name','')+'/') if emb.get('name') else '')+emb['model'] if emb['baseUrl'] else '',
             'apiConfigured':bool(emb['baseUrl'] and emb['model'])}

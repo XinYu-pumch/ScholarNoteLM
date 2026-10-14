@@ -229,6 +229,10 @@ def rpc(e,op,a):
                         try:m['outlineCount']=len(parse_csv((d/'outline.csv').read_text(encoding='utf-8-sig')))
                         except (OSError,ValueError):m['outlineCount']=0
                         m['contentLanguage']=content_settings(e,d.name)[0]
+                        import review_writing as writing
+                        ctx=writing.manuscripts.context(e,d.name)
+                        m['materialModel']=ctx.get('materialSnapshot',{}).get('retrieval',{}).get('embeddingModel',{}).get('model','')
+                        m['writingState']=writing.job(e,d.name).get('state','idle')
                         items.append(m)
             try:p=profile(e);model=p['model'];model_label=(p.get('name','')+'/' if p.get('name') else '')+model
             except ValueError:model='';model_label=''
@@ -278,7 +282,17 @@ def rpc(e,op,a):
             writing.ensure_idle(e,name);idle(vstate(e,name,'current'))
             if (path/'outline.csv').exists():raise ValueError('已有大纲，请创建另一语言的综述工作区')
             m.update(contentLanguage=lang.normalize(a.get('contentLanguage')),promptVersion=lang.VERSION);e.write_json(path/'review.json',m);return detail(e,name,'current')
-        if op=='describe':m['description']=bounded(a.get('description',''),2000,'综述描述');e.write_json(path/'review.json',m);return m
+        if op=='describe':
+            writing.ensure_idle(e,name);idle(vstate(e,name,'current'))
+            new_name=storage.folder_name(a.get('newName',name))
+            if new_name!=name:
+                if any(d.name.casefold()==new_name.casefold() and d.name!=name for d in root(e).iterdir()):raise ValueError('该工作区名称已存在（不区分大小写）')
+                description=bounded(a.get('description',''),2000,'综述描述')
+                target=work(e,new_name);os.rename(path,target)
+                try:e.write_json(target/'review.json',{**m,'name':new_name,'description':description})
+                except BaseException:os.rename(target,path);raise
+                return {**m,'name':new_name,'description':description}
+            m['description']=bounded(a.get('description',''),2000,'综述描述');e.write_json(path/'review.json',m);return m
         if op=='delete':
             if a.get('confirm')!=name:raise ValueError('请确认要删除的综述工作区名称')
             idle(vstate(e,name,'current'))

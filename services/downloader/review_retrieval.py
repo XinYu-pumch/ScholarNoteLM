@@ -8,9 +8,13 @@ import retrieval_settings as settings
 POLICY='body-only-api-cosine-v5'
 def signature(root,cfg=None):
     import vector_service as v
-    cfg=cfg or settings.snapshot(root);emb=v.config(SimpleNamespace(ROOT=root))
+    cfg=cfg or settings.snapshot(root);emb=embedding_config(root,cfg)
     return chunks.digest([POLICY,chunks.TEMPLATE,chunks.RECALL_POLICY,chunks.HEADING_MIN_CHARS,v.profile(emb),cfg.get('embeddingFingerprint',settings.fingerprint(emb))])
-def ready(root,cfg=None):return settings.verified(root)
+def embedding_config(root,cfg):
+    import vector_service as v,project_embedding
+    e=SimpleNamespace(ROOT=root)
+    return project_embedding.resolve(e,cfg['embeddingModel']) if cfg.get('embeddingModel') else v.config(e)
+def ready(root,cfg=None):return settings.verified(root,embedding_config(root,cfg or {}))
 def corpus(e):
     if chunks.cleared(e):raise ValueError('索引数据已清空，请先重新建立索引，再准备综述提示词')
     chunks.sync(e);result=[]
@@ -25,7 +29,7 @@ class APIRecall:
         import numpy as np
         import vector_service as v
         import corpus_files as files
-        self.np=np;self.e=e;self.check=check;self.cfg=v.config(e);self.queries={}
+        self.np=np;self.e=e;self.check=check;self.cfg=embedding_config(e.ROOT,cfg);self.queries={}
         self.fingerprint=settings.fingerprint(self.cfg)
         if not settings.verified(e.ROOT,self.cfg) or self.fingerprint!=cfg.get('embeddingFingerprint',self.fingerprint):raise ValueError('Embedding 配置已变化或未验证，请重新验证并准备提示词')
         pid=v.profile(self.cfg);keys=[chunks.digest(chunks.embedding_text(r)) for r in records];wanted=set(keys)
@@ -71,7 +75,7 @@ class APIRecall:
 class Retriever:
     def __init__(self,root,cache,records,check,progress,cfg=None,e=None):
         self.records=[r for r in records if chunks.recall_allowed(r)];self.check=check
-        self.cfg=cfg or settings.snapshot(root)
+        self.cfg=cfg or settings.snapshot(root,getattr(e,'PROJECT',None))
         self.recall=APIRecall(e,self.records,self.cfg,check,progress) if self.records else None
     def retrieve(self,query,candidates,topk):
         self.check()

@@ -96,7 +96,7 @@ async def run(e,snapshot,cfg,planner,answer,records,papers,coverage,llm,save,eve
     write_system=(lang.writing_system(language,bundle_api.SYSTEM)+'\n'+lang.WRITE_EN if english else lang.WRITING_ZH+WRITE[len(bundle_api.SYSTEM):]) if language else WRITE
     question=snapshot['question'];run_id=snapshot['id'];project=files.base(e)
     seen=set();history=[];aspects=[];examined=set();warnings=[]
-    rcfg=snapshot.get('retrievalConfig') or retrieval.settings.snapshot(e.ROOT)
+    rcfg=snapshot.get('retrievalConfig') or retrieval.settings.snapshot(e.ROOT,e.PROJECT)
     retriever=None;history_results=[];history_seen=set();history_bindings=set();round_no=0;route='research'
     def history_payload(bundle):
         result=[];table_start=1

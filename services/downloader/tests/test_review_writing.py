@@ -183,7 +183,7 @@ class WritingTests(unittest.TestCase):
    p=json.loads(messages[-1]['content'])['outputContract'];return json.dumps({**p,'sections':[{**n,'blocks':[{'type':'markdown','text':'Old evidence'}]} for n in p['sections']]})
   with patch.object(w.retrieval,'corpus',return_value=[record]),patch.object(w,'chat',side_effect=fake_chat):self.run_both(token,FakeRetriever)
   self.assertEqual(self.status()['latest'],0);self.assertEqual(list((self.path/'sections').glob('*.json')),[])
- def test_material_change_before_request_does_not_send(self):
+ def test_missing_material_before_request_does_not_send(self):
   token=self.setup_run();base=self.base
   class FakeRetriever:
    def __init__(self,*args):pass
@@ -196,7 +196,7 @@ class WritingTests(unittest.TestCase):
    return messages
   with patch.object(w.review_bundle,'messages',side_effect=changed),patch.object(w,'chat') as chat:
    asyncio.run(w.run(e,'Test',token,FakeRetriever));chat.assert_not_called()
-  self.assertEqual(r.read(self.path/'writing-job.json')['state'],'failed')
+  self.assertEqual(r.read(self.path/'writing-job.json')['state'],'partial')
  def test_cancel_during_network_polling_stops_preparation(self):
   token=self.setup_run();path=self.path
   class FakeRetriever:
@@ -252,16 +252,68 @@ class WritingTests(unittest.TestCase):
   states=['done']*24+['failed']*20+['writing','validating','pending','cancelled']
   result=w.progress_counts({'items':{str(i):{'state':s} for i,s in enumerate(states)}})
   self.assertEqual(result,{'total':48,'completed':24,'failed':20,'running':2,'pending':1,'cancelled':1,'settled':45})
- def test_retry_only_failed_units(self):
+ def test_retry_includes_pending_and_retains_successful_units(self):
   self.seed();units=w.tree_units(self.detail['rows']);failed=units[0];pending=units[1]
   for u in (failed,pending):(self.path/'review_parts'/f'section_{u["serial"]}.json').unlink()
   e.write_json(self.path/'writing-job.json',{'state':'partial','mode':'write','items':{failed['id']:{'state':'failed','error':'JSON invalid'},pending['id']:{'state':'pending'}}})
   cfg=w.config(self.path);source=w.source_signature(e);models=w.retrieval.signature(e.ROOT)
   for u in units:
    u['promptSignature']=w.unit_signature(u,cfg,'Review',source,'',models)
-   w.prepare_unit(e,self.path,{'config':cfg,'topic':'Review'},u,{})
+   pre=w.prepare_unit(e,self.path,{'config':cfg,'topic':'Review'},u,r.read(self.path/'sections'/f'{u["id"]}.json')['evidence'])
+   saved=r.read(self.path/'sections'/f'{u["id"]}.json');saved['signature']=w.unit_signature(u,cfg,'Review',source,w.profile_signature(PROFILE),models,pre['hash']);e.write_json(self.path/'sections'/f'{u["id"]}.json',saved)
   with patch.object(w.subprocess,'Popen') as proc:
    proc.return_value.pid=os.getpid();result=w.rpc(e,'Test','retry',{})
-  j=r.read(self.path/'writing-job.json');self.assertEqual(list(j['items']),[failed['id']])
-  self.assertEqual(j['total'],1)
+  j=r.read(self.path/'writing-job.json');self.assertEqual(list(j['items']),[failed['id'],pending['id']])
+  self.assertEqual(j['total'],2)
+  self.assertEqual(result['stages']['writing'],{'state':'partial','completed':3,'total':7})
+ def test_frozen_materials_survive_project_model_and_key_change(self):
+  import vector_service as v,embedding_profiles as profiles,project_embedding as binding,retrieval_settings as settings
+  old={**v.DEFAULTS,'id':'a','name':'A','baseUrl':'https://a.example/v1','model':'model-a','apiKey':'fixture-secret'}
+  new={**old,'id':'b','name':'B','baseUrl':'https://b.example/v1','model':'model-b'}
+  profiles.write(e,{'profiles':[old,new],'activeProfile':'a'});binding.bind(e,old)
+  cfg=w.config(self.path);rcfg=settings.snapshot(e.ROOT,e.PROJECT);source=w.source_signature(e);models=w.retrieval.signature(e.ROOT,rcfg)
+  rows=self.detail['rows'];ctx=w.manuscripts.new_round(e,'Test',rows,'Review',cfg)
+  ctx['materialSnapshot']={'sourceSignature':source,'modelsSignature':models,'retrieval':rcfg};e.write_json(self.path/'writing-round.json',ctx)
+  for u in w.tree_units(rows):
+   u['promptSignature']=w.unit_signature(u,cfg,'Review',source,'',models)
+   evidence={n['id']:{'query':n['title'],'topK':7,'retrieval':rcfg,'chunks':[{'id':'c','text':'Evidence','metadata':{'pmid':'123','title':'Evidence','sourceKind':'pubmed_abstract','sectionPath':[]}}]} for n in u['leaves']}
+   w.prepare_unit(e,self.path,{'config':cfg,'topic':'Review','retrieval':rcfg},u,evidence)
+  self.assertEqual(self.status()['stages']['preparation']['state'],'ready')
+  profiles.save(e,{**old,'apiKey':'rotated-key','rpm':100,'tpm':100000})
+  self.assertEqual(self.status()['prepared'],4)
+  binding.bind(e,new)
+  e.write_json(self.base/'metadata/index-generation.json',{'generation':'rebuilt-with-B'})
+  state=self.status();self.assertEqual(state['prepared'],4);self.assertTrue(state['materialModelChanged']);self.assertEqual(state['materialModel'],'model-a')
+  with patch.object(w.subprocess,'Popen') as proc:
+   proc.return_value.pid=os.getpid();w.rpc(e,'Test','start',{})
+  token=r.read(self.path/'writing-job.json')['token']
+  async def answer(profile,messages,cancelled,progress=lambda **kw:None):
+   output=json.loads(messages[-1]['content'])['outputContract']
+   return json.dumps({**output,'sections':[{**n,'blocks':[{'type':'markdown','text':'Frozen evidence'}]} for n in output['sections']]})
+  with patch.object(w,'chat',side_effect=answer),patch.object(w.retrieval,'corpus',side_effect=AssertionError('Writing cannot recall')):
+   asyncio.run(w.run(e,'Test',token))
+  self.assertEqual(self.status()['latest'],4);self.assertEqual(len(w.manuscripts.listing(e,'Test')),1)
+  # Old writing-round files gain provenance from verified historical inputs, without migration writes.
+  old_round=r.read(self.path/'writing-round.json');old_round.pop('materialSnapshot')
+  e.write_json(self.path/'writing-round.json',old_round);before=(self.path/'writing-round.json').read_bytes()
+  recovered=self.status();self.assertEqual(recovered['prepared'],4);self.assertEqual(recovered['materialModel'],'model-a')
+  self.assertEqual((self.path/'writing-round.json').read_bytes(),before)
+  prompt=next((self.path/'prompts').glob('*.json'));original=prompt.read_bytes();prompt.write_text('{broken')
+  self.assertEqual(self.status()['prepared'],3);prompt.write_bytes(original)
+  value=r.read(prompt);value['evidenceHash']='invalid';e.write_json(prompt,value)
+  self.assertEqual(self.status()['prepared'],3);prompt.write_bytes(original)
+  # Missing one material package must block every write, including a selected group.
+  (self.path/'review_parts'/'prompt_section_1.1.json').unlink()
+  with self.assertRaisesRegex(ValueError,'全部章节'):w.rpc(e,'Test','start',{'unitIds':[w.tree_units(rows)[-1]['id']]})
+  runtime=e.ROOT/'runtimes/retrieval/bin/python';runtime.parent.mkdir(parents=True);runtime.touch()
+  with patch.object(w.retrieval,'ready',return_value=True),self.assertRaisesRegex(ValueError,'不能混用'):
+   w.rpc(e,'Test','prepare.resume',{})
+ def test_preparation_zero_hits_is_not_ready(self):
+  token=self.setup_run()
+  class EmptyRetriever:
+   def __init__(self,*args):pass
+   def retrieve(self,*args):return []
+  with patch.object(w.retrieval,'corpus',return_value=[]):asyncio.run(w.run(e,'Test',token,EmptyRetriever))
+  state=self.status();self.assertEqual(state['prepared'],0);self.assertEqual(state['stages']['preparation']['state'],'partial')
+  self.assertEqual(state['stages']['preparation']['completed'],0)
 if __name__=='__main__':unittest.main()

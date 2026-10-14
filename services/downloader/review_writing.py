@@ -87,17 +87,30 @@ def profile_signature(p):return chunks.digest({k:p.get(k) for k in ('id','model'
 def unit_signature(unit,cfg,topic,source,model_signature,models,prompt_hash=""):
     return chunks.digest([SYSTEM,review_format.FORMAT,review_bundle.VERSION,{k:v for k,v in unit.items() if k not in ('signature','promptSignature')},{k:v for k,v in cfg.items() if k not in ('concurrency','profileId','model') and (k!='limitContext' or v)},topic,source,model_signature,models,prompt_hash])
 
-def prepared(path,unit,expected=None):
-    data=outline.read(path/'prompts'/f'{unit["id"]}.json',{})
-    if not data or data.get('format')!=review_bundle.VERSION or (expected is not None and data.get('signature')!=expected):return None
+def read_artifact(path):
     try:
+        value=outline.read(path,{})
+        return value if isinstance(value,dict) else {}
+    except (OSError,ValueError,TypeError):return {}
+
+def valid_retrieval(value):
+    records=value.get('chunks')
+    return (isinstance(records,list) and bool(records) and all(isinstance(r,dict) and r.get('id') and r.get('text') and isinstance(r.get('metadata'),dict) for r in records)
+            and (not value.get('contentHash') or value['contentHash']==chunks.digest(records)))
+
+def prepared(path,unit,expected=None):
+    data=read_artifact(path/'prompts'/f'{unit["id"]}.json')
+    try:
+        if not data or any(not valid_retrieval(data.get('evidence',{}).get(n['id'],{})) for n in unit['leaves']):return None
+        if data.get('format')!=review_bundle.VERSION or (expected is not None and data.get('signature')!=expected):return None
+        if data.get('evidenceHash') and data['evidenceHash']!=chunks.digest(data['evidence']):return None
         if len(data.get('plans',[]))!=1:return None
         for plan in data['plans']:
             bundle=load_bundle(path,plan)
             review_bundle.hydrate(bundle,path/'review_parts')
             if bundle['unit']['unit_id']!=unit['serial']:return None
         if data.get('hash')!=chunks.digest(data['plans']):return None
-    except (ValueError,KeyError,TypeError,OSError):return None
+    except (ValueError,KeyError,TypeError,AttributeError,OSError):return None
     return data
 
 def load_bundle(path,plan):
@@ -120,8 +133,8 @@ def prepare_unit(e,path,snapshot,unit,evidence):
     # TXT is a derived preview. Only JSON and its hashed resources drive requests.
     e.atomic(folder/f'prompt_section_{unit["serial"]}.txt','[阅读预览 · 正式输入为同名 JSON]\n\n[SYSTEM]\n'+messages[0]['content']+'\n\n[USER]\n'+messages[1]['content'])
     manifest=[{'file':filename,'sha256':hashlib.sha256(text.encode()).hexdigest(),'unit':unit}]
-    value={'format':review_bundle.VERSION,'signature':unit['promptSignature'],'plans':manifest,'evidence':evidence,'created':time.time(),'retrieval':snapshot.get('retrieval',retrieval_settings.snapshot(e.ROOT))}
-    value['hash']=chunks.digest(manifest)
+    value={'format':review_bundle.VERSION,'signature':unit['promptSignature'],'plans':manifest,'evidence':evidence,'created':time.time(),'retrieval':snapshot.get('retrieval',retrieval_settings.snapshot(e.ROOT,e.PROJECT))}
+    value['hash']=chunks.digest(manifest);value['evidenceHash']=chunks.digest(evidence)
     e.write_json(path/'prompts'/f'{unit["id"]}.json',value)
     return value
 
@@ -129,7 +142,7 @@ def saved_unit(path,unit):
     # Public artifacts are authoritative: a deleted section must not reappear from cache.
     target=path/'review_parts'/f'section_{unit["serial"]}.json'
     if not target.is_file():return {}
-    cached=outline.read(path/'sections'/f'{unit["id"]}.json',{})
+    cached=read_artifact(path/'sections'/f'{unit["id"]}.json')
     if not cached:return {}
     try:
         public=json.loads(target.read_text(encoding='utf8'))
@@ -137,6 +150,25 @@ def saved_unit(path,unit):
             return {}  # Externally changed content must be regenerated/validated before publication.
     except (ValueError,KeyError,TypeError,OSError):return {}
     return cached
+
+def complete_unit(unit,saved):
+    sections=saved.get('sections',[])
+    return (len(sections)==len(unit['nodes']) and
+            {s.get('node_id') for s in sections}=={n['id'] for n in unit['nodes']} and
+            all(isinstance(s.get('markdown'),str) and s['markdown'].strip() for s in sections))
+
+def round_inputs(ctx,source,models,rcfg):
+    frozen=ctx.get('materialSnapshot',{})
+    return frozen.get('sourceSignature',source),frozen.get('modelsSignature',models),frozen.get('retrieval',rcfg)
+
+def material_settings_changed(ctx,cfg,topic):
+    return ctx.get('topic',topic)!=topic or any(cfg.get(k)!=ctx.get('config',{}).get(k,DEFAULTS.get(k)) for k in ('topK','requirements','language','limitContext','contextChars'))
+
+def same_model(a,b):
+    import vector_service as v
+    if a.get('embeddingModel') and b.get('embeddingModel'):
+        return v.profile(a['embeddingModel'])==v.profile(b['embeddingModel'])
+    return a.get('embeddingFingerprint')==b.get('embeddingFingerprint')
 
 def progress_counts(j):
     states=[i.get('state','pending') for i in j.get('items',{}).values()]
@@ -152,18 +184,38 @@ def status(e,name):
     try:p=outline.profile(e,cfg['profileId'],cfg['model']);ps=profile_signature(p);model=p['model'];model_label=(p.get('name','')+'/' if p.get('name') else '')+model
     except ValueError:ps='';model='';model_label=''
     import status_cache
-    source=status_cache.cached(e,'review.source-signature',lambda:source_signature(e));rcfg=retrieval_settings.snapshot(e.ROOT);models=retrieval.signature(e.ROOT,rcfg);j=job(e,name);items=[]
+    live_source=status_cache.cached(e,'review.source-signature',lambda:source_signature(e));rcfg=retrieval_settings.snapshot(e.ROOT,e.PROJECT);live_models=retrieval.signature(e.ROOT,rcfg);source,models,material_cfg=round_inputs(ctx,live_source,live_models,rcfg);j=job(e,name);items=[];preparations={}
     for u in units:
         saved=saved_unit(path,u)
         pre=prepared(path,u,unit_signature(u,cfg,state.get('topic',''),source,'',models))
+        preparations[u['id']]=pre
         sig=unit_signature(u,cfg,state.get('topic',''),source,ps,models,pre['hash'] if pre else '')
-        latest=not outline_changed and saved.get('signature')==sig
+        latest=not outline_changed and complete_unit(u,saved) and saved.get('signature')==sig
         live=j.get('items',{}).get(u['id'],{})
         phase='latest' if latest else 'outdated' if saved else 'pending'
         if j.get('state') in ACTIVE and live:phase=live.get('state',phase)
         elif live.get('state') in ('failed','cancelled'):phase=live['state']
         items.append({'id':u['id'],'serial':u['serial'],'title':u['title'],'nodes':[n['id'] for n in u['nodes']],'leafIds':[n['id'] for n in u['leaves']],'state':phase,'latest':latest,'promptReady':bool(pre) and not outline_changed,'hasContent':bool(saved),'error':live.get('error',''),'received':live.get('received',0),'reasoningCharacters':live.get('reasoningCharacters',0),'revision':chunks.digest([saved.get('created'),bool(saved),pre.get('hash') if pre else None,outline_changed])})
-    return {'outlineChanged':outline_changed,'hasContent':any(i['hasContent'] for i in items),'currentOutlineCount':len(current_rows),'manuscriptCount':len(manuscripts.listing(e,name)),'config':cfg,'rows':rows,'units':items,'job':{**j,**progress_counts(j)},'fileRevision':chunks.digest([outline_changed,[(i['id'],i['revision']) for i in items]]),'model':model,'modelLabel':model_label,'runtimeReady':runtime(e,rcfg).is_file() and retrieval.ready(e.ROOT,rcfg),'retrieval':retrieval_settings.public(e),'effectiveCandidateK':retrieval_settings.effective(rcfg,cfg['topK']),'prepared':sum(i['promptReady'] for i in items),'latest':sum(i['latest'] for i in items),'total':len(items),'path':str(path)}
+    preparation_count=0;shortfalls=0
+    for u,item in zip(units,items):
+        for n in u['leaves']:
+            evidence=read_artifact(path/'retrieval'/f'{n["id"]}.json')
+            if item['promptReady']:
+                evidence=preparations[u['id']].get('evidence',{}).get(n['id'],{})
+            valid=valid_retrieval(evidence) and evidence.get('query')==n['title'] and evidence.get('topK')==cfg['topK'] and same_model(evidence.get('retrieval',{}),material_cfg)
+            if valid and not outline_changed:
+                preparation_count+=1
+                if len(evidence['chunks'])<cfg['topK']:shortfalls+=1
+    ready=bool(items) and all(i['promptReady'] for i in items)
+    incompatible=not same_model(material_cfg,rcfg) or source!=live_source
+    if incompatible and not ready:preparation_count=0;shortfalls=0
+    attempted=bool(j) or (path/'writing-round.json').exists() or any((path/'prompts').glob('*.json'))
+    material_changed=bool(ctx.get('materialSnapshot')) and material_settings_changed(ctx,cfg,state.get('topic',''))
+    prep_state='ready' if ready else 'stale' if outline_changed or material_changed or (attempted and incompatible) else 'partial' if attempted else 'idle'
+    write_state='complete' if items and all(i['latest'] for i in items) else 'partial' if any(i['hasContent'] for i in items) or (j.get('mode')=='write' and j) else 'idle'
+    stages={'preparation':{'state':prep_state,'completed':preparation_count,'total':sum(len(u['leaves']) for u in units),'shortfalls':shortfalls},
+            'writing':{'state':write_state,'completed':sum(len(i['nodes']) for i in items if i['latest']),'total':sum(len(i['nodes']) for i in items)}}
+    return {'stages':stages,'materialModel':material_cfg.get('embeddingModel',{}).get('model','') if ctx.get('materialSnapshot') else '','projectModel':rcfg.get('embeddingModel',{}).get('model',''),'materialModelChanged':not same_model(material_cfg,rcfg),'draftCount':len(manuscripts.listing(e,name,drafts=True)),'outlineChanged':outline_changed,'hasContent':any(i['hasContent'] for i in items),'currentOutlineCount':len(current_rows),'manuscriptCount':len(manuscripts.listing(e,name)),'config':cfg,'rows':rows,'units':items,'job':{**j,**progress_counts(j)},'fileRevision':chunks.digest([outline_changed,[(i['id'],i['revision']) for i in items]]),'model':model,'modelLabel':model_label,'runtimeReady':runtime(e,rcfg).is_file() and retrieval.ready(e.ROOT,rcfg),'retrieval':retrieval_settings.public(e),'effectiveCandidateK':retrieval_settings.effective(rcfg,cfg['topK']),'prepared':sum(i['promptReady'] for i in items),'latest':sum(i['latest'] for i in items),'total':len(items),'path':str(path)}
 
 def runtime(e,cfg=None):
     cfg=cfg or retrieval_settings.read(e.ROOT);kind='retrieval'
@@ -171,11 +223,13 @@ def runtime(e,cfg=None):
 
 def rpc(e,name,op,a):
     path=outline.work(e,name)
-    if op=='manuscripts':return manuscripts.listing(e,name)
+    if op=='manuscripts':return manuscripts.listing(e,name,drafts=bool(a.get('drafts')))
     if op=='manuscript':return manuscripts.preview(manuscripts.get(e,name,a.get('id')))
     if op=='manuscript.export':return manuscripts.export(e,name,a.get('format','md'),a.get('id'))
     if op=='activity':return {'state':job(e,name).get('state','idle')}
     if op=='status':return status(e,name)
+    if op=='open-tasks':
+        folder=path/'logs';folder.mkdir(parents=True,exist_ok=True);return e.open_local(folder)
     if op=='open-prompts':
         folder=path/'review_parts';folder.mkdir(parents=True,exist_ok=True);return e.open_local(folder)
     if op=='section':
@@ -184,7 +238,7 @@ def rpc(e,name,op,a):
         units=tree_units(manuscripts.context(e,name)['rows']);u=next((u for u in units if ident in [n['id'] for n in u['nodes']]),None)
         if not u:return {'sections':[],'evidence':{}}
         saved=saved_unit(path,u)
-        evidence={n['id']:outline.read(path/'retrieval'/f'{n["id"]}.json',{}) for n in u['leaves']}
+        evidence={n['id']:read_artifact(path/'retrieval'/f'{n["id"]}.json') for n in u['leaves']}
         # Completed body must show its original evidence, even after a failed regeneration.
         selected_evidence=saved.get('evidence',evidence)
         shared=bool(saved.get('sections') and all(s.get('citationPoolVersion') in review_bundle.READ_VERSIONS for s in saved['sections'])) or (not saved and bool(prepared(path,u)))
@@ -211,7 +265,7 @@ def rpc(e,name,op,a):
     if op not in ('start','prepare','prepare.resume','retry'):raise ValueError('未知综述撰写操作')
     mode='prepare' if op in ('prepare','prepare.resume') or (op=='retry' and job(e,name).get('mode')=='prepare') else 'write'
     cfg=config(path,a.get('config',{}));p=outline.profile(e,cfg['profileId'],cfg['model']) if mode=='write' else {};state=outline.vstate(e,name,'current')
-    rcfg=retrieval_settings.snapshot(e.ROOT)
+    rcfg=retrieval_settings.snapshot(e.ROOT,e.PROJECT)
     rows=rows_at(e,path);units=tree_units(rows)
     if not units:raise ValueError('请先生成并保存综述大纲')
     if not state.get('topic','').strip():raise ValueError('请先填写并保存综述主题')
@@ -219,8 +273,7 @@ def rpc(e,name,op,a):
     selected=a.get('unitIds')
     if op=='retry':
         current=status(e,name)
-        selected=[u['id'] for u in current['units'] if u['state']=='failed']
-        if not selected:return current
+        selected=None  # Recompute missing/invalid artifacts, including interrupted and pending units.
         mode='prepare' if current['job'].get('mode')=='prepare' else 'write'
     if op=='prepare' and selected is not None:raise ValueError('新一轮准备须覆盖完整大纲')
     source=source_signature(e);models=retrieval.signature(e.ROOT,rcfg);ps=profile_signature(p)
@@ -229,12 +282,23 @@ def rpc(e,name,op,a):
         if any(saved_unit(path,u).get('sections') for u in tree_units(ctx['rows'])) and a.get('confirm') is not True:
             raise ValueError('当前正文将先保存，请确认开始新一轮撰写')
         manuscripts.reset(e,name)
-        manuscripts.new_round(e,name,rows,state['topic'],cfg)
+        ctx=manuscripts.new_round(e,name,rows,state['topic'],cfg)
+        ctx['materialSnapshot']={'sourceSignature':source,'modelsSignature':models,'retrieval':rcfg}
+        e.write_json(path/'writing-round.json',ctx)
     else:
         if manuscripts.fingerprint(rows)!=ctx['outlineHash']:
             raise ValueError('当前大纲与本轮撰写不一致，请准备新一轮撰写')
         rows=ctx['rows'];units=tree_units(rows)
         if not (path/'writing-round.json').exists():manuscripts.freeze(e,name)
+    if op!='prepare':
+        frozen_source,frozen_models,frozen_cfg=round_inputs(ctx,source,models,rcfg)
+        if mode=='prepare' and (frozen_source!=source or not same_model(frozen_cfg,rcfg) or (ctx.get('materialSnapshot') and material_settings_changed(ctx,cfg,state['topic']))):
+            raise ValueError('本轮材料来源或参数已变化，请恢复原设置或准备新一轮材料，不能混用不同模型的材料')
+        source,models=frozen_source,frozen_models
+        if mode=='write':rcfg=frozen_cfg
+        # A new credential is verified live, but never changes the frozen artifact identity.
+    if mode=='write' and any(not prepared(path,u,unit_signature(u,cfg,state['topic'],source,'',models)) for u in units):
+        raise ValueError('请先为全部章节准备完整的写作材料（提示词）')
     if selected is not None and (not isinstance(selected,list) or not selected or any(i not in {u['id'] for u in units} for i in selected)):raise ValueError('选择的写作单元无效')
     e.write_json(path/'writing-settings.json',cfg)
     tasks=[]
@@ -250,7 +314,7 @@ def rpc(e,name,op,a):
     if not tasks:return status(e,name)
     if mode=='write':manuscripts.save(e,name)
     token=uuid.uuid4().hex;run=path/'logs'/token;run.mkdir(parents=True)
-    snapshot={'token':token,'created':time.time(),'topic':state['topic'],'config':cfg,'mode':mode,'retrieval':rcfg,'profileId':p.get('id',''),'model':p.get('model',''),'profileSignature':ps,'sourceSignature':source,'modelsSignature':models,'rows':rows,'tasks':tasks}
+    snapshot={'token':token,'created':time.time(),'topic':state['topic'],'config':cfg,'mode':mode,'retrieval':rcfg,'profileId':p.get('id',''),'model':p.get('model',''),'profileSignature':ps,'sourceSignature':source,'modelsSignature':models,'rows':rows,'tasks':tasks,'frozenMaterials':True}
     compact_io.write_json(e,run/'input.json',snapshot)
     j={'token':token,'state':'queued','created':time.time(),'updated':time.time(),'pid':0,'owner':a.get('owner',0),'total':len(tasks),'completed':0,'failed':0,'mode':mode,'phase':'准备提示词' if mode=='prepare' else '准备生成综述','items':{u['id']:{'state':'pending'} for u in tasks},'error':''}
     e.write_json(path/'writing-job.json',j)
@@ -294,7 +358,7 @@ def safe_error(ex):
 
 async def run(e,name,token,retriever_factory=None):
     path=outline.work(e,name);runpath=path/'logs'/token;snapshot=outline.read(runpath/'input.json');cfg=snapshot['config']
-    mode=snapshot.get('mode','legacy');rcfg=snapshot.get('retrieval',retrieval_settings.snapshot(e.ROOT));candidate_k=retrieval_settings.effective(rcfg,cfg['topK'])
+    mode=snapshot.get('mode','legacy');rcfg=snapshot.get('retrieval',retrieval_settings.snapshot(e.ROOT,e.PROJECT));candidate_k=retrieval_settings.effective(rcfg,cfg['topK'])
     def cancelled():
         j=outline.read(path/'writing-job.json',{})
         return j.get('token')!=token or j.get('state') not in ('queued','running') or bool(j.get('owner') and not e.process_alive(j['owner']))
@@ -302,11 +366,11 @@ async def run(e,name,token,retriever_factory=None):
         # Called from HTTP polling, token callbacks and quota waits. Keep it
         # cancellation-only: synchronous corpus parsing blocks the event loop.
         if cancelled():raise Cancelled('已取消撰写，已完成正文保留')
-    materials=Guard(e,(snapshot['sourceSignature'],snapshot['modelsSignature']),
-                    lambda:(source_signature(e),retrieval.signature(e.ROOT,rcfg)))
+    materials=Guard(e,(snapshot['sourceSignature'],True),
+                    lambda:(source_signature(e),same_model(rcfg,retrieval_settings.snapshot(e.ROOT,e.PROJECT))))
     async def verify_materials():
         check()
-        await asyncio.to_thread(materials.verify)
+        if mode=='prepare' or not snapshot.get('frozenMaterials'):await asyncio.to_thread(materials.verify)
         check()
     def chat_cancelled():
         check()
@@ -391,8 +455,8 @@ async def run(e,name,token,retriever_factory=None):
                     update(unit['id'],state='retrieving',error='')
                     for node in unit['leaves']:
                         ident=node['id'];query=queries[ident];sig=chunks.digest([corpus_sig,query,candidate_k,cfg['topK']])
-                        cached=outline.read(path/'retrieval'/f'{ident}.json',{})
-                        if cached.get('signature')==sig:result=cached
+                        cached=read_artifact(path/'retrieval'/f'{ident}.json')
+                        if cached.get('signature')==sig and valid_retrieval(cached):result=cached
                         else:
                             if retriever is None:
                                 update(phase='准备召回模型')
@@ -401,7 +465,8 @@ async def run(e,name,token,retriever_factory=None):
                             update(phase=f'检索 {node["serial"]} · {node["title"]}')
                             found=await asyncio.to_thread(retriever.retrieve,query,candidate_k,cfg['topK'])
                             await verify_materials()
-                            result={'signature':sig,'query':query,'sourceTitle':node['title'],'nodeId':ident,'chunks':found,'retrieval':rcfg,'candidateK':candidate_k,'topK':cfg['topK'],'corpusSignature':corpus_sig,'created':time.time()}
+                            if not found:raise ValueError('该标题未召回任何文本块，请检查文献后重试')
+                            result={'signature':sig,'query':query,'sourceTitle':node['title'],'nodeId':ident,'chunks':found,'contentHash':chunks.digest(found),'retrieval':rcfg,'candidateK':candidate_k,'topK':cfg['topK'],'corpusSignature':corpus_sig,'created':time.time()}
                             e.write_json(path/'retrieval'/f'{ident}.json',result)
                         evidence[ident]=result;evidence_all[ident]=result
                     await verify_materials()
@@ -436,7 +501,9 @@ async def run(e,name,token,retriever_factory=None):
     finally:
         if mode=='write':
             with outline.lock(e):
-                try:manuscripts.save(e,name)
+                try:
+                    current=status(e,name)
+                    if current['total'] and current['latest']==current['total']:manuscripts.save(e,name)
                 except Exception as ex:
                     current=outline.read(path/'writing-job.json',{})
                     if current.get('token')==token:

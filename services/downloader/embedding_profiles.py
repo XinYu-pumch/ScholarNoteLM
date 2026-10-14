@@ -44,14 +44,20 @@ def save(e,args):
         data['profiles']=[cfg if p['id']==pid else p for p in data['profiles']]
         if not any(p['id']==pid for p in data['profiles']):data['profiles'].append(cfg)
         if not data['activeProfile'] or args.get('activate') is True:data['activeProfile']=pid
+        import project_embedding
+        project_embedding.pin_existing(e)
         write(e,data);return pid
 
 def activate(e,pid):
     with storage.file_lock(e.ROOT/'config/embedding-settings.lock'):
+        import project_embedding
+        project_embedding.pin_existing(e)
         get(e,pid);data=store(e);data['activeProfile']=pid;write(e,data)
 
 def delete(e,pid):
     with storage.file_lock(e.ROOT/'config/embedding-settings.lock'):
+        import project_embedding
+        project_embedding.pin_existing(e)
         get(e,pid);data=store(e)
         if data['activeProfile']==pid and len(data['profiles'])>1:raise ValueError('请先在 Embedding 设置启用其他配置，再删除当前使用的配置')
         data['profiles']=[p for p in data['profiles'] if p['id']!=pid]

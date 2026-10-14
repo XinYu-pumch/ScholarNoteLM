@@ -240,7 +240,7 @@ def start(e,a):
             raise ValueError('原文、范围或配置已改变，无法继续检查点；请重新生成')
     retrieval_cfg=None
     if mode=='topic':
-        retrieval_cfg=retrieval_settings.snapshot(e.ROOT)
+        retrieval_cfg=retrieval_settings.snapshot(e.ROOT,e.PROJECT)
         import review_retrieval
     _,_,papers,coverage=corpus(e,selected)
     if not papers and mode!='topic':raise ValueError('当前范围没有文献，请先添加 PubMed 文献')
@@ -569,7 +569,7 @@ async def run(e,rid):
         if snapshot.get('evidenceSignature') and profile_signature(evidence_model(e,cfg,ap))!=snapshot['evidenceSignature']:raise InputsChanged('证据模型配置在问答期间改变，请重新提问')
         if snapshot.get('retrievalSignature'):
             import review_retrieval
-            if review_retrieval.signature(e.ROOT)!=snapshot['retrievalSignature']:raise InputsChanged('召回或重排配置已改变，请重新提问')
+            if review_retrieval.signature(e.ROOT,retrieval_settings.snapshot(e.ROOT,e.PROJECT))!=snapshot['retrievalSignature']:raise InputsChanged('召回或重排配置已改变，请重新提问')
     materials=Guard(e,None,validate_inputs)
     async def verify_materials(ignore_cancel=False):
         check(ignore_cancel=ignore_cancel)
@@ -704,7 +704,7 @@ async def run(e,rid):
         if snapshot.get('mode','topic')=='topic' and snapshot.get('policy')==qa_mini_review.POLICY:
             async def prepare_retrieval():
                 import review_retrieval
-                rcfg=snapshot.get('retrievalConfig') or retrieval_settings.snapshot(e.ROOT)
+                rcfg=snapshot.get('retrievalConfig') or retrieval_settings.snapshot(e.ROOT,e.PROJECT)
                 if not review_retrieval.ready(e.ROOT,rcfg):raise ValueError('此问题需要检索，请先在 Embedding 设置中验证连接')
                 await asyncio.to_thread(chunks.sync,e)
                 rows,_,docs,state=await asyncio.to_thread(corpus,e,snapshot['pmids'])
