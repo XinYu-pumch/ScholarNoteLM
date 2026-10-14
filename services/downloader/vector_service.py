@@ -74,9 +74,10 @@ def embed(texts,cfg,*,attempts=3,check=lambda:None,root=None,reservation=None,re
             reserved_at=limiter.mark_dispatched(reservation)
             request_started=time.time()
             r=limits.post(url,headers,providers.payload(texts,cfg,purpose),cfg['timeout'],check)
+            try:usage=r.json().get('usage',{})
+            except (ValueError,AttributeError):usage={}
+            if r.status_code==200:limiter.reconcile(reservation,usage)
             if on_response:
-                try:usage=r.json().get('usage',{})
-                except (ValueError,AttributeError):usage={}
                 on_response({'at':request_started,'reservedAt':reserved_at,'seconds':time.time()-request_started,'count':len(texts),'reserved':reserved_tokens or limits.estimate(texts),'status':r.status_code,'usage':usage})
             if r.status_code==429 or r.status_code>=500:
                 delay=limits.retry_after(r.headers.get('Retry-After'),2**attempt)
@@ -89,7 +90,6 @@ def embed(texts,cfg,*,attempts=3,check=lambda:None,root=None,reservation=None,re
                 raise ValueError(f'Embedding HTTP {r.status_code}：{reason}')
             try:payload=r.json()
             except ValueError:raise ValueError('Embedding 返回了非 JSON 内容，请确认地址是 API 接口而不是网页') from None
-            if isinstance(payload,dict):limiter.reconcile(reservation,payload.get('usage'))
             data=payload.get('data') if isinstance(payload,dict) else None;result=[None]*len(texts)
             if not isinstance(data,list) or len(data)!=len(texts):raise ValueError('Embedding 返回数量不匹配')
             dimension=None
@@ -106,6 +106,8 @@ def embed(texts,cfg,*,attempts=3,check=lambda:None,root=None,reservation=None,re
             if on_response:on_response({'at':request_started,'reservedAt':reserved_at,'seconds':time.time()-request_started,'count':len(texts),'reserved':reserved_tokens or limits.estimate(texts),'status':0,'usage':{},'errorKind':kind})
             if attempt==attempts-1:raise limits.TransientError('Embedding 网络错误或超时，请检查网络、服务地址与超时设置',kind=kind) from None
             limits.wait(2**attempt,check)
+        finally:
+            if reservation:limiter.finish(reservation)
 
 def job_path(e):return files.base(e)/'metadata/vector-job.json'
 def read_job(e):

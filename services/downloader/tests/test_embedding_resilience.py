@@ -77,11 +77,13 @@ class ResilienceTests(unittest.TestCase):
     self.actions=[failure];before=len(self.requests)
     with self.assertRaises(ValueError):self.run_inputs()
     self.assertEqual(len(self.requests),before+1)
- def test_controller_reverts_when_latency_rises_without_gain(self):
-  now=[0.];c=control.Controller(self.cfg,clock=lambda:now[0])
-  c.target=4;c.baseline=(1.,100.);c.samples=[(2.,250)]*3;now[0]=10
-  c.success(2.,250)
-  self.assertEqual(c.target,3);self.assertEqual(c.batch,16)
+ def test_slow_successes_increase_overlap_using_actual_tokens(self):
+  now=[0.];c=control.Controller({**self.cfg,'rpm':100,'tpm':100000},clock=lambda:now[0])
+  # 8 texts use 1000 tokens, not the former 65536-token reservation.
+  for _ in range(4):now[0]+=3;c.success(3.,1000,8)
+  self.assertGreater(c.target,2);self.assertEqual(c.batch,8)
+  for _ in range(8):now[0]+=8;c.success(8.,1000,8)
+  self.assertGreaterEqual(c.target,10)
  def test_recovery_needs_three_successes_and_has_bounds(self):
   now=[0.];c=control.Controller(self.cfg,clock=lambda:now[0])
   c.failed(limits.TransientError('offline',kind='network'))
@@ -90,12 +92,12 @@ class ResilienceTests(unittest.TestCase):
   for _ in range(2):c.success(.1,10);self.assertTrue(c.recovering)
   c.success(.1,10);self.assertFalse(c.recovering)
   for _ in range(200):now[0]+=11;c.success(100.,10)
-  self.assertLessEqual(c.target,16);self.assertLessEqual(c.batch,32)
- def test_changed_model_falls_back_to_conservative(self):
+  self.assertLessEqual(c.target,control.MAX_CONCURRENCY);self.assertLessEqual(c.batch,32)
+ def test_changed_model_uses_input_size_without_inheriting_tokenizer(self):
   self.assertFalse(adaptive.verified_tokenizer(self.e,self.cfg))
   with patch.object(v,'embed',return_value=[[1.,2.]]) as embed:
    updates=[];adaptive.run_inputs(self.e,self.cfg,[('one','1')],lambda:None,updates.append,self.root,lambda *_:None,'auto')
-  self.assertEqual(embed.call_args.kwargs['reserved_tokens'],8192)
-  self.assertEqual(updates[-1]['tokenBudget'],'conservative')
+  self.assertEqual(embed.call_args.kwargs['reserved_tokens'],limits.estimate(['1']))
+  self.assertEqual(updates[-1]['tokenBudget'],'bytes')
 
 if __name__=='__main__':unittest.main()

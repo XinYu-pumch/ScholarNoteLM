@@ -25,6 +25,9 @@ class AdaptiveTests(unittest.TestCase):
   with patch.object(limits.time,'time',return_value=1000):ident,_=limiter.reserve_batch(1)
   with patch.object(limits.time,'time',return_value=1000.3):limiter.mark_dispatched(ident)
   with patch.object(limits.time,'time',return_value=1060.5):self.assertIsNone(limiter.reserve_batch(1))
+  # A slow request still owns its budget after the normal rolling window.
+  with patch.object(limits.time,'time',return_value=1061.31):self.assertIsNone(limiter.reserve_batch(1))
+  limiter.finish(ident)
   with patch.object(limits.time,'time',return_value=1061.31):self.assertEqual(limiter.reserve_batch(1)[1],1)
  def test_variable_costs_pack_to_remaining_quota(self):
   a=limits.Limiter(e.ROOT,{**self.cfg,'tpm':10000})

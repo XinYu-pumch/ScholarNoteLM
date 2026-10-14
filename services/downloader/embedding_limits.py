@@ -19,10 +19,13 @@ class TransientError(ValueError):
 
 class Limiter:
     def __init__(self,root,cfg,check=lambda:None):
-        self.check=check;self.cfg={'rpm':cfg.get('rpm',60),'tpm':cfg.get('tpm',120000)};self.key=settings.fingerprint(cfg)
+        self.check=check;self.cfg={'rpm':cfg.get('rpm',60),'tpm':cfg.get('tpm',120000)};self.timeout=cfg.get('timeout',60);self.key=settings.fingerprint(cfg)
         self.path=root/'data/research/embedding-rate.sqlite3';self.path.parent.mkdir(parents=True,exist_ok=True)
         with self.db() as c:
             c.executescript('CREATE TABLE IF NOT EXISTS requests(id TEXT PRIMARY KEY,service TEXT,at REAL,tokens INTEGER); CREATE INDEX IF NOT EXISTS recent ON requests(service,at); CREATE TABLE IF NOT EXISTS gates(service TEXT PRIMARY KEY,until REAL);')
+            c.execute('BEGIN IMMEDIATE')
+            if 'pending_until' not in {row[1] for row in c.execute('PRAGMA table_info(requests)')}:
+                c.execute('ALTER TABLE requests ADD COLUMN pending_until REAL NOT NULL DEFAULT 0')
     @contextmanager
     def db(self):
         c=sqlite3.connect(self.path,timeout=10)
@@ -34,24 +37,24 @@ class Limiter:
         while True:
             self.check();now=time.time();delay=0
             with self.db() as c:
-                c.execute('BEGIN IMMEDIATE');c.execute('DELETE FROM requests WHERE at<=?',(now-WINDOW_SECONDS,))
-                rows=c.execute('SELECT at,tokens FROM requests WHERE service=? ORDER BY at',(self.key,)).fetchall()
+                c.execute('BEGIN IMMEDIATE');c.execute('DELETE FROM requests WHERE at<=? AND pending_until<=?',(now-WINDOW_SECONDS,now))
+                rows=c.execute('SELECT at,tokens,pending_until FROM requests WHERE service=? ORDER BY at',(self.key,)).fetchall()
                 gate=c.execute('SELECT until FROM gates WHERE service=?',(self.key,)).fetchone()
                 if gate:delay=max(delay,gate[0]-now)
                 if rows:
                     delay=max(delay,rows[-1][0]+60/self.cfg['rpm']-now)
-                    remaining=sum(t for _,t in rows);count=len(rows)
-                    for at,t in rows:
+                    remaining=sum(t for _,t,_ in rows);count=len(rows)
+                    for at,t,pending_until in rows:
                         if count<self.cfg['rpm'] and remaining+tokens<=self.cfg['tpm']:break
-                        delay=max(delay,at+WINDOW_SECONDS-now);count-=1;remaining-=t
+                        delay=max(delay,max(at+WINDOW_SECONDS,pending_until)-now);count-=1;remaining-=t
                 if delay<=0:
-                    ident=uuid.uuid4().hex;c.execute('INSERT INTO requests VALUES(?,?,?,?)',(ident,self.key,now,tokens));return ident
+                    ident=uuid.uuid4().hex;c.execute('INSERT INTO requests(id,service,at,tokens) VALUES(?,?,?,?)',(ident,self.key,now,tokens));return ident
             wait(min(delay,.1),self.check)
     def reserve_batch(self,max_items,tokens_per_item=8192,costs=None):
         """Nonblocking atomic admission; let a scheduler pack the remaining budget."""
         self.check();now=time.time()
         with self.db() as c:
-            c.execute('BEGIN IMMEDIATE');c.execute('DELETE FROM requests WHERE at<=?',(now-WINDOW_SECONDS,))
+            c.execute('BEGIN IMMEDIATE');c.execute('DELETE FROM requests WHERE at<=? AND pending_until<=?',(now-WINDOW_SECONDS,now))
             rows=c.execute('SELECT at,tokens FROM requests WHERE service=? ORDER BY at',(self.key,)).fetchall()
             gate=c.execute('SELECT until FROM gates WHERE service=?',(self.key,)).fetchone()
             if gate and gate[0]>now:return None
@@ -63,13 +66,17 @@ class Limiter:
                 count+=1;reserved+=cost
             if not count:return None
             ident=uuid.uuid4().hex
-            c.execute('INSERT INTO requests VALUES(?,?,?,?)',(ident,self.key,now,reserved))
+            c.execute('INSERT INTO requests(id,service,at,tokens) VALUES(?,?,?,?)',(ident,self.key,now,reserved))
             return ident,count
     def mark_dispatched(self,ident):
         # Admission can precede a worker's actual send; never expire that request early.
         now=time.time()
-        with self.db() as c:c.execute('UPDATE requests SET at=? WHERE id=?',(now,ident))
+        with self.db() as c:c.execute('UPDATE requests SET at=?,pending_until=? WHERE id=?',(now,now+self.timeout+WINDOW_SECONDS,ident))
         return now
+    def finish(self,ident):
+        # Unknown/failed usage keeps its token reservation for the normal window.
+        # Expiration above also releases abandoned requests after a worker crash.
+        with self.db() as c:c.execute('UPDATE requests SET pending_until=0 WHERE id=?',(ident,))
     def reconcile(self,ident,usage):
         if not isinstance(usage,dict):return
         actual=usage.get('prompt_tokens',usage.get('total_tokens'))
