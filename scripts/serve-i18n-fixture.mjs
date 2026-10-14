@@ -13,7 +13,8 @@ import React,{useState} from 'react';import {createRoot} from 'react-dom/client'
 import Settings from '${source}ResearchSettings.tsx';import Library from '${source}Library.tsx';import Tasks from '${source}TaskCenter.tsx';
 import {configureLocale,useLocale,t} from '${source}i18n.ts';import {LanguageSwitch} from '${source}LanguageControls.tsx';
 ${['styles','workbench','conversation','panels','design'].map(n=>`import '${source+n}.css';`).join('\n')}
-window.fixtureProfile={id:'fixture',name:'Fixture service',baseUrl:'http://127.0.0.1:1/mock-only',model:'deepseek-flash',models:['deepseek-v4-pro','deepseek-flash','a-very-long-model-name-for-layout-testing'],visionModels:['deepseek-flash'],hasKey:false,temperature:null,timeout:10};
+window.fixtureProfile={id:'fixture',name:'Fixture service',baseUrl:'http://127.0.0.1:1/mock-only',model:'deepseek-flash',models:['deepseek-v4-pro','deepseek-flash','a-very-long-model-name-for-layout-testing'],visionModels:['deepseek-flash'],hasKey:true,temperature:null,timeout:10};
+window.fixtureEmbeddingProfiles=[{id:'sf',name:'siliconflow',baseUrl:'https://api.siliconflow.cn/v1/embeddings',model:'Pro/BAAI/bge-m3',hasKey:true,batchSize:32,concurrency:4,rpm:1800,tpm:450000,timeout:120,adaptive:true,autoIndex:true,modelRevision:''},{id:'jn',name:'jina',baseUrl:'https://api.jina.ai/v1/embeddings',model:'jina-embeddings-v5-text-nano',hasKey:true,batchSize:32,concurrency:2,rpm:100,tpm:100000,timeout:120,adaptive:true,autoIndex:true,modelRevision:''}];
 window.fixtureProject={id:'fixture',name:'中文项目名保留',papers:[{id:'PMID-1',title:'中文研究内容保持原文',author:'Fixture author',year:2026,researchManaged:true,status:'pdf'}]};
 window.fixtureMarkdown={pdfCount:1,latestCount:0,abstractCount:0,downloadStatus:{latest:true},items:[{pmid:'1',pdf:true,raw:true,ready:false,needsConversion:true}],files:{redundant:0},ready:true};
 window.fixtureVectors={readyDocuments:0,eligibleDocuments:1,configured:true,items:[{pmid:'1',pdfState:'latest',markdownState:'outdated',vectorState:'outdated'}]};
@@ -25,6 +26,11 @@ const rpc=`export * from '${source}research-api.ts';import {read,queryKey} from 
 window.fixtureCalls.push({action,args});
 if(action==='settings')return {profiles:[window.fixtureProfile],activeProfile:'fixture',pubmed:{},mesh:{autoUpdate:false},jcr:{name:'fixture.xlsx',rows:2400,warningCount:2303,warnings:[628,1058,1083,1084,1087,1091,1092,1104].map(i=>'第 '+i+' 行未提供分区')}};
 if(action==='llm.test'){await new Promise(r=>setTimeout(r,400));return {reply:'Mock OK',seconds:0.1};}
+if(action==='profile.key'||action==='vector.profile.key')return {apiKey:'fixture-public-key-for-toggle-testing'};
+if(action==='vector.settings')return {profiles:window.fixtureEmbeddingProfiles,activeProfile:'sf',runtimeReady:true,presets:window.fixtureEmbeddingProfiles.map(p=>({...p,id:p.name,hasKey:false,apiKey:''}))};
+if(action==='vector.settings.save'){window.fixtureEmbeddingProfiles=window.fixtureEmbeddingProfiles.map(p=>p.id===args.id?{...p,...args,apiKey:undefined}:p);return {...await rpc('vector.settings'),savedProfile:args.id};}
+if(action==='vector.models')return ['jina-embeddings-v5-text-nano','jina-embeddings-v3','jina-clip-v2'];
+if(action==='vector.test')return {dimension:768,seconds:.1,model:args.model};
 if(action==='library.status')return {job:{state:'partial',mode:'update',stages:[{stage:'download',failed:3}]}};
 if(action==='markdown.status')return window.fixtureMarkdown;
 if(action==='download.list')return window.fixtureDownloads;

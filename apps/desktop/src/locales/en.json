@@ -1538,5 +1538,9 @@
   "请选择分支位置": "Select a branch point.",
   "第 {p0} 行未提供分区": "Row {p0}: quartile not provided",
   "；": "; ",
-  "{p0} 篇失败": "{p0} papers failed"
+  "{p0} 篇失败": "{p0} papers failed",
+  "服务商预设": "Provider preset",
+  "选择预设，或手动填写": "Choose a preset, or enter settings manually",
+  "按此服务商配置的限额自动调整速度；灰色参数不构成自动模式的上限。关闭后使用固定设置。": "Adjust speed within this provider profile’s limits. Grayed-out values do not cap automatic mode. Turn off to use fixed settings.",
+  "参数仅保存到当前服务商配置，切换配置不会覆盖其他服务商。文献准备与提问共用此配置的限速。": "Parameters belong to this provider profile; switching profiles does not overwrite other providers. Indexing and queries share this profile’s rate limits."
 }

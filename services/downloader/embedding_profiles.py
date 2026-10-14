@@ -60,6 +60,7 @@ def delete(e,pid):
 
 def models(e,args):
     import httpx,vector_service as v
+    from embedding_providers import system_proxy,model_ids
     cfg=v.validated(e,{**args,'model':args.get('model') or 'model-list'});base=cfg['baseUrl'].rstrip('/')
     if not base:raise ValueError('请先填写 API 地址')
     for suffix in ('/embeddings','/models'):
@@ -68,12 +69,12 @@ def models(e,args):
     if not urlparse(base).path.strip('/'):base+='/v1'
     headers={'Authorization':'Bearer '+cfg['apiKey']} if cfg.get('apiKey') else {}
     try:
-        r=httpx.get(base+'/models',headers=headers,timeout=25,follow_redirects=False,trust_env=False)
+        r=httpx.get(base+'/models',headers=headers,timeout=25,follow_redirects=False,trust_env=False,proxy=system_proxy(base+'/models'))
         if r.status_code!=200:raise ValueError(f'获取模型列表失败（HTTP {r.status_code}）')
         try:payload=r.json()
         except ValueError:raise ValueError('服务返回的模型列表不是有效 JSON') from None
         if not isinstance(payload,dict):raise ValueError('服务返回的模型列表格式无效')
         data=payload.get('data',[])
         if not isinstance(data,list):raise ValueError('服务返回的模型列表格式无效')
-        return sorted({p['id'] for p in data if isinstance(p,dict) and isinstance(p.get('id'),str) and p['id']})
+        return model_ids(data,cfg)
     except httpx.HTTPError:raise ValueError('模型列表连接失败，请检查地址与网络') from None

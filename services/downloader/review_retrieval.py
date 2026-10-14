@@ -63,7 +63,7 @@ class APIRecall:
         import vector_service as v
         self.check()
         if settings.fingerprint(v.config(self.e))!=self.fingerprint:raise ValueError('Embedding 配置在运行期间改变，请重新准备提示词')
-        if query not in self.queries:self.queries[query]=self.np.asarray(v.embed([query],self.cfg,check=self.check,root=self.e.ROOT)[0],dtype='float32')
+        if query not in self.queries:self.queries[query]=self.np.asarray(v.embed([query],self.cfg,check=self.check,root=self.e.ROOT,purpose='query')[0],dtype='float32')
         q=self.queries[query]
         if len(q)!=self.matrix.shape[1]:raise ValueError('查询向量与文献向量维度不一致，请检查模型版本')
         scores=self.matrix@(q/self.np.linalg.norm(q));ids=self.np.argsort(-scores,kind='stable')[:k]

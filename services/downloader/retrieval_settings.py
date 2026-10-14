@@ -9,7 +9,9 @@ def read(root):
 def effective(cfg,topk):return topk
 def fingerprint(cfg):
     import vector_service as v
-    return chunks.digest([v.endpoint(cfg),cfg['model'],cfg.get('modelRevision',''),cfg.get('apiKey','')])
+    identity=[v.endpoint(cfg),cfg['model'],cfg.get('modelRevision',''),cfg.get('apiKey','')]
+    if v.providers.protocol(cfg):identity.append(v.providers.protocol(cfg))
+    return chunks.digest(identity)
 def verified(root,cfg=None):
     import vector_service as v
     cfg=cfg or v.config(SimpleNamespace(ROOT=root));p=root/'config/embedding-verification.json'

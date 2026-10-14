@@ -347,7 +347,9 @@ Embedding 输入仅为 chunk 原文，模板版本为 `chunk-body-only-v2`；论
 
 索引和浏览不再自动保存每篇完整 JSONL，避免在每个块上重复写入摘要等文章级 metadata；数据库及界面仍保留完整 metadata。“导出 JSONL”按需写入 `vectors/exports/<PMID>.jsonl`，格式不变。已有 `vectors/chunks/` 副本不会因升级自动删除，可通过下述无损压缩命令保留为 `.jsonl.gz`。
 
-Embedding 请求使用当前 Embedding 配置中的共享 RPM/TPM 限速，默认 60 RPM / 120000 估算 TPM 是应用值，不代表供应商账号配额；429 遵循 Retry-After。验证绑定实际服务配置与凭据指纹，修改后需重新验证。
+Embedding 的批量、并发、RPM/TPM 均保存到各自服务商配置，切换配置不会覆盖其他配置。新建配置可选择不含密钥的 siliconflow（`Pro/BAAI/bge-m3`，32 / 4 / 1800 / 450000）或 jina（`jina-embeddings-v5-text-nano`，32 / 2 / 100 / 100000）预设；数字依次为每批文本数、并发、RPM、TPM。预设均开启自动速度，批量与并发变灰且不作为自动调度上限；调度还参考延迟、限流和网络失败。手动新建的通用默认配额 60 RPM / 120000 估算 TPM 是应用值，不代表供应商账号配额；429 遵循 Retry-After。
+
+Jina 文献与查询分别使用 `retrieval.passage` / `retrieval.query`，不静默截断；协议签名单独隔离旧 Jina 向量，不改变 siliconflow 等既有缓存身份。Embedding 请求和模型列表遵循本机 HTTP(S) 代理与绕过规则，本机接口直连。验证绑定实际服务配置、协议与凭据指纹，修改后需重新验证。LLM 与 Embedding 密钥眼睛按钮点击显示、再次点击遮蔽，不因查看而改写已保存密钥。详见 [向量化](docs/VECTORIZATION.md)。
 
 ## 6. 综述生成：实现与文件协议
 

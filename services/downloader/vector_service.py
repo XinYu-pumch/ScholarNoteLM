@@ -4,6 +4,7 @@ from pathlib import Path
 from contextlib import contextmanager
 from urllib.parse import urlparse
 import corpus_files as files,storage,vector_chunks as chunks
+import embedding_providers as providers
 
 DEFAULTS={'baseUrl':'','model':'Pro/BAAI/bge-m3','modelRevision':'','apiKey':'','batchSize':64,'concurrency':2,'timeout':60,'autoIndex':True,'adaptive':False,'rpm':60,'tpm':120000}
 ACTIVE=('queued','running','stopping')
@@ -13,13 +14,16 @@ def config(e):
     import embedding_profiles
     return embedding_profiles.active(e)
 def public(cfg):return {**{k:v for k,v in cfg.items() if k!='apiKey'},'hasKey':bool(cfg.get('apiKey'))}
-def profile(cfg):return chunks.digest([cfg['baseUrl'],cfg['model'],cfg.get('modelRevision',''),chunks.TEMPLATE])
+def profile(cfg):
+    identity=[cfg['baseUrl'],cfg['model'],cfg.get('modelRevision',''),chunks.TEMPLATE]
+    if providers.protocol(cfg):identity.append(providers.protocol(cfg))
+    return chunks.digest(identity)
 def settings(e):
     cfg=config(e)
     import retrieval_settings,embedding_profiles
     data=embedding_profiles.store(e)
     return {'profiles':[{**public({**DEFAULTS,**p}),'verified':retrieval_settings.verified(e.ROOT,{**DEFAULTS,**p})} for p in data['profiles']],
-            'activeProfile':data['activeProfile'],'apiVerified':retrieval_settings.verified(e.ROOT,cfg),'config':public(cfg),'configured':bool(cfg['baseUrl'] and cfg['model']),'runtimeReady':(e.ROOT/('runtimes/marker/Scripts/python.exe' if os.name=='nt' else 'runtimes/marker/bin/python')).is_file(),'splitter':{'version':chunks.SPLITTER,'maxChars':8192,'minChars':1,'method':'period-balanced'}}
+            'presets':providers.presets(),'activeProfile':data['activeProfile'],'apiVerified':retrieval_settings.verified(e.ROOT,cfg),'config':public(cfg),'configured':bool(cfg['baseUrl'] and cfg['model']),'runtimeReady':(e.ROOT/('runtimes/marker/Scripts/python.exe' if os.name=='nt' else 'runtimes/marker/bin/python')).is_file(),'splitter':{'version':chunks.SPLITTER,'maxChars':8192,'minChars':1,'method':'period-balanced'}}
 def validated(e,a):
     import embedding_profiles
     cfg=embedding_profiles.form(e,a)
@@ -44,7 +48,7 @@ def validated(e,a):
     if cfg['baseUrl'] and not cfg['model']:raise ValueError('请填写 Embedding 模型名称')
     return cfg
 
-def embed(texts,cfg,*,attempts=3,check=lambda:None,root=None,reservation=None,reserved_tokens=None,on_response=None):
+def embed(texts,cfg,*,attempts=3,check=lambda:None,root=None,reservation=None,reserved_tokens=None,on_response=None,purpose="document"):
     import httpx
     if not cfg['baseUrl'] or not cfg['model']:raise ValueError('请先在设置 → Embedding 模型中配置 Embedding 服务')
     import embedding_limits as limits
@@ -60,7 +64,7 @@ def embed(texts,cfg,*,attempts=3,check=lambda:None,root=None,reservation=None,re
         if group and (len(group)>=cfg['batchSize'] or (reservation is None and limits.estimate(group+[text])>limiter.cfg['tpm'])):groups.append(group);group=[]
         group.append(text)
     if group:groups.append(group)
-    if len(groups)>1:return [v for group in groups for v in embed(group,cfg,attempts=attempts,check=check,root=root)]
+    if len(groups)>1:return [v for group in groups for v in embed(group,cfg,attempts=attempts,check=check,root=root,purpose=purpose)]
     if not texts:return []
     url=endpoint(cfg)
     headers={'Authorization':'Bearer '+cfg['apiKey']} if cfg.get('apiKey') else {}
@@ -69,7 +73,7 @@ def embed(texts,cfg,*,attempts=3,check=lambda:None,root=None,reservation=None,re
             reservation=reservation if attempt==0 and reservation else limiter.acquire(reserved_tokens or limits.estimate(texts))
             reserved_at=limiter.mark_dispatched(reservation)
             request_started=time.time()
-            r=limits.post(url,headers,{'model':cfg['model'],'input':texts,'encoding_format':'float'},cfg['timeout'],check)
+            r=limits.post(url,headers,providers.payload(texts,cfg,purpose),cfg['timeout'],check)
             if on_response:
                 try:usage=r.json().get('usage',{})
                 except (ValueError,AttributeError):usage={}
@@ -304,7 +308,7 @@ def search(e,a):
         if not eligible:return {'results':[],'note':'所选范围没有符合召回条件的文本块'}
         scores={};distances={}
         if method!='keyword':
-            q=embed([query],cfg)[0];saved=c.execute('SELECT dimension FROM profiles WHERE id=?',(pid,)).fetchone()
+            q=embed([query],cfg,purpose='query')[0];saved=c.execute('SELECT dimension FROM profiles WHERE id=?',(pid,)).fetchone()
             if not saved or saved['dimension']!=len(q):raise ValueError('查询向量维度与索引不一致')
             # Cosine ranking over the SQLite vector cache, the same store review and QA recall read.
             # Pure Python keeps this debug search runnable in every runtime; ~10k chunks take well under a second.
@@ -363,7 +367,7 @@ def rpc(e,action,a):
     if action=='test':
         cfg=validated(e,a);text=a.get('testText',TEST_TEXT)
         if not isinstance(text,str) or not 1<=len(text.strip())<=1000:raise ValueError('测试文本需为 1–1000 个字符')
-        began=time.monotonic();v=embed([text.strip()],cfg,attempts=1)[0]
+        began=time.monotonic();v=embed([text.strip()],cfg,attempts=1,root=e.ROOT)[0]
         import retrieval_settings
         retrieval_settings.mark_verified(e,cfg,len(v))
         return {'dimension':len(v),'seconds':round(time.monotonic()-began,2),'model':cfg['model'],'endpoint':endpoint(cfg),'inputChars':len(text.strip()),'vectors':1}

@@ -86,8 +86,9 @@ def retry_after(value,fallback):
 
 def post(url,headers,payload,timeout,check):
     import httpx
+    from embedding_providers import system_proxy
     async def send():
-        async with httpx.AsyncClient(timeout=timeout,follow_redirects=False,trust_env=False) as client:
+        async with httpx.AsyncClient(timeout=timeout,follow_redirects=False,trust_env=False,proxy=system_proxy(url)) as client:
             task=asyncio.create_task(client.post(url,headers=headers,json=payload))
             try:
                 while not task.done():
