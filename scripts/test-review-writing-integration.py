@@ -5,12 +5,13 @@ from http.server import ThreadingHTTPServer,BaseHTTPRequestHandler
 ROOT=Path(__file__).resolve().parents[1];sys.path.insert(0,str(ROOT/'services/downloader'))
 import engine as e,storage,review_service as r,vector_service as v,retrieval_settings as rs
 TEST_LANGUAGE=os.environ.get('TEST_CONTENT_LANGUAGE')
+import provider_fixture as pf
 requests=[];bad_unit=None;slow=False;started=threading.Event();concurrent=0;peak=0;mutex=threading.Lock()
 class Handler(BaseHTTPRequestHandler):
  def log_message(self,*args):pass
  def do_POST(self):
   global concurrent,peak
-  value=json.loads(self.rfile.read(int(self.headers['Content-Length'])));requests.append(value)
+  value=json.loads(self.rfile.read(int(self.headers['Content-Length'])));requests.append(value);pf.capture(self.headers,value)
   if 'input' in value:
    self.send_response(200);self.send_header('Content-Type','application/json');self.end_headers()
    self.wfile.write(json.dumps({'data':[{'index':i,'embedding':[1.0,len(t)%7+.1,len(t)%3+.1]} for i,t in enumerate(value['input'])],'usage':{'prompt_tokens':sum(len(t)//3 for t in value['input'])}}).encode());return
@@ -40,6 +41,7 @@ try:
   app=Path(temp);(app/'runtimes').mkdir();(app/'tmp').mkdir()
   for runtime in ('downloader','retrieval'):(app/'runtimes'/runtime).symlink_to(ROOT/'runtimes'/runtime,target_is_directory=True)
   (app/'services').symlink_to(ROOT/'services',target_is_directory=True);(app/'models').symlink_to(ROOT/'models',target_is_directory=True)
+  pf.setup(app,ROOT,f'http://127.0.0.1:{server.server_port}/v1',['fixture'])
   e.ROOT,e.PROJECT=app,'test';base=storage.project_dir(app,'test')
   text='The gut microbiota regulates mucosal immune responses through short chain fatty acids, intestinal barrier function and regulatory T cells. These mechanisms are supported by experimental evidence, but effects depend on host context.'
   articles=''.join(f'<PubmedArticle><MedlineCitation><PMID>{123+i}</PMID><Article><ArticleTitle>Microbiota study {i}</ArticleTitle><Abstract><AbstractText>{text} Variant {i}.</AbstractText></Abstract></Article></MedlineCitation></PubmedArticle>' for i in range(9))
@@ -47,7 +49,7 @@ try:
   cfg=app/'data/research/research.sqlite3';cfg.parent.mkdir(parents=True)
   with sqlite3.connect(cfg) as c:
    c.execute('CREATE TABLE settings(key TEXT PRIMARY KEY,value TEXT)')
-   c.executemany('INSERT INTO settings VALUES(?,?)',[('profiles',json.dumps([{'id':'fixture','model':'fixture','baseUrl':f'http://127.0.0.1:{server.server_port}/v1','apiKey':'isolated-test-secret','sendTemperature':False,'timeout':10}])),('activeProfile',json.dumps('fixture'))])
+   c.executemany('INSERT INTO settings VALUES(?,?)',[('profiles',json.dumps([pf.profile({'id':'fixture','model':'fixture','baseUrl':f'http://127.0.0.1:{server.server_port}/v1','apiKey':'isolated-test-secret','sendTemperature':False,'timeout':10})])),('activeProfile',json.dumps('fixture'))])
   def rpc(op,**args):
    process=subprocess.run([str(ROOT/'cache/tauri-target/debug/research-cli')],input=json.dumps({'action':'review.'+op,'args':{'project':'test','name':'ReviewTest',**args}}),text=True,capture_output=True,env={**os.environ,'SCHOLARNOTELM_ROOT':str(app)},timeout=30)
    value=json.loads(process.stdout)
@@ -73,6 +75,7 @@ try:
   assert all(q in query_inputs for q in ('短链脂肪酸','调节性T细胞','屏障功能','研究方向')),query_inputs
   prompt_files=list((base/'review/ReviewTest/review_parts').glob('prompt_section_*.json'));assert len(prompt_files)==3
   before_embeddings=len(requests);d=rpc('writing.start');d=wait()
+  if pf.ENABLED:assert len(set(pf.sessions()))==3,'Concurrent units share a session'
   assert all('messages' in req for req in requests[before_embeddings:]),'Writing repeated recall'
   sent=[req['messages'] for req in requests[before_embeddings:]]
   if TEST_LANGUAGE=='en':assert all('Write in English' in messages[0]['content'] for messages in sent)
@@ -117,6 +120,7 @@ try:
   bad_unit=None;n=len(requests);rpc('writing.retry');d=wait()
   assert d['latest']==3 and d['job']['total']==1 and d['job']['completed']==1
   assert len(requests)==n+1 and saved_result['failed']==1
+  if pf.ENABLED:assert len(set(pf.sessions()[-3:]))==1,'Repair/retry changed session'
   prompt_files[0].unlink();assert rpc('writing.status')['prepared']==2
   rpc('writing.prepare.resume');d=wait();assert d['prepared']==3 and d['latest']==3
   before={p.name:p.read_bytes() for p in sections}
@@ -142,5 +146,6 @@ try:
   for f in path.rglob('*'):
    if f.suffix in ('.txt','.json','.log','.csv','.md'):assert 'isolated-test-secret' not in f.read_text(errors='replace')
    if f.suffix=='.gz':assert b'isolated-test-secret' not in gzip.decompress(f.read_bytes())
+  pf.verify()
   print(json.dumps({'success':True,'auditStorage':log_storage,'seconds':round(time.monotonic()-tick,2),'requests':len(requests),'writingUnits':3,'leafQueries':4,'topK':7,'peakHttpConcurrency':peak,'checks':['real Rust RPC','real independent worker','verified API recall, default no reranking','Chinese queries unchanged','two-stage prompt files sent exactly','writing does not recall again','abstract fallback','mixed-depth complete assembly','all latest skips generation','external section and prompt deletion','JSON failure result archived','retry sends failed item only','exports md/html/docx','cancel active HTTP within 3 seconds','completed bodies retained','no API key in artifacts','fresh round archives then resets','resume preserves round','independent workspace copy','reset preserves exports','historical exports after reset']},ensure_ascii=False),flush=True)
 finally:server.shutdown();server.server_close()

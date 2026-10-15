@@ -1,3 +1,5 @@
+#[path = "llm_providers.rs"]
+mod llm_providers;
 #[path = "pubmed_storage.rs"]
 mod pubmed_storage;
 #[path = "zotero_import.rs"]
@@ -1716,6 +1718,7 @@ fn chat_stream(
     let _lock = chat_lock(root, &owned_id)?;
     let thread = chat_get(c, p, &owned_id)?;
     let cfg = profile(c, model_selection)?;
+    llm_providers::validate(root,&cfg)?;
     let language=if model_selection.get("contentLanguage").is_some() { content_locale(&model_selection["contentLanguage"])?.to_string() } else { chat_locale(c,&owned_id)? };
     let mut history: Vec<Value> = thread["messages"].as_array().cloned().unwrap_or_default();
     let mesh_snapshot = setting(c, "mesh", Value::Null)?;
@@ -1742,12 +1745,15 @@ fn chat_stream(
     let (tx, rx) = std::sync::mpsc::sync_channel(32);
     let model = cfg["model"].clone();
     let model_label = format!("{}/{}", s(&cfg,"name"), s(&cfg,"model"));
+    let provider_root=root.to_path_buf();
+    let provider_session=json!([p,owned_id]);
     std::thread::spawn(move || {
-        let r = llm_stream(&cfg, json!(messages), &mut |text, reasoning| {
+        let mut emit_delta = |text:&str, reasoning:&str| {
             tx.send(json!({"type":"delta","text":text,"reasoning":reasoning}))
                 .map_err(|_| "请求已停止".to_string())?;
             Ok(true)
-        });
+        };
+        let r=if llm_providers::id(&cfg)=="openai" {llm_stream(&cfg,json!(messages),&mut emit_delta)} else {llm_providers::stream(&provider_root,&cfg,json!(messages),provider_session,&mut emit_delta)};
         let _ = tx.send(match r {
             Ok(()) => json!({"type":"end"}),
             Err(e) => json!({"type":"error","error":e}),
@@ -2245,7 +2251,7 @@ pub fn dispatch(root: &Path, request: Value) -> R<Value> {
             let profiles = setting(&c, "profiles", json!([]))?;
             let pubmed = setting(&c, "pubmed", json!({}))?;
             Ok(
-                json!({"profiles":profiles.as_array().unwrap().iter().cloned().map(public_profile).collect::<Vec<_>>(),"activeProfile":setting(&c,"activeProfile",json!(""))?,"jcr":ensure_jcr(root,&c)?,"mesh":mesh_status(root,&c)?,"pubmed":{"email":pubmed["email"],"hasKey":!s(&pubmed,"apiKey").is_empty()}}),
+                json!({"providers":llm_providers::catalog(root),"profiles":profiles.as_array().unwrap().iter().cloned().map(public_profile).collect::<Vec<_>>(),"activeProfile":setting(&c,"activeProfile",json!(""))?,"jcr":ensure_jcr(root,&c)?,"mesh":mesh_status(root,&c)?,"pubmed":{"email":pubmed["email"],"hasKey":!s(&pubmed,"apiKey").is_empty()}}),
             )
         }
         "profile.list" => {
@@ -2276,6 +2282,7 @@ pub fn dispatch(root: &Path, request: Value) -> R<Value> {
             if !default_model.is_empty() && !selected.contains(&default_model) { selected.push(default_model); }
             if s(&value,"model").is_empty() && !selected.is_empty() { value["model"] = json!(selected[0]); }
             value["models"] = json!(selected);
+            llm_providers::validate(root,&value)?;
             let models_url = llm_url(&value, "models")?;
             value["baseUrl"] = json!(models_url.strip_suffix("/models").unwrap_or(&models_url));
             if s(&value, "name").trim().is_empty() {
@@ -2296,7 +2303,7 @@ pub fn dispatch(root: &Path, request: Value) -> R<Value> {
             let mut profiles = setting(&tx, "profiles", json!([]))?;
             if profiles.as_array().unwrap().iter().any(|p| p["id"] != value["id"] && s(p,"name").to_lowercase() == s(&value,"name").to_lowercase()) { return Err("配置名称已存在，请使用不同名称".into()); }
             // Action flags belong to this request, not the persisted profile.
-            if let Some(o) = value.as_object_mut() { o.remove("hasKey"); o.remove("clearKey"); }
+            if let Some(o) = value.as_object_mut() { o.remove("hasKey"); o.remove("clearKey"); o.remove("_session"); }
             let arr = profiles.as_array_mut().unwrap();
             arr.retain(|p| p["id"] != value["id"]);
             arr.push(value.clone());
@@ -2330,11 +2337,13 @@ pub fn dispatch(root: &Path, request: Value) -> R<Value> {
         }
         "llm.models" => {
             let cfg = profile(&c, a)?;
+            let provider=llm_providers::validate(root,&cfg)?;
             let url = llm_url(&cfg, "models")?;
             let mut req = client(30, &url)?.get(url);
             if !s(&cfg, "apiKey").is_empty() {
                 req = req.bearer_auth(s(&cfg, "apiKey"));
             }
+            if let Some(ref meta)=provider {req=req.header("User-Agent",s(meta,"userAgent"));}
             let response = req.send().map_err(|_| "模型列表连接失败")?;
             if !response.status().is_success() {
                 return Err(format!(
@@ -2348,6 +2357,7 @@ pub fn dispatch(root: &Path, request: Value) -> R<Value> {
                 .ok_or("接口未返回 data 模型列表")?
                 .iter()
                 .filter_map(|m| m["id"].as_str())
+                .filter(|id|provider.as_ref().is_none_or(|meta|meta["models"].get(*id).is_some()))
                 .collect();
             Ok(json!(models))
         }

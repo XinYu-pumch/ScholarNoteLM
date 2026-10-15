@@ -258,6 +258,8 @@ async def run(e,tid,run_id):
             for turn in t['messages'][:-1]:
                 if turn['state']=='done':messages.extend([{'role':'user','content':turn['question']},{'role':'assistant','content':turn['text']}])
             messages.append({'role':'user','content':t['messages'][-1]['question']})
+            from llm_provider import with_session
+            profile=with_session(profile,'reader',e.PROJECT,t['id'])
             result=await review_llm.chat(profile,messages,cancelled=cancelled,on_text=on_text,on_reasoning=on_reasoning)
             text=result[0] if isinstance(result,tuple) else result
         except review_llm.Cancelled:state='cancelled';error='已停止生成，已保留收到的内容'

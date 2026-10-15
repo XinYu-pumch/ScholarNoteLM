@@ -1,5 +1,6 @@
 """Project-local review workspaces and outlines. No model requests from read/edit RPCs."""
 import compact_io
+import llm_provider
 import content_language as lang
 import asyncio,csv,hashlib,io,json,os,re,shutil,sqlite3,subprocess,sys,time,uuid
 from pathlib import Path
@@ -113,7 +114,7 @@ def profile(e,pid=None,model=None):
         if model not in p.get('models',[p['model']]):raise ValueError('所选模型已从供应商配置移除，请重新选择')
         p={**p,'model':model}
     from review_llm import endpoint
-    p={**p,'endpoint':endpoint(p.get('baseUrl',''))}
+    p={**p,'endpoint':llm_provider.endpoint(p,endpoint)}
     if not isinstance(p.get('visionModels',[]),list) or any(not isinstance(v,str) for v in p.get('visionModels',[])):raise ValueError('图片输入模型设置无效')
     return p
 
@@ -362,6 +363,22 @@ def worker(e,name,vid,token):
         async def request(p):
             import httpx
             cfg=read(path/'prompt.json');body={'model':p['model'],'messages':[{'role':'system','content':cfg['system']},{'role':'user','content':cfg['user']}],'stream':True}
+            provider=llm_provider.adapter(p)
+            if provider:
+                from review_llm import chat,Cancelled as ChatCancelled
+                v=read(path/'outline-state.json')
+                contextual=llm_provider.with_session(p,'outline',e.PROJECT,name,v.get('source',{}).get('xmlSha256'),v.get('topic'),v.get('requirements'))
+                def progress(**fields):
+                    nonlocal reasoning
+                    reasoning=fields.get('reasoningCharacters',reasoning)
+                def on_text(text):
+                    nonlocal output
+                    output=text
+                    if len(output)>2_000_000:raise ValueError('模型返回内容超过大纲大小限制')
+                    update(state='running',received=len(output),reasoningCharacters=reasoning)
+                try:await chat(contextual,body['messages'],cancelled,progress=progress,on_text=on_text)
+                except ChatCancelled:raise Cancelled() from None
+                return
             if isinstance(p.get('temperature'),(int,float)):body['temperature']=p['temperature']
             timeout=max(10,min(600,int(p.get('timeout',120))))
             headers={'Authorization':'Bearer '+p['apiKey']} if p.get('apiKey') else {}

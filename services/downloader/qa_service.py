@@ -3,6 +3,7 @@
 Evidence and requests are immutable run snapshots; credentials never enter run files.
 The worker is the sole writer of its job. Cancellation uses a separate marker.
 """
+import llm_provider
 import compact_io
 import content_language as lang
 import asyncio,json,os,re,sqlite3,subprocess,time,uuid
@@ -67,7 +68,7 @@ def model_label(p):return (p.get('name','')+'/' if p.get('name') else '')+p['mod
 
 def profile_signature(p):
     # 'sendTemperature' is retired but stays in the key list so cached QA work remains valid.
-    return chunks.digest({k:p.get(k) for k in ('id','model','baseUrl','temperature','timeout','apiKey','sendTemperature','visionModels')})
+    return chunks.digest(llm_provider.signature_fields(p,('id','model','baseUrl','temperature','timeout','apiKey','sendTemperature','visionModels')))
 
 def documents(e):
     if not chunks.cleared(e):return chunks.inspect_documents(e,vectors.profile(vectors.config(e)))
@@ -642,7 +643,7 @@ async def run(e,rid):
         def progress(**fields):step.update(fields);save()
         try:
             await verify_materials()
-            text=await chat(p,messages,poll_cancel,progress=progress,on_text=update,on_reasoning=update_reasoning)
+            text=await chat(llm_provider.with_session(p,'qa',e.PROJECT,snapshot.get('threadId',rid)),messages,poll_cancel,progress=progress,on_text=update,on_reasoning=update_reasoning)
             await verify_materials();compact_io.write_text(e,path/(name+'.response.txt'),text)
             if step.get('reasoning'):compact_io.write_text(e,path/(name+'.reasoning.txt'),step['reasoning'])
             value=text

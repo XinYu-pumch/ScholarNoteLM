@@ -5,11 +5,12 @@ from http.server import BaseHTTPRequestHandler,ThreadingHTTPServer
 ROOT=Path(__file__).resolve().parents[1];sys.path[:0]=[str(ROOT/'services/downloader'),str(ROOT/'services/downloader/tests')]
 import engine as e,storage
 from test_scihub_retry import pdf
+import provider_fixture as pf
 requests=[];started=threading.Event()
 class Handler(BaseHTTPRequestHandler):
  def log_message(self,*a):pass
  def do_POST(self):
-  req=json.loads(self.rfile.read(int(self.headers['Content-Length'])));requests.append(req);question=req['messages'][-1]['content']
+  req=json.loads(self.rfile.read(int(self.headers['Content-Length'])));requests.append(req);pf.capture(self.headers,req);question=req['messages'][-1]['content']
   if question=='CONTEXT_ERROR':self.send_response(400);self.end_headers();self.wfile.write(b'{"error":"context length exceeded"}');return
   self.send_response(200);self.send_header('Content-Type','text/event-stream');self.end_headers()
   try:
@@ -25,6 +26,7 @@ def main():
  with tempfile.TemporaryDirectory(prefix='reader-e2e-',dir=ROOT/'tmp') as folder:
   app=Path(folder);(app/'tmp').mkdir()
   for name in ('services','runtimes'):(app/name).symlink_to(ROOT/name,target_is_directory=True)
+  pf.setup(app,ROOT,f'http://127.0.0.1:{server.server_port}/v1',['fixture-chat', 'fixture-other'])
   e.ROOT,e.PROJECT=app,'reader_test';env={**os.environ,'SCHOLARNOTELM_ROOT':str(app)}
   def rpc(action,**a):
    proc=subprocess.run([str(ROOT/'cache/tauri-target/debug/research-cli')],input=json.dumps({'action':action,'args':{'project':e.PROJECT,**a}}),text=True,capture_output=True,env=env,timeout=30)
@@ -50,7 +52,7 @@ def main():
   raw='FULL_RAW_START\n# Results\n'+'Original fulltext evidence. '*12000+'\n# References\nRAW_END_REFERENCE'
   e.atomic(base/'markdown/raw/1.md',raw);e.atomic(base/'markdown/1.md','CLEANED_NEVER_SEND');e.write_json(base/'metadata/markdown/1.json',{'pdfSha256':e.validate_pdf(base/'pdf/1.pdf')['sha256'],'rawSha256':hashlib.sha256(raw.encode()).hexdigest()})
   with sqlite3.connect(app/'data/research/research.sqlite3') as c:
-   profile={'id':'fixture','name':'本地模拟模型','baseUrl':f'http://127.0.0.1:{server.server_port}/v1','model':'fixture-chat','models':['fixture-chat','fixture-other'],'apiKey':'','timeout':20,'temperature':None}
+   profile=pf.profile({'id':'fixture','name':'本地模拟模型','baseUrl':f'http://127.0.0.1:{server.server_port}/v1','model':'fixture-chat','models':['fixture-chat','fixture-other'],'apiKey':'','timeout':20,'temperature':None})
    c.executemany('INSERT OR REPLACE INTO settings VALUES(?,?)',[('profiles',json.dumps([profile])),('activeProfile',json.dumps('fixture')),('mesh',json.dumps({'autoUpdate':False}))])
   def wait(t):
    deadline=time.monotonic()+30
@@ -74,6 +76,10 @@ def main():
   c=wait(rpc('reader.start',id=c['id'],question='CONTEXT_ERROR'));assert c['state']=='failed' and '全文不会自动截断' in c['error']
   rpc('reader.rename',id=b['id'],name='Shared snapshot');rpc('reader.delete',id=b['id']);assert (base/'reader/sources'/f"{a['source']}.json.gz").exists()
   assert not list((base/'reader').rglob('*.pdf')) and not list((base/'reader').rglob('*.md'))
+  if pf.ENABLED:
+   ids=pf.sessions();assert ids[0]==ids[1] and len(set([ids[0],*ids[2:6]]))==5
+   assert len(set(ids[5:]))==1,'Reader cancellation/retry changed session'
+  pf.verify()
   print(json.dumps({'result':'PASS','checks':'full raw >200k chars, multi-turn, model switching, shared snapshots, abstract fallback, cancellation, retry, context overflow, Rust RPC','requests':len(requests)},ensure_ascii=False),flush=True)
   if args.serve:
    print('UI_FIXTURE_ROOT='+str(app),flush=True)

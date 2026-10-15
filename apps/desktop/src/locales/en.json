@@ -1593,5 +1593,10 @@
   "项目模型配置不能使用符号链接": "Project model settings cannot use symbolic links.",
   "请选择要绑定模型的项目": "Select a project to bind this model.",
   "本轮材料来源或参数已变化，请恢复原设置或准备新一轮材料，不能混用不同模型的材料": "Material sources or settings have changed. Restore the original settings or prepare a new round; materials from different models cannot be mixed.",
-  "修改材料参数或额外要求后需准备新一轮；更换撰写模型不重复召回。": "Material settings or instructions require a new round. Changing the writing model does not repeat retrieval."
+  "修改材料参数或额外要求后需准备新一轮；更换撰写模型不重复召回。": "Material settings or instructions require a new round. Changing the writing model does not repeat retrieval.",
+  "由供应商模块管理官方地址与各模型端点。": "Official URLs and model endpoints are managed by the provider module.",
+  "配置普通 OpenAI 兼容服务": "Configure a standard OpenAI-compatible service",
+  "独立供应商配置": "Dedicated provider settings",
+  "此分组的模型使用供应商专属连接方式，普通模型配置不受影响。": "Models in this group use their provider adapter. Standard model profiles are unaffected.",
+  "此供应商已停用；可删除旧配置或选择其他供应商。": "This provider is unavailable. Delete its old profile or choose another provider."
 }

@@ -5,11 +5,12 @@ from http.server import ThreadingHTTPServer,BaseHTTPRequestHandler
 ROOT=Path(__file__).resolve().parents[1]
 sys.path.insert(0,str(ROOT/'services/downloader'))
 import engine as e,review_service as r,storage
+import provider_fixture as pf
 requests=[]
 class Handler(BaseHTTPRequestHandler):
  def log_message(self,*args):pass
  def do_POST(self):
-  value=json.loads(self.rfile.read(int(self.headers['Content-Length'])));requests.append(value)
+  value=json.loads(self.rfile.read(int(self.headers['Content-Length'])));requests.append(value);pf.capture(self.headers,value)
   try:
    if value['model']=='slow':time.sleep(4)
    self.send_response(200);self.send_header('Content-Type','text/event-stream');self.end_headers()
@@ -25,12 +26,13 @@ server=ThreadingHTTPServer(('127.0.0.1',0),Handler);threading.Thread(target=serv
 try:
  with tempfile.TemporaryDirectory(prefix='review-integration-',dir=ROOT/'tmp') as temp:
   app=Path(temp);(app/'runtimes').mkdir();(app/'runtimes/downloader').symlink_to(ROOT/'runtimes/downloader',target_is_directory=True);(app/'services').symlink_to(ROOT/'services',target_is_directory=True);(app/'tmp').mkdir()
+  pf.setup(app,ROOT,f'http://127.0.0.1:{server.server_port}/v1',['outline', 'slow', 'invalid', 'truncated'])
   e.ROOT,e.PROJECT=app,'test';base=storage.project_dir(app,'test');e.atomic(base/'pubmed/current.xml','<PubmedArticleSet><PubmedArticle><MedlineCitation><PMID>123</PMID><Article><ArticleTitle>Fixture study</ArticleTitle><Abstract><AbstractText>All of the fixture abstract.</AbstractText></Abstract></Article></MedlineCitation></PubmedArticle></PubmedArticleSet>')
   cfg=app/'data/research/research.sqlite3';cfg.parent.mkdir(parents=True)
   def model(name):
    with sqlite3.connect(cfg) as c:
     c.execute('CREATE TABLE IF NOT EXISTS settings(key TEXT PRIMARY KEY,value TEXT)')
-    c.execute('INSERT OR REPLACE INTO settings VALUES(?,?)',('profiles',json.dumps([{'id':'test','model':name,'baseUrl':f'http://127.0.0.1:{server.server_port}/v1','apiKey':'test-secret','temperature':None,'timeout':10}])))
+    c.execute('INSERT OR REPLACE INTO settings VALUES(?,?)',('profiles',json.dumps([pf.profile({'id':'test','model':name,'baseUrl':f'http://127.0.0.1:{server.server_port}/v1','apiKey':'test-secret','temperature':None,'timeout':10})])))
     c.execute('INSERT OR REPLACE INTO settings VALUES(?,?)',('activeProfile',json.dumps('test')))
   def rpc(op,**a):
    p=subprocess.run([str(ROOT/'cache/tauri-target/debug/research-cli')],input=json.dumps({'action':'review.'+op,'args':{'project':'test','name':'Review1',**a}}),text=True,capture_output=True,env={**os.environ,'SCHOLARNOTELM_ROOT':str(app)})
@@ -62,5 +64,6 @@ try:
    assert d['version']['state']=='failed' and expected in d['version']['error'],d
    assert (Path(d['path'])/'outline.csv').read_text()==original;assert d['response']
   assert (vp/'generated.csv').read_text()==original
+  pf.verify()
   print(json.dumps({'success':True,'requests':len(requests),'checks':['real Rust RPC and independent worker','all abstracts + topic + requirements sent','reasoning activity recognized','complete hierarchy CSV','immutable generated baseline and restore','cancel during first response wait','invalid CSV does not publish','interrupted stream does not publish','prompt.txt export without secrets','current outline retained after cancellation and failed regeneration']},ensure_ascii=False))
 finally:server.shutdown();server.server_close()

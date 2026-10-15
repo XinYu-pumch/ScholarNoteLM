@@ -8,11 +8,12 @@ TEST_LANGUAGE=os.environ.get('TEST_CONTENT_LANGUAGE')
 PLAN_MARK='Interpret question' if TEST_LANGUAGE=='en' else '将用户问题拆解'
 ASSESS_MARK='Assess whether' if TEST_LANGUAGE=='en' else '逐要点说明支持'
 DIRECT_MARK='Respond to ordinary' if TEST_LANGUAGE=='en' else 'route=chat'
+import provider_fixture as pf
 requests=[];stream_started=threading.Event()
 class Handler(BaseHTTPRequestHandler):
  def log_message(self,*args):pass
  def do_POST(self):
-  request=json.loads(self.rfile.read(int(self.headers['Content-Length'])));requests.append(request)
+  request=json.loads(self.rfile.read(int(self.headers['Content-Length'])));requests.append(request);pf.capture(self.headers,request)
   if 'input' in request:
    value={'data':[{'index':i,'embedding':[1.,.2,.3]} for i,_ in enumerate(request['input'])]}
    self.send_response(200);self.send_header('Content-Type','application/json');self.end_headers();self.wfile.write(json.dumps(value).encode());return
@@ -42,10 +43,11 @@ try:
   app=Path(folder);(app/'runtimes').mkdir();(app/'tmp').mkdir()
   for name in ('retrieval','downloader'):(app/'runtimes'/name).symlink_to(ROOT/'runtimes'/name,target_is_directory=True)
   (app/'services').symlink_to(ROOT/'services',target_is_directory=True)
+  pf.setup(app,ROOT,f'http://127.0.0.1:{server.server_port}/v1',['fixture'])
   e.ROOT,e.PROJECT=app,'test';project=storage.project_dir(app,'test')
   e.atomic(project/'pubmed/current.xml','<PubmedArticleSet>'+''.join(f'<PubmedArticle><MedlineCitation><PMID>{pmid}</PMID><Article><ArticleTitle>Study {pmid}</ArticleTitle><Abstract><AbstractText>Experiments in mice measured immune changes. This evidence does not establish human efficacy. Conditions and limitations require attention.</AbstractText></Abstract></Article></MedlineCitation></PubmedArticle>' for pmid in ['123','124','999'])+'</PubmedArticleSet>')
   db=app/'data/research/research.sqlite3';db.parent.mkdir(parents=True)
-  profile={'id':'p','name':'Fixture','baseUrl':f'http://127.0.0.1:{server.server_port}/v1','model':'fixture','models':['fixture'],'apiKey':'','timeout':15,'temperature':None,'visionModels':[]}
+  profile=pf.profile({'id':'p','name':'Fixture','baseUrl':f'http://127.0.0.1:{server.server_port}/v1','model':'fixture','models':['fixture'],'apiKey':'','timeout':15,'temperature':None,'visionModels':[]})
   with sqlite3.connect(db) as c:
    c.execute('CREATE TABLE settings(key TEXT PRIMARY KEY,value TEXT)');c.executemany('INSERT INTO settings VALUES(?,?)',[('profiles',json.dumps([profile])),('activeProfile',json.dumps('p'))])
   qa.rpc(e,'settings.save',{'plannerProfile':'p','plannerModel':'fixture','answerProfile':'p','answerModel':'fixture','minRounds':2,'maxRounds':3,'topK':2})
@@ -104,6 +106,7 @@ try:
    assert not (qa.runpath(e,pending['id'])/'answer-section.json').exists()
    if expected=='cancelled':assert time.monotonic()-started<2,'Cancellation was blocked by validation'
    else:assert '变化' in result['error'],result['error']
+  if pf.ENABLED:assert len(set(pf.sessions()))==1,'QA stages/follow-up changed session'
   # A different, empty project can greet without an embedding profile/index being ready.
   e.PROJECT='empty'
   empty_thread=qa.rpc(e,'new',{'contentLanguage':TEST_LANGUAGE} if TEST_LANGUAGE else {})
@@ -116,6 +119,8 @@ try:
   assert hello_state['state']=='done',hello_state.get('error')
   assert hello_state['answer'].startswith('你好') and hello_state['round']==0
   assert len(requests[before:])==2 and not any('input' in r for r in requests[before:])
+  if pf.ENABLED:assert len(set(pf.sessions()))==2,'Independent QA thread shares session'
+  pf.verify()
   print(json.dumps({'passed':True,'auditStorage':log_storage,'rounds':state['round'],'modelCalls':len(models),'checks':['real independent worker','shared retriever and embedding API','selected scope','minimum rounds','material deduplication','structured answer and table','PMID binding','source RPC','export','no output token cap','real follow-up rewrite with historical citation binding','greeting in empty project without retrieval','cancel active HTTP within 2 seconds','source mutation while streaming blocks publication']},ensure_ascii=False))
 finally:
  e.ROOT,e.PROJECT=old;server.shutdown();server.server_close()

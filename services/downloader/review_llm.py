@@ -2,6 +2,7 @@
 import asyncio,json,time,socket,ssl
 from urllib.parse import urlsplit
 import httpx
+import llm_provider
 from network import system_proxy
 
 class Cancelled(Exception):pass
@@ -35,7 +36,8 @@ def endpoint(base):
     return base+('/v1' if not urlsplit(base).path.strip('/') else '')+'/chat/completions'
 
 async def test_connection(profile):
-    p={**profile,'endpoint':endpoint(profile.get('baseUrl',''))};started=time.monotonic()
+    p={**profile,'endpoint':llm_provider.endpoint(profile,endpoint)};started=time.monotonic()
+    p=llm_provider.with_session(p,'connection-test',__import__('uuid').uuid4().hex)
     if not p.get('model'):raise ValueError('请选择要测试的模型')
     content='Reply only: connection OK';expected=None
     if profile.get('testVision'):
@@ -53,6 +55,7 @@ async def test_connection(profile):
 
 async def chat(profile,messages,cancelled,progress=lambda **kw:None,on_text=None,on_reasoning=None):
     output='';reasoning=0;reasoning_text='';last=0;phase='connecting';attempts=0;network_mode='direct'
+    provider=llm_provider.adapter(profile);decode=lambda value:value
     def receive(value):
         nonlocal output,reasoning,reasoning_text,last
         if value.get('error'):raise ValueError('模型服务返回错误，请检查配置与上下文长度')
@@ -73,20 +76,23 @@ async def chat(profile,messages,cancelled,progress=lambda **kw:None,on_text=None
             progress(received=len(output),reasoningCharacters=reasoning);last=time.monotonic()
         return bool(choice.get('finish_reason'))
     async def request():
-        nonlocal phase,network_mode
+        nonlocal phase,network_mode,decode
         phase='connecting'
         body={'model':profile['model'],'messages':messages,'stream':True}
         if isinstance(profile.get('temperature'),(int,float)):body['temperature']=profile['temperature']
         timeout=max(10,min(600,int(profile.get('timeout',120))))
         headers={'Authorization':'Bearer '+profile['apiKey']} if profile.get('apiKey') else {}
-        proxy=system_proxy(profile['endpoint']);network_mode='system_proxy' if proxy else 'direct'
+        url=profile['endpoint']
+        if provider:
+            url,body,headers,decoder=provider.prepare(profile,messages);decode=decoder.decode
+        proxy=system_proxy(url);network_mode='system_proxy' if proxy else 'direct'
         async with httpx.AsyncClient(timeout=httpx.Timeout(timeout,connect=min(25,timeout)),follow_redirects=False,trust_env=False,proxy=proxy) as client:
-            async with client.stream('POST',profile['endpoint'],json=body,headers=headers) as response:
+            async with client.stream('POST',url,json=body,headers=headers) as response:
                 phase='response'
                 progress(connectionStatus='connected',connectionAttempts=attempts,networkMode=network_mode)
                 if not response.is_success:raise ValueError(f'模型请求失败（HTTP {response.status_code}）；请检查模型、密钥及上下文长度')
                 if 'application/json' in response.headers.get('content-type',''):
-                    receive(json.loads(await response.aread()));return
+                    receive(decode(json.loads(await response.aread())));return
                 phase='streaming'
                 payload=[];finished=False;done=False
                 async for line in response.aiter_lines():
@@ -94,11 +100,11 @@ async def chat(profile,messages,cancelled,progress=lambda **kw:None,on_text=None
                     elif not line.strip() and payload:
                         data='\n'.join(payload);payload=[]
                         if data=='[DONE]':done=True;break
-                        finished=receive(json.loads(data)) or finished
+                        finished=receive(decode(json.loads(data))) or finished
                 if payload:
                     data='\n'.join(payload)
                     if data=='[DONE]':done=True
-                    else:finished=receive(json.loads(data)) or finished
+                    else:finished=receive(decode(json.loads(data))) or finished
                 if not done and not finished:raise ValueError('模型连接中断，未收到完成标志，未发布正文')
     async def connect():
         nonlocal attempts

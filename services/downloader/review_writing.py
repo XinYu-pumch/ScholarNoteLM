@@ -1,4 +1,5 @@
 """Resumable review writing, evidence scopes and deterministic tree assembly."""
+import llm_provider
 import compact_io
 import content_language as lang
 import review_content
@@ -83,7 +84,7 @@ def rows_at(e,path):
     return outline.nodes(e,path,outline.parse_csv(csvpath.read_text(encoding='utf8')))
 
 # 'sendTemperature' is retired but stays in the key list so existing signatures remain valid.
-def profile_signature(p):return chunks.digest({k:p.get(k) for k in ('id','model','endpoint','temperature','sendTemperature','visionModels')})
+def profile_signature(p):return chunks.digest(llm_provider.signature_fields(p,('id','model','endpoint','temperature','sendTemperature','visionModels')))
 def unit_signature(unit,cfg,topic,source,model_signature,models,prompt_hash=""):
     return chunks.digest([SYSTEM,review_format.FORMAT,review_bundle.VERSION,{k:v for k,v in unit.items() if k not in ('signature','promptSignature')},{k:v for k,v in cfg.items() if k not in ('concurrency','profileId','model') and (k!='limitContext' or v)},topic,source,model_signature,models,prompt_hash])
 
@@ -314,7 +315,7 @@ def rpc(e,name,op,a):
     if not tasks:return status(e,name)
     if mode=='write':manuscripts.save(e,name)
     token=uuid.uuid4().hex;run=path/'logs'/token;run.mkdir(parents=True)
-    snapshot={'token':token,'created':time.time(),'topic':state['topic'],'config':cfg,'mode':mode,'retrieval':rcfg,'profileId':p.get('id',''),'model':p.get('model',''),'profileSignature':ps,'sourceSignature':source,'modelsSignature':models,'rows':rows,'tasks':tasks,'frozenMaterials':True}
+    snapshot={'token':token,'created':time.time(),'topic':state['topic'],'config':cfg,'mode':mode,'retrieval':rcfg,'profileId':p.get('id',''),'model':p.get('model',''),'profileSignature':ps,'sourceSignature':source,'modelsSignature':models,'rows':rows,'tasks':tasks,'frozenMaterials':True,'sessionRound':ctx['id']}
     compact_io.write_json(e,run/'input.json',snapshot)
     j={'token':token,'state':'queued','created':time.time(),'updated':time.time(),'pid':0,'owner':a.get('owner',0),'total':len(tasks),'completed':0,'failed':0,'mode':mode,'phase':'准备提示词' if mode=='prepare' else '准备生成综述','items':{u['id']:{'state':'pending'} for u in tasks},'error':''}
     e.write_json(path/'writing-job.json',j)
@@ -413,6 +414,7 @@ async def run(e,name,token,retriever_factory=None):
                         delivered=dict(delivered);original=dict(original);image_file=delivered.pop('imageFile',None)
                         original.pop('assetPath',None);sha=original.pop('assetSha256',None)
                         if delivered!=original or (image_file or {}).get('sha256')!=sha:raise ValueError('图表与冻结检索记录不一致，请重新准备')
+                    request_profile=llm_provider.with_session(p,'writing',e.PROJECT,name,snapshot.get('sessionRound',snapshot['sourceSignature']),unit['id'])
                     messages=review_bundle.messages(bundle,path/'review_parts',p)
                     text_content=messages[-1]['content'];text_content=text_content[0]['text'] if isinstance(text_content,list) else text_content
                     if cfg.get('limitContext',False) and len(messages[0]['content'])+len(text_content)>cfg['contextChars']:
@@ -420,7 +422,7 @@ async def run(e,name,token,retriever_factory=None):
                     stem=unit['id']+'-0'
                     compact_io.write_text(e,runpath/(stem+'.prompt.json'),json.dumps(messages,ensure_ascii=False,indent=2))
                     await verify_materials()
-                    raw=await chat(p,messages,chat_cancelled,lambda **kw:update(unit['id'],**kw));compact_io.write_text(e,runpath/(stem+'.response.txt'),raw)
+                    raw=await chat(request_profile,messages,chat_cancelled,lambda **kw:update(unit['id'],**kw));compact_io.write_text(e,runpath/(stem+'.response.txt'),raw)
                     update(unit['id'],state='validating')
                     try:
                         value=object_json(raw);sections,errors=review_bundle.decode(value,bundle,unit,p)
@@ -431,7 +433,7 @@ async def run(e,name,token,retriever_factory=None):
                         repair=review_bundle.repair_messages(bundle,path/'review_parts',p,value,{serials.get(k,k):v for k,v in errors.items()})
                         compact_io.write_text(e,runpath/(stem+'.repair.prompt.json'),json.dumps(repair,ensure_ascii=False,indent=2))
                         await verify_materials()
-                        fixed=await chat(p,repair,chat_cancelled);compact_io.write_text(e,runpath/(stem+'.repair.response.txt'),fixed)
+                        fixed=await chat(request_profile,repair,chat_cancelled);compact_io.write_text(e,runpath/(stem+'.repair.response.txt'),fixed)
                         sections,errors=review_bundle.decode(object_json(fixed),bundle,unit,p)
                         if errors:raise ValueError('引用校验仍未通过：仅允许当前共享池中的证据 ID，父标题导语不能引用')
                     await verify_materials()
