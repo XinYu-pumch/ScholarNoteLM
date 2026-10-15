@@ -812,7 +812,8 @@ async def run_batch(b):
                     execute("UPDATE items SET state='skipped',source=?,bytes=? WHERE batch=? AND pmid=?",(info['source'],check['bytes'],bid,i['pmid']))
                 except Exception as e:event(b,i['pmid'],'existing','已有文件无效，将重新下载',error=str(e))
         timeout=httpx.Timeout(cfg['timeout'],read=max(60,cfg['timeout']))
-        async with httpx.AsyncClient(timeout=timeout,follow_redirects=True,max_redirects=10,headers={'User-Agent':'ScholarNoteLM/0.4 (literature research)'}) as client:
+        from network import SystemProxyTransport
+        async with httpx.AsyncClient(timeout=timeout,follow_redirects=True,max_redirects=10,trust_env=False,transport=SystemProxyTransport(),headers={'User-Agent':'ScholarNoteLM/0.4 (literature research)'}) as client:
             for stage in (['zotero'] if zotero_only else STAGES):
                 if stage=='europe_pmc_getpdf':continue  # Executed together with S3.
                 if stage=='zotero':

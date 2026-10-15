@@ -46,7 +46,7 @@ class PipelineTests(unittest.IsolatedAsyncioTestCase):
     async def unavailable(self,*args):return None,'no PDF'
     def client(self,handler):
         original=httpx.AsyncClient
-        return patch.object(e.httpx,'AsyncClient',side_effect=lambda **kwargs:original(transport=httpx.MockTransport(handler),**kwargs))
+        return patch.object(e.httpx,'AsyncClient',side_effect=lambda **kwargs:original(**{**kwargs,'transport':httpx.MockTransport(handler)}))
     def report(self,b):return json.loads(compact_io.read_text((e.batch_dir(b)/'download_report.json')))
 
     async def test_s3_article_timeout_falls_through_and_is_not_reported_absent(self):

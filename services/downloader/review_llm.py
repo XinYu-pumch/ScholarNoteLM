@@ -2,11 +2,12 @@
 import asyncio,json,time,socket,ssl
 from urllib.parse import urlsplit
 import httpx
+from network import system_proxy
 
 class Cancelled(Exception):pass
 
 class ConnectionFailure(ValueError):
-    def __init__(self,exc,endpoint,phase,attempts,received,reasoning):
+    def __init__(self,exc,endpoint,phase,attempts,received,reasoning,network_mode='direct'):
         chain=[];current=exc
         while current is not None and len(chain)<8:
             chain.append(current);current=current.__cause__
@@ -19,10 +20,11 @@ class ConnectionFailure(ValueError):
         else:kind='stream';label='模型流式连接中断'
         host=urlsplit(endpoint).hostname or '模型服务'
         self.diagnostics={'kind':kind,'type':type(exc).__name__,'causeTypes':[type(v).__name__ for v in chain],
-            'host':host,'phase':phase,'attempts':attempts,'received':received,'reasoningCharacters':reasoning,'networkMode':'direct',
+            'host':host,'phase':phase,'attempts':attempts,'received':received,'reasoningCharacters':reasoning,'networkMode':network_mode,
             'osErrors':[{'type':type(v).__name__,'errno':v.errno} for v in chain if isinstance(v,OSError) and isinstance(v.errno,int)]}
         state=f'已接收正文 {received} 字、推理 {reasoning} 字' if received or reasoning else '尚未收到模型内容'
-        super().__init__(f'{label}（{type(exc).__name__} · {host} · 直连 API · 尝试 {attempts} 次）；{state}')
+        route='系统代理' if network_mode=='system_proxy' else '直连 API'
+        super().__init__(f'{label}（{type(exc).__name__} · {host} · {route} · 尝试 {attempts} 次）；{state}')
 
 def endpoint(base):
     base=base.strip().rstrip('/');u=urlsplit(base)
@@ -43,13 +45,14 @@ async def test_connection(profile):
         png=b'\x89PNG\r\n\x1a\n'+part(b'IHDR',struct.pack('!2I5B',64,64,8,2,0,0,0))+part(b'IDAT',zlib.compress((b'\0'+bytes(rgb)*64)*64))+part(b'IEND',b'')
         content=[{'type':'text','text':'Name the solid color in this image. Reply with one English color word only.'},
                  {'type':'image_url','image_url':{'url':'data:image/png;base64,'+base64.b64encode(png).decode()}}]
-    reply=await chat(p,[{'role':'user','content':content}],lambda:False)
+    connection={}
+    reply=await chat(p,[{'role':'user','content':content}],lambda:False,progress=lambda **kw:connection.update(kw))
     if expected and reply.strip().lower().strip('.。!')!=expected:raise ValueError('服务接受了图片，但识别结果未通过；请核对该模型是否支持图片')
-    return {'reply':reply[:200],'seconds':round(time.monotonic()-started,2),'model':p['model'],'client':'qa-stream','networkMode':'direct','imageVerified':bool(expected)}
+    return {'reply':reply[:200],'seconds':round(time.monotonic()-started,2),'model':p['model'],'client':'qa-stream','networkMode':connection.get('networkMode','direct'),'imageVerified':bool(expected)}
 
 
 async def chat(profile,messages,cancelled,progress=lambda **kw:None,on_text=None,on_reasoning=None):
-    output='';reasoning=0;reasoning_text='';last=0;phase='connecting';attempts=0
+    output='';reasoning=0;reasoning_text='';last=0;phase='connecting';attempts=0;network_mode='direct'
     def receive(value):
         nonlocal output,reasoning,reasoning_text,last
         if value.get('error'):raise ValueError('模型服务返回错误，请检查配置与上下文长度')
@@ -70,16 +73,17 @@ async def chat(profile,messages,cancelled,progress=lambda **kw:None,on_text=None
             progress(received=len(output),reasoningCharacters=reasoning);last=time.monotonic()
         return bool(choice.get('finish_reason'))
     async def request():
-        nonlocal phase
+        nonlocal phase,network_mode
         phase='connecting'
         body={'model':profile['model'],'messages':messages,'stream':True}
         if isinstance(profile.get('temperature'),(int,float)):body['temperature']=profile['temperature']
         timeout=max(10,min(600,int(profile.get('timeout',120))))
         headers={'Authorization':'Bearer '+profile['apiKey']} if profile.get('apiKey') else {}
-        async with httpx.AsyncClient(timeout=httpx.Timeout(timeout,connect=min(25,timeout)),follow_redirects=False,trust_env=False) as client:
+        proxy=system_proxy(profile['endpoint']);network_mode='system_proxy' if proxy else 'direct'
+        async with httpx.AsyncClient(timeout=httpx.Timeout(timeout,connect=min(25,timeout)),follow_redirects=False,trust_env=False,proxy=proxy) as client:
             async with client.stream('POST',profile['endpoint'],json=body,headers=headers) as response:
                 phase='response'
-                progress(connectionStatus='connected',connectionAttempts=attempts,networkMode='direct')
+                progress(connectionStatus='connected',connectionAttempts=attempts,networkMode=network_mode)
                 if not response.is_success:raise ValueError(f'模型请求失败（HTTP {response.status_code}）；请检查模型、密钥及上下文长度')
                 if 'application/json' in response.headers.get('content-type',''):
                     receive(json.loads(await response.aread()));return
@@ -102,10 +106,10 @@ async def chat(profile,messages,cancelled,progress=lambda **kw:None,on_text=None
             attempts=attempt+1
             try:return await request()
             except (httpx.ConnectError,httpx.ConnectTimeout) as exc:
-                problem=ConnectionFailure(exc,profile['endpoint'],phase,attempts,len(output),reasoning)
+                problem=ConnectionFailure(exc,profile['endpoint'],phase,attempts,len(output),reasoning,network_mode)
                 if attempt or phase!='connecting' or problem.diagnostics['kind']=='TLS':raise
                 if cancelled():raise Cancelled('已取消')
-                progress(connectionStatus='retrying',connectionAttempts=attempts+1,networkMode='direct')
+                progress(connectionStatus='retrying',connectionAttempts=attempts+1,networkMode=network_mode)
                 await asyncio.sleep(.5)
     task=asyncio.create_task(connect())
     try:
@@ -116,7 +120,7 @@ async def chat(profile,messages,cancelled,progress=lambda **kw:None,on_text=None
         if cancelled():raise Cancelled('已取消')
         if not output.strip():raise ValueError('模型只返回了推理内容，没有返回正文')
         return output
-    except httpx.HTTPError as exc:raise ConnectionFailure(exc,profile['endpoint'],phase,attempts,len(output),reasoning) from None
+    except httpx.HTTPError as exc:raise ConnectionFailure(exc,profile['endpoint'],phase,attempts,len(output),reasoning,network_mode) from None
     finally:
         if not task.done():task.cancel()
         await asyncio.gather(task,return_exceptions=True)

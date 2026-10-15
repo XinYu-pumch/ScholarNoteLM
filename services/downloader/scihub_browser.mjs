@@ -15,6 +15,9 @@ const messages={timeout:'浏览器导航、渲染或文件传输超时',tls_cert
 async function launch(){
  if(!starting)starting=(async()=>{
   try{
+   // Leave proxy options unset: Chromium follows the native system proxy and
+   // its change notifications, including PAC. Do not freeze a startup snapshot
+   // in --proxy-server / context.proxy or force --no-proxy-server.
    server=await chromium.launchServer({headless:true,host:'127.0.0.1',downloadsPath:directory,timeout:10000});
    browser=await chromium.connect(server.wsEndpoint(),{timeout:10000});
    reply({event:'browser',pid:server.process().pid,version:browser.version()});

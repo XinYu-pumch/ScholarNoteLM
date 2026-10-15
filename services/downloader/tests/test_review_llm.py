@@ -17,6 +17,7 @@ class ConnectionTests(unittest.IsolatedAsyncioTestCase):
  def setUp(self):
   self.profile={'model':'fixture','apiKey':'private-fixture-secret','endpoint':'https://fixture.invalid/v1/chat/completions','timeout':10}
   self.real_client=httpx.AsyncClient
+  proxy=patch.object(llm,'system_proxy',return_value=None);proxy.start();self.addCleanup(proxy.stop)
  def client(self,handler):
   return patch.object(llm.httpx,'AsyncClient',side_effect=lambda **kw:self.real_client(transport=httpx.MockTransport(handler),**kw))
  async def test_preconnection_failure_retries_once(self):
@@ -38,7 +39,7 @@ class ConnectionTests(unittest.IsolatedAsyncioTestCase):
   with self.client(handler),self.assertRaises(llm.ConnectionFailure) as caught:
    await llm.chat({**self.profile,'networkMode':'direct'},[],lambda:False)
   self.assertEqual(caught.exception.diagnostics['networkMode'],'direct');self.assertIn('直连 API',str(caught.exception))
- async def test_always_direct_even_with_legacy_proxy_setting(self):
+ async def test_loopback_stays_direct_even_with_proxy_environment(self):
   hits=[]
   class Target(BaseHTTPRequestHandler):
    def log_message(self,*args):pass

@@ -51,7 +51,7 @@ class PmcTests(unittest.IsolatedAsyncioTestCase):
     def client(self, handler):
         original = httpx.AsyncClient
         return patch.object(e.httpx, 'AsyncClient', side_effect=lambda **kw:
-                            original(transport=httpx.MockTransport(handler), **kw))
+                            original(**{**kw, 'transport':httpx.MockTransport(handler)}))
 
     async def test_opposing_numeric_order_and_fixed_worker_limits_no_duplicate_download(self):
         b = self.batch((10, 2, 20, 3, 30, 4, 40, 5, 50, 1))

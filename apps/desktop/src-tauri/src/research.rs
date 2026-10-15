@@ -2,6 +2,8 @@
 mod pubmed_storage;
 #[path = "zotero_import.rs"]
 mod zotero_import;
+#[path = "network.rs"]
+mod network;
 pub use zotero_import::worker_entry as zotero_worker_entry;
 #[allow(unused_imports)] // Foreground waiting is exposed only by research-cli.
 pub use zotero_import::wait_for_job as wait_for_zotero_job;
@@ -58,22 +60,16 @@ fn valid_id(id: &str) -> R<()> {
         Ok(())
     }
 }
-fn client(seconds: u64) -> R<Client> {
-    Client::builder()
+fn client(seconds: u64, url: &str) -> R<Client> {
+    let builder = Client::builder();
+    let builder = if network::bypass(url) { builder.no_proxy() } else { builder };
+    builder
         .timeout(Duration::from_secs(seconds))
         .connect_timeout(Duration::from_secs(25))
         .user_agent("ScholarNoteLM/0.2 (literature research)")
         .redirect(reqwest::redirect::Policy::none())
         .build()
         .map_err(err)
-}
-fn model_client(seconds: u64) -> R<Client> {
-    Client::builder().no_proxy()
-        .timeout(Duration::from_secs(seconds))
-        .connect_timeout(Duration::from_secs(25))
-        .user_agent("ScholarNoteLM/0.2 (literature research)")
-        .redirect(reqwest::redirect::Policy::none())
-        .build().map_err(err)
 }
 fn write_file(path: &Path, bytes: &[u8]) -> R<()> {
     fs::create_dir_all(path.parent().unwrap()).map_err(err)?;
@@ -515,7 +511,9 @@ fn ncbi_post(url: &str, fields: &[(String,String)], cancel: Option<&Path>) -> R<
     check_query_cancel(cancel)?;
     let runtime = tokio::runtime::Builder::new_current_thread().enable_all().build().map_err(err)?;
     runtime.block_on(async {
-        let cli = reqwest::Client::builder().timeout(Duration::from_secs(100))
+        let builder = reqwest::Client::builder();
+        let builder = if network::bypass(url) { builder.no_proxy() } else { builder };
+        let cli = builder.timeout(Duration::from_secs(100))
             .connect_timeout(Duration::from_secs(25)).user_agent("ScholarNoteLM/0.2 (literature research)")
             .redirect(reqwest::redirect::Policy::none()).build().map_err(err)?;
         let mut request = Box::pin(async {
@@ -1176,13 +1174,12 @@ fn index_mesh_file(conn: &mut Connection, path: &Path, kind: &str) -> R<(usize, 
 }
 fn mesh_update_inner(root: &Path, c: &Connection, force: bool) -> R<Value> {
     let base = "https://nlmpubs.nlm.nih.gov/projects/mesh/MESH_FILES/xmlmesh/";
-    let cli = client(900)?;
     put(
         c,
         "meshJob",
         &json!({"state":"running","message":"正在检查 NLM 官方生产版数据","started":now()}),
     )?;
-    let html = cli
+    let html = client(900, base)?
         .get(base)
         .send()
         .map_err(|_| "无法连接 NLM 数据目录")?
@@ -1208,7 +1205,7 @@ fn mesh_update_inner(root: &Path, c: &Connection, force: bool) -> R<Value> {
     let mut remote = Vec::new();
     for (name, kind) in &files {
         let url = format!("{base}{name}");
-        let h = cli
+        let h = client(900, &url)?
             .head(&url)
             .send()
             .map_err(|_| "MeSH 版本检查连接失败")?
@@ -1266,7 +1263,7 @@ fn mesh_update_inner(root: &Path, c: &Connection, force: bool) -> R<Value> {
             "meshJob",
             &json!({"state":"running","message":format!("正在下载 {name}"),"started":now()}),
         )?;
-        let mut response = cli
+        let mut response = client(900, s(entry, "url"))?
             .get(s(entry, "url"))
             .send()
             .map_err(|_| "MeSH 下载连接失败")?
@@ -1459,8 +1456,9 @@ fn llm_stream(p: &Value, messages: Value, emit: &mut dyn FnMut(&str, &str) -> R<
     if p["temperature"].is_number() {
         body["temperature"] = p["temperature"].clone();
     }
-    let mut req = model_client(p["timeout"].as_u64().unwrap_or(120).clamp(10, 600))?
-        .post(llm_url(p, "chat/completions")?)
+    let url = llm_url(p, "chat/completions")?;
+    let mut req = client(p["timeout"].as_u64().unwrap_or(120).clamp(10, 600), &url)?
+        .post(url)
         .json(&body);
     if !s(p, "apiKey").is_empty() {
         req = req.bearer_auth(s(p, "apiKey"));
@@ -2332,7 +2330,8 @@ pub fn dispatch(root: &Path, request: Value) -> R<Value> {
         }
         "llm.models" => {
             let cfg = profile(&c, a)?;
-            let mut req = model_client(30)?.get(llm_url(&cfg, "models")?);
+            let url = llm_url(&cfg, "models")?;
+            let mut req = client(30, &url)?.get(url);
             if !s(&cfg, "apiKey").is_empty() {
                 req = req.bearer_auth(s(&cfg, "apiKey"));
             }
@@ -2547,6 +2546,58 @@ mod tests {
         p
     }
     use std::path::PathBuf;
+    #[test]
+    fn network_proxy_changes_are_seen_by_new_requests() {
+        // Environment mutation stays in a dedicated test process, never racing
+        // other tests or changing the user's actual OS proxy configuration.
+        const CHILD: &str = "SCHOLARNOTELM_PROXY_TEST_CHILD";
+        if std::env::var_os(CHILD).is_none() {
+            let result = std::process::Command::new(std::env::current_exe().unwrap())
+                .args(["--exact", "research::tests::network_proxy_changes_are_seen_by_new_requests", "--nocapture"])
+                .env(CHILD, "1").output().unwrap();
+            assert!(result.status.success(), "{}", String::from_utf8_lossy(&result.stderr));
+            return;
+        }
+        use std::net::TcpListener;
+        fn server(label: &'static str, count: usize) -> (String, std::thread::JoinHandle<()>) {
+            let listener = TcpListener::bind("127.0.0.1:0").unwrap();
+            let address = listener.local_addr().unwrap();
+            listener.set_nonblocking(true).unwrap();
+            let task = std::thread::spawn(move || {
+                let deadline = std::time::Instant::now() + Duration::from_secs(10);
+                for _ in 0..count {
+                    let mut stream = loop {
+                        match listener.accept() {
+                            Ok((stream, _)) => break stream,
+                            Err(e) if e.kind() == std::io::ErrorKind::WouldBlock => {
+                                assert!(std::time::Instant::now() < deadline, "request never reached {label}");
+                                std::thread::sleep(Duration::from_millis(10));
+                            }
+                            Err(e) => panic!("{e}"),
+                        }
+                    };
+                    stream.set_read_timeout(Some(Duration::from_secs(3))).unwrap();
+                    let mut reader = BufReader::new(stream.try_clone().unwrap());
+                    loop { let mut line=String::new(); reader.read_line(&mut line).unwrap(); if line=="\r\n" || line.is_empty(){break;} }
+                    write!(stream,"HTTP/1.1 200 OK\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{}",label.len(),label).unwrap();
+                }
+            });
+            (format!("http://{address}"), task)
+        }
+        for name in ["http_proxy", "HTTP_PROXY", "https_proxy", "HTTPS_PROXY", "all_proxy", "ALL_PROXY", "no_proxy", "NO_PROXY"] { std::env::remove_var(name); }
+        let (first, a) = server("proxy-a", 1);
+        let (second, b) = server("proxy-b", 1);
+        let (local, c) = server("direct", 1);
+        let remote = "http://proxy-fixture.invalid/models";
+        for (proxy, expected) in [(&first, "proxy-a"), (&second, "proxy-b")] {
+            std::env::set_var("HTTP_PROXY", proxy);
+            assert_eq!(client(3, remote).unwrap().get(remote).send().unwrap().text().unwrap(), expected);
+        }
+        // Local endpoints stay reachable even with a stale proxy endpoint.
+        std::env::set_var("HTTP_PROXY", "http://127.0.0.1:1");
+        assert_eq!(client(3, &local).unwrap().get(&local).send().unwrap().text().unwrap(), "direct");
+        a.join().unwrap(); b.join().unwrap(); c.join().unwrap();
+    }
     #[test]
     fn model_pool_default_and_workspace_selection_are_independent() {
         let root=temp();

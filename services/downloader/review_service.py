@@ -365,7 +365,8 @@ def worker(e,name,vid,token):
             if isinstance(p.get('temperature'),(int,float)):body['temperature']=p['temperature']
             timeout=max(10,min(600,int(p.get('timeout',120))))
             headers={'Authorization':'Bearer '+p['apiKey']} if p.get('apiKey') else {}
-            async with httpx.AsyncClient(timeout=httpx.Timeout(timeout,connect=min(25,timeout)),follow_redirects=False,trust_env=False) as client:
+            from network import system_proxy
+            async with httpx.AsyncClient(timeout=httpx.Timeout(timeout,connect=min(25,timeout)),follow_redirects=False,trust_env=False,proxy=system_proxy(p['endpoint'])) as client:
                 async with client.stream('POST',p['endpoint'],json=body,headers=headers) as response:
                     if not response.is_success:raise ValueError(f'模型请求失败（HTTP {response.status_code}），请检查服务地址、模型、密钥及上下文长度')
                     if 'application/json' in response.headers.get('content-type',''):

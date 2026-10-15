@@ -1,6 +1,6 @@
 """Credential-free provider presets and explicit embedding request protocols."""
 from urllib.parse import urlparse
-import urllib.request
+from network import system_proxy
 
 PRESETS=(
     {'id':'siliconflow','name':'siliconflow','baseUrl':'https://api.siliconflow.cn/v1/embeddings',
@@ -34,15 +34,3 @@ def model_ids(data,cfg):
     return sorted({p['id'].removeprefix('jina-ai/') for p in rows
                    if 'embeddings' in p.get('output_modalities',[]) and 'text' in p.get('input_modalities',[])
                    and not p['id'].removeprefix('jina-ai/').startswith('jina-colbert')})
-
-def system_proxy(url):
-    """Honor the user's HTTP(S) proxy, including macOS settings; local APIs stay direct.
-
-    Keep httpx trust_env=False: only proxy routing is imported, not implicit TLS
-    or certificate overrides. HTTPS continues to use normal certificate checks.
-    """
-    parsed=urlparse(url)
-    if parsed.hostname in ('localhost','127.0.0.1','::1') or urllib.request.proxy_bypass(parsed.hostname or ''):return None
-    proxies=urllib.request.getproxies()
-    value=proxies.get(parsed.scheme) or proxies.get('all')
-    return value if value and urlparse(value).scheme in ('http','https') else None
