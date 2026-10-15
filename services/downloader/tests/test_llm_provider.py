@@ -31,6 +31,8 @@ class ProviderTests(unittest.IsolatedAsyncioTestCase):
     with self.client(handler),patch.object(llm,'system_proxy',return_value=None):result=await llm.chat(p,messages,lambda:False,on_reasoning=thought.append)
     self.assertEqual(result,'hello');self.assertEqual(thought[-1],'thinking');req=requests[0];self.assertIn(path,str(req.url));self.assertEqual(req.headers['x-opencode-session'],p['_session']);self.assertEqual(req.headers['user-agent'],'ScholarNoteLM/0.6.0');self.assertEqual(req.headers['authorization'],'Bearer fixture-secret')
     body=json.loads(req.content);self.assertIn('previous',json.dumps(body))
+    if path==':streamGenerateContent':self.assertEqual(body['generationConfig'],{'thinkingConfig':{'includeThoughts':True}})
+    else:self.assertNotIn('includeThoughts',json.dumps(body))
     if path=='/messages':self.assertEqual(body['max_tokens'],131072);self.assertEqual(req.headers['anthropic-version'],'2023-06-01')
     else:self.assertFalse({'max_tokens','max_completion_tokens','max_output_tokens'}&set(body))
  async def test_default_profile_never_loads_plugin_or_adds_headers(self):
@@ -67,7 +69,7 @@ class ProviderTests(unittest.IsolatedAsyncioTestCase):
   for info in providers.manifest({'provider':'opencode_go'})['models'].values():self.assertEqual(info['reasoning']['levels'],list(info['reasoning']['options']))
   selected={'deepseek-v4.1-flash':'max','gemini-4-argon-contributor':'medium','gpt-6-luna':'xhigh','claude-haiku-5-5':'high','qwen3.8-max':'xhigh'}
   expected=[('deepseek-v4.1-flash',{'reasoning_effort':'max','thinking':{'type':'enabled'}}),
-   ('gemini-4-argon-contributor',{'generationConfig':{'thinkingConfig':{'thinkingLevel':'medium'}}}),
+   ('gemini-4-argon-contributor',{'generationConfig':{'thinkingConfig':{'thinkingLevel':'medium','includeThoughts':True}}}),
    ('gpt-6-luna',{'reasoning':{'effort':'xhigh'}}),
    ('claude-haiku-5-5',{'thinking':{'type':'adaptive'},'output_config':{'effort':'high'}}),
    ('qwen3.8-max',{'thinking':{'type':'enabled'},'output_config':{'effort':'xhigh'}})]
@@ -76,7 +78,7 @@ class ProviderTests(unittest.IsolatedAsyncioTestCase):
    _,body,_,_=providers.adapter(p).prepare(p,[])
    for key,value in fields.items():self.assertEqual(body[key],value)
   p={**self.profile('gemini-4-argon-contributor'),'temperature':.5,'reasoningByModel':selected}
-  self.assertEqual(providers.adapter(p).prepare(p,[])[1]['generationConfig'],{'temperature':.5,'thinkingConfig':{'thinkingLevel':'medium'}})
+  self.assertEqual(providers.adapter(p).prepare(p,[])[1]['generationConfig'],{'temperature':.5,'thinkingConfig':{'thinkingLevel':'medium','includeThoughts':True}})
   for model,level in [('deepseek-v4.1-flash','medium'),('deepseek-v4-pro','low'),('gemini-4-argon-contributor','max'),('minimax-m2.7','high'),('gpt-6-luna',None)]:
    p={**self.profile(model),'reasoningByModel':{model:level}}
    with self.assertRaises(ValueError):providers.adapter(p).prepare(p,[])

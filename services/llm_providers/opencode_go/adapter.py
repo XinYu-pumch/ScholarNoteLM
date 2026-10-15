@@ -83,6 +83,10 @@ def prepare(profile,messages):
         if protocol=='google':body['generationConfig']={'temperature':profile['temperature']}
         else:body['temperature']=profile['temperature']
     apply_reasoning(profile,body)
+    if protocol=='google':
+        # Go Gemini streams thought summaries only when explicitly requested.
+        # Preserve the selected effort (or server default) and temperature.
+        body.setdefault('generationConfig',{}).setdefault('thinkingConfig',{})['includeThoughts']=True
     return url,body,headers,Decoder(protocol)
 
 def chunk(text='',thought='',finish=None):

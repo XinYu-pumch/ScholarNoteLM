@@ -35,7 +35,9 @@ Messages 协议强制要求 `max_tokens`，因此专用模块使用 models.dev �
 
 ## 逐模型思考强度
 
-Go 配置的 `reasoningByModel` 按模型 ID 保存选择。每行独立选择“服务端默认”或该模型的已登记档位；默认不发送思考参数，不将原厂默认值冒充 Go 的实际默认值。测试连接和各研究工作流使用同一选择。普通配置忽略此字段。
+Go 配置的 `reasoningByModel` 按模型 ID 保存选择。每行独立选择“服务端默认”或该模型的已登记档位；默认不发送思考强度参数，不将原厂默认值冒充 Go 的实际默认值。测试连接和各研究工作流使用同一选择。普通配置忽略此字段。
+
+Go 的 Gemini 请求始终发送 `generationConfig.thinkingConfig.includeThoughts: true`，包括强度为“服务端默认”时，以接收流式思考摘要。摘要通过已有推理字段传递，不混入大纲 CSV 或回答正文；所选强度和温度保持不变。此行为仅在 Go 的 `adapter.py` 中实现，不修改共用客户端、超时或缓存签名。摘要不保证固定发送间隔，服务端连续无数据仍可能触发已有超时。协议说明见 [Gemini 思考摘要](https://ai.google.dev/gemini-api/docs/generate-content/thinking#thought-summaries)。
 
 档位以 Go 官网链接的 models.dev 中 `opencode-go` 的 `reasoning_options` 为依据，参数拼写结合 OpenCode 的原生协议实现核对；来源链接固定在 manifest 的 `reasoningSources`。Go 的 `/models` 只返回模型身份，不能据此推断档位。当前登记 21 个模型的离散强度选项：
 
