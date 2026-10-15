@@ -385,9 +385,9 @@ page-memory.ts 是最多 100 项的进程内 Map，切换键立即恢复对应�
 | --- | --- | --- |
 | Button / IconButton | 优先级、尺寸、busy、disabled、焦点、名称 | `.button`、`IconButton` |
 | ActionBar | 动作顺序、分组、换行、进度尾对齐 | `.action-bar` |
-| ObjectHeader | 对象标签、选择、新建、更多、主题摘要 | Review 顶部布局 |
+| ObjectHeader | 左侧对象选择/管理，内容区语言与主题，避免重复名称 | Review 分栏布局 |
 | Select / SearchablePicker | 选值、搜索、无结果、键盘与弹层避让 | `Select`；大量文献使用专用选择器 |
-| ActionMenu | disclosure / menu 的选用、定位避让、关闭与焦点交接 | `ActionMenu`、`StageMenu` |
+| ActionMenu | disclosure / menu 的选用、定位避让、关闭与焦点交接；右键菜单支持 Shift+F10 | `ActionMenu`、`StageMenu`、`ContextMenu` |
 | Tabs / SearchInput / Filter | 键盘选择、清除与状态保留 | 三个 tablist 共用 useTabs；搜索/筛选保留各自对象范围 |
 | DataTable / TreeNavigator | 选择、排序、折叠、条目操作；不负责业务判定 | 文献列表、大纲树 |
 | Dialog / ConfirmDialog | 名称、初始焦点、草稿保护、危险动作范围 | `Modal` 与各页确认流程 |
@@ -471,7 +471,7 @@ page-memory.ts 是最多 100 项的进程内 Map，切换键立即恢复对应�
 
 - 全局顶栏主题按钮旁使用紧凑的 `中文 / EN` 分段按钮，标明当前选择并支持键盘。语言名称使用自身语言，不用国旗。界面切换不重建页面、不清空草稿、不改变任务参数。
 - `uiLanguage` 和 `defaultContentLanguage` 分别持久化；后者只初始化新对象。综述工作区、检索对话、文献问答、阅读对话各自保存 `contentLanguage`。运行快照固定本次语言，重试和分支继承原轮次。显式单轮翻译要求可覆盖回答语言，不修改对象默认值。
-- 已有综述大纲后不直接改变语言；更多菜单提供“创建另一语言的综述”，复用主题与要求，共享论文及索引，重新生成目标语言大纲和正文。已有内容保留原文。
+- 已有综述大纲后不直接改变语言；工作区列表的右键菜单提供“创建另一语言的综述”，复用主题与要求，共享论文及索引，重新生成目标语言大纲和正文。已有内容保留原文。
 - 界面文案集中在 `src/locales/en.json`，通过 `i18n.ts` 取值。项目名称、文献标题、摘要、用户输入、模型正文与来源材料不得传入界面翻译器。日期按界面 locale 格式化，协议键、PubMed 检索语法及引用 ID 不翻译。
 - 动态提示在渲染时翻译；复合状态中的应用自有标签先单独翻译，再插入句子。JCR 警告逐条处理；模型测试保留结构化状态和耗时，切换语言后重新生成显示文字。不要递归翻译任意插值，以免误改项目名或文献标题。回归检查：`runtimes/node/bin/node scripts/test-i18n.mjs` 与 `scripts/test-i18n-render.mjs`；布局预览使用 `runtimes/node/bin/node scripts/serve-i18n-fixture.mjs`，全部 RPC 为隔离模拟。
 - 中英文界面共用 `--font-ui` 系统字体栈，`--font-display` 和 `--font-reading` 引用同一栈；用字号、字重和行距表达层级。编号、代码保留 `--font-mono`，原始 PDF 的内嵌字体不改动。不下载或打包额外字体。
