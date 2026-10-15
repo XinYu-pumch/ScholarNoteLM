@@ -3,7 +3,7 @@
 No sockets/credentials/global HTTP defaults are modified here. The shared client
 owns TLS, system proxy resolution, idle timeouts and cancellation.
 """
-import json,re
+import copy,json,re
 from pathlib import Path
 
 MANIFEST=json.loads(Path(__file__).with_name('manifest.json').read_text())
@@ -41,6 +41,20 @@ def parts(content,protocol,role):
         else:raise ValueError('opencode_go 收到不支持的消息内容类型')
     return result
 
+def apply_reasoning(profile,body):
+    selected=profile.get('reasoningByModel',{})
+    if not isinstance(selected,dict):raise ValueError('模型思考强度配置格式无效')
+    level=selected.get(profile['model'],'')
+    if level=='':return
+    options=route(profile).get('reasoning',{}).get('options',{})
+    if not isinstance(level,str) or level not in options:raise ValueError('此模型不支持所选思考强度，请重新选择')
+    def merge(target,patch):
+        for key,value in patch.items():
+            if isinstance(value,dict):merge(target.setdefault(key,{}),value)
+            else:target[key]=copy.deepcopy(value)
+    # Patches come only from this installed provider's reviewed manifest.
+    merge(body,options[level])
+
 def prepare(profile,messages):
     url=endpoint(profile);model=profile['model'];settings=route(profile);protocol=settings['protocol'];session=profile.get('_session','')
     if not re.fullmatch(r'snlm-[a-f0-9]{64}',session):raise ValueError('模型请求缺少稳定的会话上下文')
@@ -68,6 +82,7 @@ def prepare(profile,messages):
     if isinstance(profile.get('temperature'),(int,float)):
         if protocol=='google':body['generationConfig']={'temperature':profile['temperature']}
         else:body['temperature']=profile['temperature']
+    apply_reasoning(profile,body)
     return url,body,headers,Decoder(protocol)
 
 def chunk(text='',thought='',finish=None):

@@ -2270,6 +2270,8 @@ pub fn dispatch(root: &Path, request: Value) -> R<Value> {
             for field in ["name", "baseUrl", "model", "apiKey"] {
                 value[field] = json!(s(&value, field).trim());
             }
+            let mut profiles = setting(&tx, "profiles", json!([]))?;
+            llm_providers::prepare_save(root,&mut value,&profiles)?;
             let mut selected: Vec<String> = Vec::new();
             if let Some(models) = value.get("models") {
                 for model in models.as_array().ok_or("模型列表格式无效")? {
@@ -2300,8 +2302,7 @@ pub fn dispatch(root: &Path, request: Value) -> R<Value> {
             {
                 return Err("超时应为 10–600 秒，温度应为 0–2 或留空".into());
             }
-            let mut profiles = setting(&tx, "profiles", json!([]))?;
-            if profiles.as_array().unwrap().iter().any(|p| p["id"] != value["id"] && s(p,"name").to_lowercase() == s(&value,"name").to_lowercase()) { return Err("配置名称已存在，请使用不同名称".into()); }
+            if profiles.as_array().unwrap().iter().any(|p| llm_providers::name_conflict(p,&value)) { return Err("配置名称已存在，请使用不同名称".into()); }
             // Action flags belong to this request, not the persisted profile.
             if let Some(o) = value.as_object_mut() { o.remove("hasKey"); o.remove("clearKey"); o.remove("_session"); }
             let arr = profiles.as_array_mut().unwrap();

@@ -36,7 +36,7 @@ class ProviderTests(unittest.IsolatedAsyncioTestCase):
  async def test_default_profile_never_loads_plugin_or_adds_headers(self):
   requests=[]
   async def handler(req):requests.append(req);return httpx.Response(200,json={'choices':[{'message':{'content':'normal'}}]})
-  p={'name':'opencode_go','model':'gemini-4-argon-contributor','apiKey':'fixture-key','endpoint':'https://normal.invalid/v1/chat/completions'}
+  p={'name':'opencode_go','model':'gemini-4-argon-contributor','apiKey':'fixture-key','endpoint':'https://normal.invalid/v1/chat/completions','reasoningByModel':{'gemini-4-argon-contributor':'high'}}
   with self.client(handler),patch.object(providers,'_load',side_effect=AssertionError('default loaded plugin')),patch.object(llm,'system_proxy',return_value=None):
    self.assertEqual(await llm.chat(p,[{'role':'user','content':'normal'}],lambda:False),'normal')
   self.assertNotIn('x-opencode-session',requests[0].headers);self.assertNotEqual(requests[0].headers['user-agent'],'ScholarNoteLM/0.6.0');self.assertEqual(json.loads(requests[0].content),{'model':p['model'],'messages':[{'role':'user','content':'normal'}],'stream':True})
@@ -63,6 +63,34 @@ class ProviderTests(unittest.IsolatedAsyncioTestCase):
   self.assertNotEqual(a['_session'],providers.with_session(p,'qa','project','fork')['_session'])
   self.assertNotEqual(providers.with_session(p,'writing','p','review','round','1'),providers.with_session(p,'writing','p','review','round','2'))
   self.assertIs(providers.with_session(p:={},'qa','p','t'),p)
+ def test_per_model_effort_routes_and_rejects_invalid_levels(self):
+  for info in providers.manifest({'provider':'opencode_go'})['models'].values():self.assertEqual(info['reasoning']['levels'],list(info['reasoning']['options']))
+  selected={'deepseek-v4.1-flash':'max','gemini-4-argon-contributor':'medium','gpt-6-luna':'xhigh','claude-haiku-5-5':'high','qwen3.8-max':'xhigh'}
+  expected=[('deepseek-v4.1-flash',{'reasoning_effort':'max','thinking':{'type':'enabled'}}),
+   ('gemini-4-argon-contributor',{'generationConfig':{'thinkingConfig':{'thinkingLevel':'medium'}}}),
+   ('gpt-6-luna',{'reasoning':{'effort':'xhigh'}}),
+   ('claude-haiku-5-5',{'thinking':{'type':'adaptive'},'output_config':{'effort':'high'}}),
+   ('qwen3.8-max',{'thinking':{'type':'enabled'},'output_config':{'effort':'xhigh'}})]
+  for model,fields in expected:
+   p={**self.profile(model),'reasoningByModel':selected}
+   _,body,_,_=providers.adapter(p).prepare(p,[])
+   for key,value in fields.items():self.assertEqual(body[key],value)
+  p={**self.profile('gemini-4-argon-contributor'),'temperature':.5,'reasoningByModel':selected}
+  self.assertEqual(providers.adapter(p).prepare(p,[])[1]['generationConfig'],{'temperature':.5,'thinkingConfig':{'thinkingLevel':'medium'}})
+  for model,level in [('deepseek-v4.1-flash','medium'),('deepseek-v4-pro','low'),('gemini-4-argon-contributor','max'),('minimax-m2.7','high'),('gpt-6-luna',None)]:
+   p={**self.profile(model),'reasoningByModel':{model:level}}
+   with self.assertRaises(ValueError):providers.adapter(p).prepare(p,[])
+  p=self.profile('deepseek-v4.1-flash');module=providers.adapter(p)
+  self.assertEqual(module.prepare(p,[])[1],module.prepare({**p,'reasoningByModel':{'gemini-4-argon-contributor':'high'}},[])[1])
+  self.assertEqual(module.prepare(p,[])[1],module.prepare({**p,'reasoningByModel':{p['model']:''}},[])[1])
+ def test_reasoning_signature_changes_only_for_selected_model(self):
+  for fn in [review_writing.profile_signature,qa_service.profile_signature]:
+   p=self.profile('deepseek-v4.1-flash');original=fn(p)
+   self.assertEqual(fn({**p,'reasoningByModel':{}}),original)
+   self.assertEqual(fn({**p,'reasoningByModel':{'gemini-4-argon-contributor':'high'}}),original)
+   self.assertNotEqual(fn({**p,'reasoningByModel':{p['model']:'max'}}),original)
+   normal={**p,'provider':'openai'}
+   self.assertEqual(fn(normal),fn({**normal,'reasoningByModel':{p['model']:'max'}}))
  def test_legacy_signatures_unchanged_and_provider_is_distinct(self):
   p={'id':'p','model':'m','baseUrl':'https://host/v1','endpoint':'https://host/v1/chat/completions'}
   for fn,keys in [(review_writing.profile_signature,('id','model','endpoint','temperature','sendTemperature','visionModels')),(qa_service.profile_signature,('id','model','baseUrl','temperature','timeout','apiKey','sendTemperature','visionModels'))]:

@@ -10,7 +10,7 @@
 - `review_llm.py`：共用网络与取消机制。默认请求体和请求头保持原逻辑；只有明确选用可选供应商才执行适配。
 - Rust 的 `llm_providers.rs`：读取注册信息，并通过私有 stdin/stdout 管道调用 `llm_provider_worker.py`。供应商协议只实现一份；不另开 HTTP 代理服务。密钥不进入命令行或进程日志，取消时终止子进程。
 
-普通模型不按配置名称、模型名称或域名猜测供应商。一个叫 `opencode_go` 的旧普通配置仍是普通配置；请在独立分组中新建专用配置。
+普通模型不按配置名称、模型名称或域名猜测供应商。一个叫 `opencode_go` 的旧普通配置仍是普通配置；请在独立分组中填写专用配置。Go 只允许保存一份配置，名称固定为 `opencode_go`，后端在写事务中拒绝第二份。普通配置可与独立供应商同名，原有 ID、密钥和工作流绑定不变。旧版本如已保存多份 Go 配置，界面仅保留选择和删除入口用于清理，不再允许新增；不会自动删除旧配置。
 
 ## OpenCode Go
 
@@ -32,6 +32,33 @@ Messages 协议强制要求 `max_tokens`，因此专用模块使用 models.dev �
 | 连接测试 | 每次测试独立身份，内部连接重试复用 |
 
 会话上下文不进入模型缓存签名。只有可选供应商配置额外计入 `provider` 身份；普通配置原有签名键和值保持兼容。
+
+## 逐模型思考强度
+
+Go 配置的 `reasoningByModel` 按模型 ID 保存选择。每行独立选择“服务端默认”或该模型的已登记档位；默认不发送思考参数，不将原厂默认值冒充 Go 的实际默认值。测试连接和各研究工作流使用同一选择。普通配置忽略此字段。
+
+档位以 Go 官网链接的 models.dev 中 `opencode-go` 的 `reasoning_options` 为依据，参数拼写结合 OpenCode 的原生协议实现核对；来源链接固定在 manifest 的 `reasoningSources`。Go 的 `/models` 只返回模型身份，不能据此推断档位。当前登记 21 个模型的离散强度选项：
+
+| 模型 | 档位 |
+| --- | --- |
+| DeepSeek V4.1 Flash、GLM 5.3 / 5.3 Flash | low / high / max |
+| DeepSeek V4 Pro、GLM 5.2 | high / max |
+| Gemini 4 Argon Contributor、Step 5 Preview Free | low / medium / high |
+| Kimi K3 | max |
+| Hy4 Preview | none / high |
+| Hy3 | none / low / high |
+| Space Bunny、Cat Jam Free | low / medium / high / xhigh / max |
+| Grok 4.6 / 4.7 | low / medium / high / xhigh |
+| GPT 5.6 Luna / 6 Luna | none / low / medium / high / xhigh / max |
+| Muse Spark 1.2 / 1.3 Contributor | minimal / low / medium / high / xhigh |
+| Claude Haiku 5.5 | low / medium / high / xhigh / max |
+| Qwen 3.8 Max / Flash | low / medium / xhigh |
+
+其余 11 个模型当前没有登记离散强度档位，保持服务端默认；其中部分原生 API 只提供思考开关或 token 预算，不能套用其他模型的 low / medium / high。本次不将预算开关伪装成强度档位。
+
+请求体补丁只来自模块内审核过的 manifest：Chat 使用 `reasoning_effort`，Responses 使用 `reasoning.effort`，Gemini 使用 `generationConfig.thinkingConfig.thinkingLevel`，Messages 使用 `output_config.effort` 及模型相应的 `thinking` 模式。GLM Flash 的 Go 上游拒绝 `thinking` 字段，只发送 `reasoning_effort`。非法档位在保存和发送前明确报错，不静默降档。
+
+选择非默认档位时，只把**当前调用模型**的档位计入综述和问答缓存签名；改其他模型不会使其失效。默认状态保持旧 Go 签名，普通模型签名完全不变。
 
 ## 更新、停用与删除
 

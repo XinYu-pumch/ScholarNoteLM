@@ -43,5 +43,10 @@ def with_session(profile,scope,*identifiers):
 def signature_fields(profile,fields):
     """Keep legacy signature dictionaries byte-for-byte compatible."""
     result={k:profile.get(k) for k in fields}
-    if provider_id(profile)!='openai':result['provider']=provider_id(profile)
+    if provider_id(profile)!='openai':
+        result['provider']=provider_id(profile)
+        # Only the selected model affects this run. Absent/default preserves
+        # existing Go caches; changing another model must not invalidate them.
+        level=(profile.get('reasoningByModel') or {}).get(profile.get('model'))
+        if level:result['reasoningLevel']=level
     return result

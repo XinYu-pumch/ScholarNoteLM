@@ -7,107 +7,817 @@
   "outputLimitsSource": "https://models.dev/api.json (opencode-go)",
   "models": {
     "glm-5.3-flash": {
-      "protocol": "chat"
+      "protocol": "chat",
+      "reasoning": {
+        "options": {
+          "low": {
+            "reasoning_effort": "low"
+          },
+          "high": {
+            "reasoning_effort": "high"
+          },
+          "max": {
+            "reasoning_effort": "max"
+          }
+        },
+        "controls": [
+          "effort"
+        ],
+        "levels": [
+          "low",
+          "high",
+          "max"
+        ]
+      }
     },
     "glm-5.3": {
-      "protocol": "chat"
+      "protocol": "chat",
+      "reasoning": {
+        "options": {
+          "low": {
+            "reasoning_effort": "low"
+          },
+          "high": {
+            "reasoning_effort": "high"
+          },
+          "max": {
+            "reasoning_effort": "max"
+          }
+        },
+        "controls": [
+          "effort"
+        ],
+        "levels": [
+          "low",
+          "high",
+          "max"
+        ]
+      }
     },
     "glm-5.2": {
-      "protocol": "chat"
+      "protocol": "chat",
+      "reasoning": {
+        "options": {
+          "high": {
+            "reasoning_effort": "high"
+          },
+          "max": {
+            "reasoning_effort": "max"
+          }
+        },
+        "controls": [
+          "effort"
+        ],
+        "levels": [
+          "high",
+          "max"
+        ]
+      }
     },
     "kimi-k3": {
-      "protocol": "chat"
+      "protocol": "chat",
+      "reasoning": {
+        "options": {
+          "max": {
+            "reasoning_effort": "max"
+          }
+        },
+        "controls": [
+          "effort"
+        ],
+        "levels": [
+          "max"
+        ]
+      }
     },
     "kimi-k2.7-code": {
-      "protocol": "chat"
+      "protocol": "chat",
+      "reasoning": {
+        "options": {},
+        "controls": [],
+        "levels": []
+      }
     },
     "kimi-k2.6": {
-      "protocol": "chat"
+      "protocol": "chat",
+      "reasoning": {
+        "options": {},
+        "controls": [],
+        "levels": []
+      }
     },
     "longcat-2.0": {
-      "protocol": "chat"
+      "protocol": "chat",
+      "reasoning": {
+        "options": {},
+        "controls": [
+          "toggle"
+        ],
+        "levels": []
+      }
     },
     "deepseek-v4.1-flash": {
-      "protocol": "chat"
+      "protocol": "chat",
+      "reasoning": {
+        "options": {
+          "low": {
+            "reasoning_effort": "low",
+            "thinking": {
+              "type": "enabled"
+            }
+          },
+          "high": {
+            "reasoning_effort": "high",
+            "thinking": {
+              "type": "enabled"
+            }
+          },
+          "max": {
+            "reasoning_effort": "max",
+            "thinking": {
+              "type": "enabled"
+            }
+          }
+        },
+        "controls": [
+          "effort"
+        ],
+        "levels": [
+          "low",
+          "high",
+          "max"
+        ]
+      }
     },
     "deepseek-v4-pro": {
-      "protocol": "chat"
+      "protocol": "chat",
+      "reasoning": {
+        "options": {
+          "high": {
+            "reasoning_effort": "high",
+            "thinking": {
+              "type": "enabled"
+            }
+          },
+          "max": {
+            "reasoning_effort": "max",
+            "thinking": {
+              "type": "enabled"
+            }
+          }
+        },
+        "controls": [
+          "effort"
+        ],
+        "levels": [
+          "high",
+          "max"
+        ]
+      }
     },
     "mimo-v2.6-flash": {
-      "protocol": "chat"
+      "protocol": "chat",
+      "reasoning": {
+        "options": {},
+        "controls": [],
+        "levels": []
+      }
     },
     "mimo-v2.6-pro": {
-      "protocol": "chat"
+      "protocol": "chat",
+      "reasoning": {
+        "options": {},
+        "controls": [],
+        "levels": []
+      }
     },
     "mimo-v2.5": {
-      "protocol": "chat"
+      "protocol": "chat",
+      "reasoning": {
+        "options": {},
+        "controls": [],
+        "levels": []
+      }
     },
     "mimo-v2.5-pro": {
-      "protocol": "chat"
+      "protocol": "chat",
+      "reasoning": {
+        "options": {},
+        "controls": [],
+        "levels": []
+      }
     },
     "hy4-preview": {
-      "protocol": "chat"
+      "protocol": "chat",
+      "reasoning": {
+        "options": {
+          "none": {
+            "reasoning_effort": "none"
+          },
+          "high": {
+            "reasoning_effort": "high"
+          }
+        },
+        "controls": [
+          "effort"
+        ],
+        "levels": [
+          "none",
+          "high"
+        ]
+      }
     },
     "hy3": {
-      "protocol": "chat"
+      "protocol": "chat",
+      "reasoning": {
+        "options": {
+          "none": {
+            "reasoning_effort": "none"
+          },
+          "low": {
+            "reasoning_effort": "low"
+          },
+          "high": {
+            "reasoning_effort": "high"
+          }
+        },
+        "controls": [
+          "effort"
+        ],
+        "levels": [
+          "none",
+          "low",
+          "high"
+        ]
+      }
     },
     "space-bunny": {
-      "protocol": "chat"
+      "protocol": "chat",
+      "reasoning": {
+        "options": {
+          "low": {
+            "reasoning_effort": "low"
+          },
+          "medium": {
+            "reasoning_effort": "medium"
+          },
+          "high": {
+            "reasoning_effort": "high"
+          },
+          "xhigh": {
+            "reasoning_effort": "xhigh"
+          },
+          "max": {
+            "reasoning_effort": "max"
+          }
+        },
+        "controls": [
+          "effort"
+        ],
+        "levels": [
+          "low",
+          "medium",
+          "high",
+          "xhigh",
+          "max"
+        ]
+      }
     },
     "longcat-2.5-preview-free": {
-      "protocol": "chat"
+      "protocol": "chat",
+      "reasoning": {
+        "options": {},
+        "controls": [
+          "toggle"
+        ],
+        "levels": []
+      }
     },
     "step-5-preview-free": {
-      "protocol": "chat"
+      "protocol": "chat",
+      "reasoning": {
+        "options": {
+          "low": {
+            "reasoning_effort": "low"
+          },
+          "medium": {
+            "reasoning_effort": "medium"
+          },
+          "high": {
+            "reasoning_effort": "high"
+          }
+        },
+        "controls": [
+          "effort"
+        ],
+        "levels": [
+          "low",
+          "medium",
+          "high"
+        ]
+      }
     },
     "cat-jam-free": {
-      "protocol": "chat"
+      "protocol": "chat",
+      "reasoning": {
+        "options": {
+          "low": {
+            "reasoning_effort": "low"
+          },
+          "medium": {
+            "reasoning_effort": "medium"
+          },
+          "high": {
+            "reasoning_effort": "high"
+          },
+          "xhigh": {
+            "reasoning_effort": "xhigh"
+          },
+          "max": {
+            "reasoning_effort": "max"
+          }
+        },
+        "controls": [
+          "effort"
+        ],
+        "levels": [
+          "low",
+          "medium",
+          "high",
+          "xhigh",
+          "max"
+        ]
+      }
     },
     "grok-4.7": {
-      "protocol": "responses"
+      "protocol": "responses",
+      "reasoning": {
+        "options": {
+          "low": {
+            "reasoning": {
+              "effort": "low"
+            }
+          },
+          "medium": {
+            "reasoning": {
+              "effort": "medium"
+            }
+          },
+          "high": {
+            "reasoning": {
+              "effort": "high"
+            }
+          },
+          "xhigh": {
+            "reasoning": {
+              "effort": "xhigh"
+            }
+          }
+        },
+        "controls": [
+          "effort"
+        ],
+        "levels": [
+          "low",
+          "medium",
+          "high",
+          "xhigh"
+        ]
+      }
     },
     "grok-4.6": {
-      "protocol": "responses"
+      "protocol": "responses",
+      "reasoning": {
+        "options": {
+          "low": {
+            "reasoning": {
+              "effort": "low"
+            }
+          },
+          "medium": {
+            "reasoning": {
+              "effort": "medium"
+            }
+          },
+          "high": {
+            "reasoning": {
+              "effort": "high"
+            }
+          },
+          "xhigh": {
+            "reasoning": {
+              "effort": "xhigh"
+            }
+          }
+        },
+        "controls": [
+          "effort"
+        ],
+        "levels": [
+          "low",
+          "medium",
+          "high",
+          "xhigh"
+        ]
+      }
     },
     "gpt-6-luna": {
-      "protocol": "responses"
+      "protocol": "responses",
+      "reasoning": {
+        "options": {
+          "none": {
+            "reasoning": {
+              "effort": "none"
+            }
+          },
+          "low": {
+            "reasoning": {
+              "effort": "low"
+            }
+          },
+          "medium": {
+            "reasoning": {
+              "effort": "medium"
+            }
+          },
+          "high": {
+            "reasoning": {
+              "effort": "high"
+            }
+          },
+          "xhigh": {
+            "reasoning": {
+              "effort": "xhigh"
+            }
+          },
+          "max": {
+            "reasoning": {
+              "effort": "max"
+            }
+          }
+        },
+        "controls": [
+          "effort"
+        ],
+        "levels": [
+          "none",
+          "low",
+          "medium",
+          "high",
+          "xhigh",
+          "max"
+        ]
+      }
     },
     "gpt-5.6-luna": {
-      "protocol": "responses"
+      "protocol": "responses",
+      "reasoning": {
+        "options": {
+          "none": {
+            "reasoning": {
+              "effort": "none"
+            }
+          },
+          "low": {
+            "reasoning": {
+              "effort": "low"
+            }
+          },
+          "medium": {
+            "reasoning": {
+              "effort": "medium"
+            }
+          },
+          "high": {
+            "reasoning": {
+              "effort": "high"
+            }
+          },
+          "xhigh": {
+            "reasoning": {
+              "effort": "xhigh"
+            }
+          },
+          "max": {
+            "reasoning": {
+              "effort": "max"
+            }
+          }
+        },
+        "controls": [
+          "effort"
+        ],
+        "levels": [
+          "none",
+          "low",
+          "medium",
+          "high",
+          "xhigh",
+          "max"
+        ]
+      }
     },
     "muse-spark-1.3-contributor": {
-      "protocol": "responses"
+      "protocol": "responses",
+      "reasoning": {
+        "options": {
+          "minimal": {
+            "reasoning": {
+              "effort": "minimal"
+            }
+          },
+          "low": {
+            "reasoning": {
+              "effort": "low"
+            }
+          },
+          "medium": {
+            "reasoning": {
+              "effort": "medium"
+            }
+          },
+          "high": {
+            "reasoning": {
+              "effort": "high"
+            }
+          },
+          "xhigh": {
+            "reasoning": {
+              "effort": "xhigh"
+            }
+          }
+        },
+        "controls": [
+          "effort"
+        ],
+        "levels": [
+          "minimal",
+          "low",
+          "medium",
+          "high",
+          "xhigh"
+        ]
+      }
     },
     "muse-spark-1.2-contributor": {
-      "protocol": "responses"
+      "protocol": "responses",
+      "reasoning": {
+        "options": {
+          "minimal": {
+            "reasoning": {
+              "effort": "minimal"
+            }
+          },
+          "low": {
+            "reasoning": {
+              "effort": "low"
+            }
+          },
+          "medium": {
+            "reasoning": {
+              "effort": "medium"
+            }
+          },
+          "high": {
+            "reasoning": {
+              "effort": "high"
+            }
+          },
+          "xhigh": {
+            "reasoning": {
+              "effort": "xhigh"
+            }
+          }
+        },
+        "controls": [
+          "effort"
+        ],
+        "levels": [
+          "minimal",
+          "low",
+          "medium",
+          "high",
+          "xhigh"
+        ]
+      }
     },
     "claude-haiku-5-5": {
       "protocol": "messages",
-      "maxOutputTokens": 128000
+      "maxOutputTokens": 128000,
+      "reasoning": {
+        "options": {
+          "low": {
+            "thinking": {
+              "type": "adaptive"
+            },
+            "output_config": {
+              "effort": "low"
+            }
+          },
+          "medium": {
+            "thinking": {
+              "type": "adaptive"
+            },
+            "output_config": {
+              "effort": "medium"
+            }
+          },
+          "high": {
+            "thinking": {
+              "type": "adaptive"
+            },
+            "output_config": {
+              "effort": "high"
+            }
+          },
+          "xhigh": {
+            "thinking": {
+              "type": "adaptive"
+            },
+            "output_config": {
+              "effort": "xhigh"
+            }
+          },
+          "max": {
+            "thinking": {
+              "type": "adaptive"
+            },
+            "output_config": {
+              "effort": "max"
+            }
+          }
+        },
+        "controls": [
+          "toggle",
+          "effort"
+        ],
+        "levels": [
+          "low",
+          "medium",
+          "high",
+          "xhigh",
+          "max"
+        ]
+      }
     },
     "minimax-m3": {
       "protocol": "messages",
-      "maxOutputTokens": 131072
+      "maxOutputTokens": 131072,
+      "reasoning": {
+        "options": {},
+        "controls": [
+          "toggle"
+        ],
+        "levels": []
+      }
     },
     "minimax-m2.7": {
       "protocol": "messages",
-      "maxOutputTokens": 131072
+      "maxOutputTokens": 131072,
+      "reasoning": {
+        "options": {},
+        "controls": [],
+        "levels": []
+      }
     },
     "qwen3.8-max": {
       "protocol": "messages",
-      "maxOutputTokens": 131072
+      "maxOutputTokens": 131072,
+      "reasoning": {
+        "options": {
+          "low": {
+            "thinking": {
+              "type": "enabled"
+            },
+            "output_config": {
+              "effort": "low"
+            }
+          },
+          "medium": {
+            "thinking": {
+              "type": "enabled"
+            },
+            "output_config": {
+              "effort": "medium"
+            }
+          },
+          "xhigh": {
+            "thinking": {
+              "type": "enabled"
+            },
+            "output_config": {
+              "effort": "xhigh"
+            }
+          }
+        },
+        "controls": [
+          "toggle",
+          "effort",
+          "budget_tokens"
+        ],
+        "levels": [
+          "low",
+          "medium",
+          "xhigh"
+        ]
+      }
     },
     "qwen3.8-flash": {
       "protocol": "messages",
-      "maxOutputTokens": 131072
+      "maxOutputTokens": 131072,
+      "reasoning": {
+        "options": {
+          "low": {
+            "thinking": {
+              "type": "enabled"
+            },
+            "output_config": {
+              "effort": "low"
+            }
+          },
+          "medium": {
+            "thinking": {
+              "type": "enabled"
+            },
+            "output_config": {
+              "effort": "medium"
+            }
+          },
+          "xhigh": {
+            "thinking": {
+              "type": "enabled"
+            },
+            "output_config": {
+              "effort": "xhigh"
+            }
+          }
+        },
+        "controls": [
+          "toggle",
+          "effort",
+          "budget_tokens"
+        ],
+        "levels": [
+          "low",
+          "medium",
+          "xhigh"
+        ]
+      }
     },
     "qwen3.7-plus": {
       "protocol": "messages",
-      "maxOutputTokens": 65536
+      "maxOutputTokens": 65536,
+      "reasoning": {
+        "options": {},
+        "controls": [
+          "toggle",
+          "budget_tokens"
+        ],
+        "levels": []
+      }
     },
     "gemini-4-argon-contributor": {
-      "protocol": "google"
+      "protocol": "google",
+      "reasoning": {
+        "options": {
+          "low": {
+            "generationConfig": {
+              "thinkingConfig": {
+                "thinkingLevel": "low"
+              }
+            }
+          },
+          "medium": {
+            "generationConfig": {
+              "thinkingConfig": {
+                "thinkingLevel": "medium"
+              }
+            }
+          },
+          "high": {
+            "generationConfig": {
+              "thinkingConfig": {
+                "thinkingLevel": "high"
+              }
+            }
+          }
+        },
+        "controls": [
+          "effort"
+        ],
+        "levels": [
+          "low",
+          "medium",
+          "high"
+        ]
+      }
     }
   },
-  "userAgent": "ScholarNoteLM/0.6.0"
+  "userAgent": "ScholarNoteLM/0.6.0",
+  "singleProfile": true,
+  "reasoningSources": [
+    "https://opencode.ai/v2/docs/models/#variants",
+    "https://models.dev/api.json (opencode-go.reasoning_options)",
+    "https://github.com/anomalyco/opencode/blob/4397ee44d038a5f17bf6ac161431673d93e563b5/packages/core/src/variant.ts"
+  ]
 }

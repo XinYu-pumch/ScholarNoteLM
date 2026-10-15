@@ -942,3 +942,6 @@ input[type='checkbox'], input[type='radio'] { accent-color: var(--accent); }
 @media(hover:none) { .writing-stage-button .stage-running-label { display:none; } .writing-stage-button .stage-stop-label { display:inline; } }
 @media(prefers-reduced-motion:reduce) { .writing-stage-progress.is-running progress { animation:none; } }
 .review-workspace-search input { height:var(--input-height); border:1px solid var(--line-strong); border-radius:var(--radius-control); padding:0 var(--space-2); color:var(--text); background:var(--surface); font:inherit; }
+.model-reasoning-control { flex:0 0 100%; display:flex; flex-wrap:wrap; align-items:center; gap:var(--space-3); font-size:var(--fs-footnote); }
+.research-settings .wb-form .model-reasoning-control>label { display:flex; flex-direction:row; align-items:center; gap:var(--space-3); margin:0; }
+.model-reasoning-control .app-select { width:auto; }

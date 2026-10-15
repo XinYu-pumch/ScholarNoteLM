@@ -7,7 +7,7 @@ import json,os,shutil,subprocess,tempfile,threading,time,uuid
 from pathlib import Path
 from http.server import BaseHTTPRequestHandler,ThreadingHTTPServer
 ROOT=Path(__file__).resolve().parents[1];requests=[];slow_started=threading.Event()
-MODELS=['deepseek-v4.1-flash','gemini-4-argon-contributor','gpt-6-luna','minimax-m2.7']
+MODELS=['deepseek-v4.1-flash','gemini-4-argon-contributor','gpt-6-luna','claude-haiku-5-5']
 class Handler(BaseHTTPRequestHandler):
  def log_message(self,*args):pass
  def do_GET(self):
@@ -38,9 +38,11 @@ try:
    return value['data']
   rpc('storage.initialize');rpc('storage.register',folder='ProviderTest',data={'id':'test','name':'ProviderTest','papers':[],'messages':[],'sections':[],'notes':{},'tasks':[]})
   assert rpc('settings')['providers'][0]['id']=='opencode_go'
+  reasoning=dict(zip(MODELS,['max','medium','high','xhigh']))
   for index,model in enumerate(MODELS):
-   profile={'id':f'go-{index}','provider':'opencode_go','name':f'Go {index}','baseUrl':base,'apiKey':'fixture-secret','model':model,'models':[model],'temperature':None,'timeout':10}
+   profile={'id':'go-0','provider':'opencode_go','name':f'Go {index}','baseUrl':base,'apiKey':'fixture-secret','model':model,'models':MODELS,'reasoningByModel':reasoning,'temperature':None,'timeout':10}
    saved=rpc('profile.save',profile=profile);assert saved['provider']=='opencode_go' and saved['hasKey'] and 'apiKey' not in saved
+   assert saved['name']=='opencode_go' and saved['reasoningByModel']==reasoning
    assert rpc('llm.models',profile=saved)==MODELS
    assert rpc('llm.test',profile=saved)['reply']
    thread=rpc('chat.new',name='test');start=len(requests)
@@ -48,11 +50,20 @@ try:
     history=rpc('chat',stream=True,chatId=thread['id'],streamId=uuid.uuid4().hex,profileId=saved['id'],message=message)
     assert not history[-1]['error'] and history[-1]['result']['queries'],history[-1]
    assert len(requests)==start+2
+   body=requests[-1]['body']
+   if index==0:assert body['reasoning_effort']=='max' and body['thinking']['type']=='enabled'
+   elif index==1:assert body['generationConfig']['thinkingConfig']['thinkingLevel']=='medium'
+   elif index==2:assert body['reasoning']['effort']=='high'
+   else:assert body['output_config']['effort']=='xhigh' and body['thinking']['type']=='adaptive'
    a,b=requests[-2:];headers=lambda r:{k.lower():v for k,v in r['headers'].items()}
    assert headers(a)['x-opencode-session']==headers(b)['x-opencode-session'];assert headers(a)['user-agent']=='ScholarNoteLM/0.6.0'
    assert 'Design a search' in json.dumps(b['body']) and 'PLA2R[tiab]' in json.dumps(b['body'])
    independent=rpc('chat.new',name='independent');rpc('chat',stream=True,chatId=independent['id'],streamId=uuid.uuid4().hex,profileId=saved['id'],message='Independent search')
    assert headers(requests[-1])['x-opencode-session']!=headers(a)['x-opencode-session']
+  # Backend singleton enforcement also covers stale/new clients bypassing the UI.
+  failed=subprocess.run([exe],input=json.dumps({'action':'profile.save','args':{'profile':{**profile,'id':'second-go'}}}),text=True,capture_output=True,env=env,timeout=10)
+  assert not json.loads(failed.stdout)['ok'] and '一个配置' in json.loads(failed.stdout)['error']
+  assert len([p for p in rpc('profile.list')['profiles'] if p.get('provider')=='opencode_go'])==1
   # Cancellation must drop the private worker even while the upstream is silent.
   thread=rpc('chat.new',name='cancel');sid=uuid.uuid4().hex
   child=subprocess.Popen([exe,'--stream'],stdin=subprocess.PIPE,stdout=subprocess.PIPE,stderr=subprocess.PIPE,text=True,env=env)
@@ -63,6 +74,7 @@ try:
   rpc('profile.save',profile=normal,makeDefault=True);rpc('llm.test',profile=normal);assert 'x-opencode-session' not in headers(requests[-1])
   shutil.rmtree(manifest.parent)  # Simulate uninstall while keeping stored Go profiles.
   assert rpc('settings')['providers']==[]
+  rpc('profile.save',profile=normal)
   failed=subprocess.run([exe],input=json.dumps({'action':'llm.test','args':{'profileId':'go-0'}}),text=True,capture_output=True,env=env,timeout=10)
   assert not json.loads(failed.stdout)['ok']
   assert rpc('llm.test',profile=normal)['reply'];assert 'x-opencode-session' not in headers(requests[-1])

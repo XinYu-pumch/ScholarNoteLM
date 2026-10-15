@@ -1598,5 +1598,12 @@
   "配置普通 OpenAI 兼容服务": "Configure a standard OpenAI-compatible service",
   "独立供应商配置": "Dedicated provider settings",
   "此分组的模型使用供应商专属连接方式，普通模型配置不受影响。": "Models in this group use their provider adapter. Standard model profiles are unaffected.",
-  "此供应商已停用；可删除旧配置或选择其他供应商。": "This provider is unavailable. Delete its old profile or choose another provider."
+  "此供应商已停用；可删除旧配置或选择其他供应商。": "This provider is unavailable. Delete its old profile or choose another provider.",
+  "思考强度": "Reasoning effort",
+  "{p0} 思考强度": "{p0} reasoning effort",
+  "服务端默认": "Server default",
+  "此模型未提供可核实的强度档位，保持服务端默认。": "No verified effort levels are available for this model. Using the server default.",
+  "此供应商只允许一个配置，请编辑已有配置": "This provider allows one profile. Edit the existing profile.",
+  "模型思考强度配置格式无效": "Invalid model reasoning settings.",
+  "此模型不支持所选思考强度，请重新选择": "This model does not support the selected reasoning effort. Choose another level."
 }

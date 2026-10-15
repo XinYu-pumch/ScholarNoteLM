@@ -13,9 +13,9 @@ export type Probe={count?:number;translation?:string;warnings?:unknown;errors?:u
 export type Proposal={id:string;name:string;text:string;purpose:string;probe?:Probe;meshCheck?:{term:string;verified:boolean}[]};
 export type ChatMessage={contentLanguage?:'zh'|'en';promptVersion?:string;modelLabel?:string;role:string;text:string;reasoning?:string;error?:string;cancelled?:boolean;created:number;result?:{queries:Proposal[];meshVersion:string;model:string;modelLabel?:string}};
 export type WorkbenchData={sourceBusy?:boolean;queries:Query[];chats:ChatThread[];corpus:{snapshot:string;papers:CorpusPaper[];included:number;excluded:number;path:string}};
-export type Profile={provider?:string;visionModels?:string[];id:string;name:string;baseUrl:string;model:string;models?:string[];apiKey?:string;hasKey?:boolean;clearKey?:boolean;temperature:number|null;timeout:number};
+export type Profile={provider?:string;reasoningByModel?:Record<string,string>;visionModels?:string[];id:string;name:string;baseUrl:string;model:string;models?:string[];apiKey?:string;hasKey?:boolean;clearKey?:boolean;temperature:number|null;timeout:number};
 export type MeshStatus={version:string;year?:number;records:number;terms:number;counts?:Record<string,number>;built?:number;checked?:number;autoUpdate:boolean;includeScr?:boolean;includeScrPreference?:boolean;running:boolean;job?:{state:string;message:string}};
-export type LLMProvider={id:string;name:string;baseUrl:string;documentation?:string;models?:Record<string,{protocol:string;maxOutputTokens?:number}>};
+export type LLMProvider={id:string;name:string;baseUrl:string;singleProfile?:boolean;documentation?:string;models?:Record<string,{protocol:string;maxOutputTokens?:number;reasoning?:{levels?:string[];options:Record<string,unknown>;controls?:string[]}}>};
 export type SettingsData={providers?:LLMProvider[];profiles:Profile[];activeProfile:string;jcr:{name:string;version:string;rows:number;columns:string[];warnings:string[];warningCount:number}|null;mesh:MeshStatus;pubmed:{email?:string;hasKey:boolean}};
 async function transport<T>(action:string,args:Record<string,unknown>={}):Promise<T>{
   if(isTauri()) return invoke<T>('research_rpc',{request:{action,args}});

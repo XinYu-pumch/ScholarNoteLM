@@ -29,8 +29,38 @@ pub fn validate(root:&Path,profile:&Value)->R<Option<Value>> {
         if let Some(models)=profile["models"].as_array() {
             if models.iter().any(|v|v.as_str().is_none_or(|id|m["models"].get(id).is_none())) {return Err("供应商尚未收录此模型的官方端点，请更新供应商模块".into());}
         }
+        if let Some(settings)=profile.get("reasoningByModel") {
+            let settings=settings.as_object().ok_or("模型思考强度配置格式无效")?;
+            for (model,level) in settings {
+                let level=level.as_str().ok_or("模型思考强度配置格式无效")?;
+                if !level.is_empty() && m["models"][model]["reasoning"]["options"].get(level).is_none() {
+                    return Err("此模型不支持所选思考强度，请重新选择".into());
+                }
+            }
+        }
     }
     Ok(meta)
+}
+
+pub fn prepare_save(root:&Path,profile:&mut Value,profiles:&Value)->R<()> {
+    if let Some(meta)=manifest(root,profile)? {
+        if meta["singleProfile"]==true {
+            if profiles.as_array().is_some_and(|items|items.iter().any(|p|id(p)==id(profile)&&p["id"]!=profile["id"])) {
+                return Err("此供应商只允许一个配置，请编辑已有配置".into());
+            }
+            profile["name"]=meta["name"].clone();
+        }
+    }
+    Ok(())
+}
+
+pub fn name_conflict(a:&Value,b:&Value)->bool {
+    if a["id"]==b["id"] || s(a,"name").to_lowercase()!=s(b,"name").to_lowercase(){return false;}
+    // Dedicated providers have a fixed name. A legacy ordinary profile may
+    // already use it; preserve that profile and its references unchanged.
+    // Scope names by explicit provider even after its module has been removed.
+    if id(a)!=id(b){return false;}
+    true
 }
 struct Worker(Child);
 impl Drop for Worker {fn drop(&mut self){let _=self.0.kill();let _=self.0.wait();}}
@@ -83,5 +113,24 @@ mod tests {
         assert!(catalog(&root).is_empty());assert!(validate(&root,&profile).is_err());
         assert!(validate(&root,&json!({"provider":"openai","model":"any"})).unwrap().is_none());
         fs::remove_dir_all(root).unwrap();
+    }
+    #[test]
+    fn singleton_name_and_model_effort_are_enforced_only_for_registered_providers() {
+        let root=std::env::temp_dir().join(format!("scholarnotelm-provider-{}",super::super::uid()));
+        let dir=root.join("services/llm_providers");fs::create_dir_all(dir.join("fixture")).unwrap();
+        fs::write(dir.join("registry.json"),r#"{"providers":["fixture"]}"#).unwrap();
+        fs::write(dir.join("fixture/adapter.py"),"# fixture").unwrap();
+        fs::write(dir.join("fixture/manifest.json"),r#"{"id":"fixture","name":"fixed_name","singleProfile":true,"baseUrl":"https://fixture.invalid/v1","models":{"a":{"reasoning":{"options":{"low":{},"max":{}}}},"b":{"reasoning":{"options":{"low":{},"medium":{},"high":{}}}}}}"#).unwrap();
+        let mut p=json!({"id":"go","provider":"fixture","name":"custom","baseUrl":"https://fixture.invalid/v1","model":"a","reasoningByModel":{"a":"max","b":"medium"}});
+        assert!(validate(&root,&p).is_ok());prepare_save(&root,&mut p,&json!([])).unwrap();assert_eq!(p["name"],"fixed_name");
+        let profiles=json!([p]);let mut duplicate=p.clone();duplicate["id"]=json!("second");
+        assert!(prepare_save(&root,&mut duplicate,&profiles).is_err());assert!(prepare_save(&root,&mut p,&profiles).is_ok());
+        p["reasoningByModel"]["a"]=json!("medium");assert!(validate(&root,&p).is_err());
+        p["reasoningByModel"]=json!({"b":42});assert!(validate(&root,&p).is_err());
+        let ordinary=json!({"id":"normal","name":"fixed_name","model":"a","reasoningByModel":{"a":"anything"}});
+        assert!(validate(&root,&ordinary).is_ok());assert!(!name_conflict(&ordinary,&p));
+        assert!(name_conflict(&ordinary,&json!({"id":"other","name":"FIXED_NAME"})));
+        fs::remove_dir_all(root).unwrap();
+        assert!(!name_conflict(&ordinary,&p));
     }
 }
