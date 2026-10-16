@@ -33,6 +33,57 @@ class WritingTests(unittest.TestCase):
   d=r.rpc(e,'save',{'name':'Test','revision':1,'topic':'Review','rows':rows});self.assertEqual(d['rows'][0]['id'],old)
   roots=[{'serial':'1','title':'New chapter'},*[{**n,'serial':str(int(n['serial'].split('.')[0])+1)+('.'+n['serial'].split('.',1)[1] if '.' in n['serial'] else '')} for n in d['rows']]]
   d=r.rpc(e,'save',{'name':'Test','revision':2,'topic':'Review','rows':roots});self.assertEqual(d['rows'][1]['id'],old)
+ def test_vision_changes_are_scoped_to_selected_model(self):
+  for provider in ('openai','opencode_go'):
+   p={**PROFILE,'provider':provider,'visionModels':['fixture','other'],'reasoningByModel':{'fixture':'high'}}
+   original=w.profile_signature(p)
+   for vision in (['fixture'],['other','fixture','third'],['fixture','fixture']):
+    self.assertEqual(w.profile_signature({**p,'visionModels':vision}),original)
+   for change in ({'visionModels':['other']},{'model':'other'},{'temperature':.4},{'endpoint':'https://different.example/v1'},{'id':'different'}):
+    self.assertNotIn(original,w.compatible_profile_signatures({**p,**change}))
+   if provider=='opencode_go':
+    self.assertNotIn(original,w.compatible_profile_signatures({**p,'reasoningByModel':{'fixture':'low'}}))
+   plain={**p,'visionModels':[]}
+   self.assertEqual(w.profile_signature(plain),w.profile_signature({**plain,'visionModels':['unrelated']}))
+
+ def test_legacy_single_model_vision_restores_status_without_rewriting(self):
+  for provider in ('openai','opencode_go'):
+   old={**PROFILE,'provider':provider,'visionModels':['fixture'],'reasoningByModel':{'fixture':'high'}}
+   with patch.dict(PROFILE,old):self.seed()
+   # This singleton hash is exactly the pre-fix representation, not a new cache.
+   self.assertEqual(w.profile_signature(old),w.legacy_profile_signature(old))
+   files=list((self.path/'sections').glob('*.json'));before={f:f.read_bytes() for f in files}
+   with patch.object(r,'profile',return_value={**old,'visionModels':['fixture','other']}):
+    result=self.status();self.assertEqual(result['latest'],4)
+    self.assertEqual(result['stages']['writing'],{'state':'complete','completed':7,'total':7})
+   self.assertEqual(before,{f:f.read_bytes() for f in files})
+   with patch.object(r,'profile',return_value={**old,'visionModels':['other']}):self.assertEqual(self.status()['latest'],0)
+
+ def test_legacy_full_vision_list_survives_upgrade_and_retry_skips_it(self):
+  p={**PROFILE,'visionModels':['fixture','other']}
+  with patch.dict(PROFILE,p):
+   self.seed();cfg=w.config(self.path);source=w.source_signature(e);models=w.retrieval.signature(e.ROOT)
+   units=w.tree_units(self.detail['rows'])
+   for u in units:
+    u['promptSignature']=w.unit_signature(u,cfg,'Review',source,'',models)
+    f=self.path/'sections'/f'{u["id"]}.json';saved=r.read(f)
+    pre=w.prepare_unit(e,self.path,{'config':cfg,'topic':'Review'},u,saved['evidence'])
+    saved['signature']=w.unit_signature(u,cfg,'Review',source,w.legacy_profile_signature(p),models,pre['hash']);e.write_json(f,saved)
+   self.assertEqual(self.status()['latest'],4)
+   with patch.object(w.subprocess,'Popen') as proc:
+    result=w.rpc(e,'Test','retry',{});proc.assert_not_called()
+   self.assertEqual(result['latest'],4)
+   with patch.object(r,'profile',return_value={**p,'temperature':.4}):self.assertEqual(self.status()['latest'],0)
+   e.write_json(self.path/'writing-settings.json',{'topK':8});self.assertEqual(self.status()['latest'],0)
+
+ def test_legacy_empty_vision_hash_is_accepted_without_weakening_validation(self):
+  p={**PROFILE,'visionModels':[]};old=w.legacy_profile_signature(p)
+  self.assertIn(old,w.compatible_profile_signatures({**p,'visionModels':['other']}))
+  self.assertNotIn(old,w.compatible_profile_signatures({**p,'visionModels':['fixture']}))
+  # Unknown historical lists cannot be recovered from a hash: fail closed.
+  unknown=w.legacy_profile_signature({**p,'visionModels':['removed','fixture']})
+  self.assertNotIn(unknown,w.compatible_profile_signatures({**p,'visionModels':['fixture']}))
+
  def test_scope_and_structure_validation(self):
   u=w.tree_units(self.detail['rows'])[0];ids=[n['id'] for n in u['nodes']];ev={ids[1]:{'chunks':[{'metadata':{'pmid':'1'}}]},ids[2]:{'chunks':[{'metadata':{'pmid':'2'}}]}}
   good={'sections':[{'node_id':i,'markdown':'Evidence'+(' (PMID: 1)' if i==ids[1] else '')} for i in ids]}
@@ -135,6 +186,31 @@ class WritingTests(unittest.TestCase):
   token=self.setup_run();retrieved.clear()
   with patch.object(w.retrieval,'corpus',return_value=[record]),patch.object(w,'chat',side_effect=fake_chat):self.run_both(token,FakeRetriever)
   self.assertEqual(retrieved,[]);self.assertEqual(self.status()['latest'],4)
+ def test_worker_vision_guard_accepts_unrelated_changes_but_rejects_selected_toggle(self):
+  record={'id':'c1','text':'Evidence','metadata':{'pmid':'123','title':'Article','sourceKind':'pubmed_abstract','sectionPath':[]}}
+  class FakeRetriever:
+   def __init__(self,*args):pass
+   def retrieve(self,*args):return [record]
+  async def fake_chat(profile,messages,cancelled,progress=lambda **kw:None):
+   output=json.loads(messages[-1]['content'])['outputContract']
+   for node in output['sections']:node['blocks'][0]['text']='Body'
+   return json.dumps(output)
+  with patch.object(w.retrieval,'corpus',return_value=[record]):asyncio.run(w.run(e,'Test',self.setup_run(),FakeRetriever))
+  with patch.dict(PROFILE,{'visionModels':['fixture','other']}):token=self.setup_run('write')
+  with patch.dict(PROFILE,{'visionModels':['third','fixture']}),patch.object(w,'chat',side_effect=fake_chat) as chat:
+   asyncio.run(w.run(e,'Test',token,FakeRetriever));self.assertEqual(chat.call_count,4)
+   self.assertEqual(self.status()['latest'],4)
+  # A queued pre-fix task with a full-list hash still works if unchanged.
+  with patch.dict(PROFILE,{'visionModels':['fixture','other']}):
+   token=self.setup_run('write');f=self.path/'logs'/token/'input.json';snap=r.read(f)
+   snap['profileSignature']=w.legacy_profile_signature(PROFILE);e.write_json(f,snap)
+   with patch.object(w,'chat',side_effect=fake_chat) as chat:
+    asyncio.run(w.run(e,'Test',token,FakeRetriever));self.assertEqual(chat.call_count,4)
+   token=self.setup_run('write')
+  with patch.dict(PROFILE,{'visionModels':['other']}),patch.object(w,'chat') as chat:
+   asyncio.run(w.run(e,'Test',token,FakeRetriever));chat.assert_not_called()
+   self.assertEqual(self.status()['job']['state'],'failed')
+   self.assertIn('模型配置已变化',self.status()['job']['error'])
  def test_writing_concurrency_is_bounded(self):
   token=self.setup_run();live=0;peak=0
   record={'id':'c1','text':'Evidence','metadata':{'pmid':'123','title':'Article','sourceKind':'pubmed_abstract','sectionPath':[]}}

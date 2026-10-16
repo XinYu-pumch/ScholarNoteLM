@@ -84,7 +84,23 @@ def rows_at(e,path):
     return outline.nodes(e,path,outline.parse_csv(csvpath.read_text(encoding='utf8')))
 
 # 'sendTemperature' is retired but stays in the key list so existing signatures remain valid.
-def profile_signature(p):return chunks.digest(llm_provider.signature_fields(p,('id','model','endpoint','temperature','sendTemperature','visionModels')))
+def legacy_profile_signature(p):return chunks.digest(llm_provider.signature_fields(p,('id','model','endpoint','temperature','sendTemperature','visionModels')))
+def profile_signature(p):
+    # Preserve the existing fields and singleton/absent hashes. Only the selected
+    # model's image capability affects review_bundle.messages/decode.
+    vision=[p['model']] if p.get('model') in (p.get('visionModels') or []) else None
+    return legacy_profile_signature({**p,'visionModels':vision})
+
+def compatible_profile_signatures(p):
+    # Old artifacts contain only a hash, not the original profile fields. Accept
+    # exact legacy hashes; never ignore model/temperature/provider/effort changes.
+    values={profile_signature(p),legacy_profile_signature(p)}
+    if p.get('model') not in (p.get('visionModels') or []):
+        values.add(legacy_profile_signature({**p,'visionModels':[]}))
+    return values
+
+def matches_unit_signature(saved,unit,cfg,topic,source,profiles,models,prompt_hash=''):
+    return complete_unit(unit,saved) and any(saved.get('signature')==unit_signature(unit,cfg,topic,source,ps,models,prompt_hash) for ps in profiles)
 def unit_signature(unit,cfg,topic,source,model_signature,models,prompt_hash=""):
     return chunks.digest([SYSTEM,review_format.FORMAT,review_bundle.VERSION,{k:v for k,v in unit.items() if k not in ('signature','promptSignature')},{k:v for k,v in cfg.items() if k not in ('concurrency','profileId','model') and (k!='limitContext' or v)},topic,source,model_signature,models,prompt_hash])
 
@@ -182,16 +198,15 @@ def progress_counts(j):
 def status(e,name):
     path=outline.work(e,name);cfg=config(path);state=outline.vstate(e,name,'current');current_rows=rows_at(e,path);ctx=manuscripts.context(e,name);rows=ctx['rows'];units=tree_units(rows)
     outline_changed=manuscripts.fingerprint(current_rows)!=ctx['outlineHash']
-    try:p=outline.profile(e,cfg['profileId'],cfg['model']);ps=profile_signature(p);model=p['model'];model_label=(p.get('name','')+'/' if p.get('name') else '')+model
-    except ValueError:ps='';model='';model_label=''
+    try:p=outline.profile(e,cfg['profileId'],cfg['model']);profiles=compatible_profile_signatures(p);model=p['model'];model_label=(p.get('name','')+'/' if p.get('name') else '')+model
+    except ValueError:profiles=set();model='';model_label=''
     import status_cache
     live_source=status_cache.cached(e,'review.source-signature',lambda:source_signature(e));rcfg=retrieval_settings.snapshot(e.ROOT,e.PROJECT);live_models=retrieval.signature(e.ROOT,rcfg);source,models,material_cfg=round_inputs(ctx,live_source,live_models,rcfg);j=job(e,name);items=[];preparations={}
     for u in units:
         saved=saved_unit(path,u)
         pre=prepared(path,u,unit_signature(u,cfg,state.get('topic',''),source,'',models))
         preparations[u['id']]=pre
-        sig=unit_signature(u,cfg,state.get('topic',''),source,ps,models,pre['hash'] if pre else '')
-        latest=not outline_changed and complete_unit(u,saved) and saved.get('signature')==sig
+        latest=not outline_changed and matches_unit_signature(saved,u,cfg,state.get('topic',''),source,profiles,models,pre['hash'] if pre else '')
         live=j.get('items',{}).get(u['id'],{})
         phase='latest' if latest else 'outdated' if saved else 'pending'
         if j.get('state') in ACTIVE and live:phase=live.get('state',phase)
@@ -277,7 +292,7 @@ def rpc(e,name,op,a):
         selected=None  # Recompute missing/invalid artifacts, including interrupted and pending units.
         mode='prepare' if current['job'].get('mode')=='prepare' else 'write'
     if op=='prepare' and selected is not None:raise ValueError('新一轮准备须覆盖完整大纲')
-    source=source_signature(e);models=retrieval.signature(e.ROOT,rcfg);ps=profile_signature(p)
+    source=source_signature(e);models=retrieval.signature(e.ROOT,rcfg);ps=profile_signature(p);profiles=compatible_profile_signatures(p)
     ctx=manuscripts.context(e,name)
     if op=='prepare':
         if any(saved_unit(path,u).get('sections') for u in tree_units(ctx['rows'])) and a.get('confirm') is not True:
@@ -310,7 +325,7 @@ def rpc(e,name,op,a):
         if selected is not None and u['id'] not in selected:continue
         if mode=='write' and not pre:raise ValueError('提示词尚未准备或已过期，请先准备新一轮撰写，或继续本轮准备')
         old=saved_unit(path,u)
-        if selected is None and ((mode=='prepare' and pre) or (mode=='write' and old.get('signature')==u['signature'])):continue
+        if selected is None and ((mode=='prepare' and pre) or (mode=='write' and matches_unit_signature(old,u,cfg,state['topic'],source,profiles,models,pre['hash'] if pre else ''))):continue
         tasks.append(u)
     if not tasks:return status(e,name)
     if mode=='write':manuscripts.save(e,name)
@@ -390,7 +405,7 @@ async def run(e,name,token,retriever_factory=None):
         if mode not in ('prepare','write'):raise ValueError('旧任务使用不同的检索流程，请重新准备提示词')
         check();update(state='running',phase='准备当前文本块' if mode=='prepare' else '读取已保存的提示词')
         p=outline.profile(e,snapshot['profileId'],snapshot.get('model') or cfg.get('model')) if mode=='write' else {}
-        if mode=='write' and profile_signature(p)!=snapshot['profileSignature']:raise ValueError('模型配置已变化，请重新开始')
+        if mode=='write' and snapshot['profileSignature'] not in compatible_profile_signatures(p):raise ValueError('模型配置已变化，请重新开始')
         records=await asyncio.to_thread(retrieval.corpus,e) if mode=='prepare' else []
         await verify_materials()
         corpus_sig=chunks.digest([snapshot['modelsSignature'],[(r['id'],chunks.embedding_text(r)) for r in records]])

@@ -395,6 +395,8 @@ CSV 为序号/标题两列，校验父子关系、顺序、同级连续编号等
 - `logs/<run>/result.json` 保留每轮状态及错误，避免下轮覆盖 `writing-job.json` 后失去失败原因。
 - 文件、源文献或配置在任务中变动时，不能发布与当前输入不一致的结果。
 
+正文模型的图片输入签名只关注当前所选模型，不因其他模型的图片开关变化而失效；旧签名按可精确验证的兼容规则读取，不重写既有稿件。模型、思考强度或材料确实变化时仍提示更新，详见 [综述工作区](docs/REVIEW_OUTLINES.md)。
+
 ### 公共片段格式与导出
 
 `review_parts/section_<编号>.json` 的新格式为 `review-unit-object-refs-v3`，包含 `unit_id`、`sections`、`citation_validation`、`citation_scopes`、`evidencePool`、`resources`、`retrieval`、`markdown_content`。每个 section 保留原始 `sourceBlocks`、绑定资源的 `blocks`、兼容文本 `sourceMarkdown` / `markdown`、`citationRefs` 和协议版本。同处连续引文按 PMID 去重展示，内部证据 ID 全部保留。对外节点编号仍为大纲编号。
