@@ -39,7 +39,7 @@ def resolve_citations(text,sources):
     text=normalize_evidence_ids(text,sources)
     return dedupe_citations(re.sub(r'\[([ER][0-9]+)\]',lambda m:'(PMID: '+sources[m[1]]['pmid']+')' if m[1] in sources else m[0],text))
 
-def render_sections(sections,resources,project,numbers=None,evidence=None,language='zh'):
+def render_sections(sections,resources,project,numbers=None,evidence=None,language='zh',image_loader=None,allow_missing_images=False):
     """Resolve only selected resources from the frozen pool, with document-wide numbering."""
     import evidence_resources
     from review_export import resource_html,generated_table_html,markdown_html
@@ -75,7 +75,11 @@ def render_sections(sections,resources,project,numbers=None,evidence=None,langua
             if obj['kind']=='table':entry['html']=resource_html(obj['content'])
             else:
                 if block.get('imageInput')!='attached':raise ValueError('未提供给模型的图片不能装配进正文')
-                entry['dataUrl']=evidence_resources.image_data(project,obj)
+                try:entry['dataUrl']=image_loader(obj) if image_loader else evidence_resources.image_data(project,obj)
+                except (ValueError,OSError):
+                    if not allow_missing_images:raise
+                    blocks.append({'type':'notice','text':common['label']+(' image snapshot is missing or invalid; text and citations are preserved.' if language=='en' else '：图片快照缺失或校验失败，正文和引用仍保留。')+' (PMID: '+obj['pmid']+')'})
+                    continue
             blocks.append(entry)
         item['displayBlocks']=blocks;item['markdown']=markdown(blocks,language=language);result.append(item)
     return result

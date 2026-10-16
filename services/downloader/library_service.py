@@ -214,6 +214,10 @@ def clear_idle(e,j):
         e.write_json(base/'metadata/index-cleared.json',{'time':time.time()})
         e.write_json(base/'metadata/index-generation.json',{'id':uuid.uuid4().hex})
         if scope in ('pdf','markdown'):
+            # Explicit cleanup must not be undone by idle corpus reconciliation.
+            marker=base/'metadata/markdown-cleared.json';before=read(marker,{}).get('before',{})
+            before.update({p:time.time() for p in files.current(e) or []})
+            e.write_json(marker,{'before':before})
             state=artifact_state.membership(e)
             for p in files.current(e) or []:state.setdefault('epochs',{})[p]=state.get('epochs',{}).get(p,0)+1
             e.write_json(base/'metadata/corpus-membership.json',state)

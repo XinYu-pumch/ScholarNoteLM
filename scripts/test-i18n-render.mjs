@@ -67,8 +67,8 @@ downloads.batches.push({id:'download',project:'fixture',state:'done',items:[{pmi
 html=render(taskPage.default,{},{4:true});english(html);assert.match(html,/Finished · Partially incomplete/);
 
 html=render(vector.IndexProgress,{job:{state:'running',pmids:['1'],completed:0,skipped:0,failed:0,adaptiveProgress:{state:'waiting_network',completed:1,total:3},vectorProgress:{completed:1,total:3}}});english(html);
-tab='jcr';html=render(settingsPage.default,{},[settings,profile]);english(html);assert.match(html,/2303/);assert.match(html,/Row 628: quartile not provided; Row 1058: quartile not provided/);
-tab='models';const states=[settings,profile];states[15]={'model-a:text':{state:'success',seconds:0.1},'model-a:image':{state:'testing'}};
+tab='jcr';html=render(settingsPage.default,{},[settings,'',profile]);english(html);assert.match(html,/2303/);assert.match(html,/Row 628: quartile not provided; Row 1058: quartile not provided/);
+tab='models';const states=[settings,'',profile];states[16]={'model-a:text':{state:'success',seconds:0.1},'model-a:image':{state:'testing'}};
 html=render(settingsPage.default,{},states);assert.match(html,/Connection passed · 0.1 seconds/);assert.match(html,/Testing…/);
 i18n.configureLocale('zh');html=render(settingsPage.default,{},states);assert.match(html,/连接通过 · 0.1 秒/);assert.match(html,/正在测试…/);
 html=render(workflow.default,props);assert.match(html,/本轮下载已完成/);

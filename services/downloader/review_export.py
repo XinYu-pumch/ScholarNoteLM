@@ -41,7 +41,7 @@ def resource_html(text):
         parts.append('<table><tbody>'+''.join(rows)+'</tbody></table>')
     return ''.join(parts)
 
-def reference_entry(chunk,project,seen):
+def reference_entry(chunk,project,seen,image_loader=None):
     import evidence_resources
     objects=[]
     for obj in chunk.get('resources',[]):
@@ -51,7 +51,11 @@ def reference_entry(chunk,project,seen):
             'html':resource_html(obj['content']) if obj['kind']=='table' else '',
             'context':[{'position':'before' if p['charEnd']<=obj['charStart'] else 'after','html':str(markdown_html(p['content']))} for p in obj.get('context',[])]}
         if obj['kind']=='figure':
-            if obj.get('assetPath'):entry['dataUrl']=evidence_resources.image_data(project,obj)
+            if obj.get('assetPath'):
+                try:entry['dataUrl']=image_loader(obj) if image_loader else evidence_resources.image_data(project,obj)
+                except (ValueError,OSError):
+                    if not image_loader:raise
+                    entry['error']='图片快照缺失或校验失败，引用原文仍保留。'
             else:entry['error']=obj.get('imageError','图片快照不可用')
         objects.append(entry)
     return {'id':chunk['id'],'html':str(markdown_html(chunk['text'])),'resources':objects}

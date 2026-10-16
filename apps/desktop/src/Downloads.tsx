@@ -41,7 +41,7 @@ export function DownloadSettings(){
  async function save(){if(editingMirrors)return;setBusy(true);setError('');setSaved('');try{await persist();}catch(e){setError(message(e));}finally{setBusy(false);}}
  async function saveMirrors(){setBusy(true);setError('');setSaved('');try{await persistMirrors();}catch(e){setError(message(e));}finally{setBusy(false);}}
  return <div className="download-settings">{draftDialog}{mirrorGuard.dialog}<h2>{tr("PDF 下载")}</h2><p className="quiet">{tr("管理全文来源和下载速度。")}</p>
- {error&&<div className="wb-alert" role="alert">{tr(error)}</div>}{saved&&<div className="wb-success" role="status"><Check size={15}/>{tr(saved)}</div>}
+<div className="settings-feedback"> {error&&<div className="wb-alert" role="alert">{tr(error)}</div>}{saved&&<div className="wb-success" role="status"><Check size={15}/>{tr(saved)}</div>}</div>
  <form onSubmit={e=>{e.preventDefault();void save();}}><fieldset disabled={busy} className="pdf-settings-fields">
   <div className="pdf-source-grid">
    <section className="pdf-source-card pdf-connection-card wb-form"><h3>{tr("开放获取")}</h3><label className="wb-check"><input type="checkbox" checked={cfg.fastOa} onChange={e=>set({fastOa:e.target.checked})}/>{tr("从开放获取来源下载")}</label><Field className="pdf-connection-field">{tr("Unpaywall 联系邮箱")}<input aria-label={tr("Unpaywall 联系邮箱")} type="email" value={cfg.email} placeholder="research@example.com" onChange={e=>set({email:e.target.value})}/></Field><p className="quiet small">{tr("无需注册；留空时跳过 Unpaywall。")}</p></section>

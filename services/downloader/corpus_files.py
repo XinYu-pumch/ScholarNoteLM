@@ -89,6 +89,11 @@ def reconcile_locked(e):
         try:e.validate_pdf(path);restored_ids.add(path.stem)
         except ValueError:pass
     invalidated=(known|on_disk)-ids | restored_ids | set(state.get('pending',[]))
+    import markdown_archive
+    archived_markdown=0
+    for p in sorted(invalidated-ids):
+        previous=state.get('epochs',{}).get(p,0)-(1 if p in state.get('pending',[]) else 0)
+        archived_markdown+=markdown_archive.archive(e,p,previous)
     epochs=state.get('epochs',{})
     for p in invalidated-set(state.get('pending',[])):epochs[p]=epochs.get(p,0)+1
     updated={'ids':sorted(ids),'epochs':epochs,'pending':sorted(invalidated)}
@@ -129,6 +134,7 @@ def reconcile_locked(e):
                 except Exception as exc:errors.append({'pmid':p,'error':str(exc)});continue
             move(e,src,dest,events)
             if family=='pdf':restored+=1
+    restored_markdown=sum(markdown_archive.restore(e,p) for p in sorted(ids))
     for row in e.rows('SELECT pmid,data FROM assets WHERE project=?',(e.PROJECT,)):
         info=json.loads(row['data']);p=row['pmid'];is_archived=p not in ids
         if info.get('archived')==is_archived and info.get('path')==f"pdf/{'redundant/' if is_archived else ''}{p}.pdf":continue
@@ -144,8 +150,8 @@ def reconcile_locked(e):
             info={**previous,**checked,'pmid':p,'path':str(path),'archived':False,'restored':time.time()}
             info.setdefault('source','冗余目录恢复')
             e.execute('INSERT OR REPLACE INTO assets VALUES(?,?,?)',(e.PROJECT,p,json.dumps(info,ensure_ascii=False)))
-    result={'restored':restored,'archived':archived,'redundant':len(list(folder(e,'pdf/redundant').glob('*.pdf'))),'errors':errors,'deletedDerived':len(deleted)}
-    if events or deleted:e.write_json(base(e)/'logs'/f'corpus-files-{time.time_ns()}.json',{'time':time.time(),**result,'moves':events,'deleted':deleted})
+    result={'restored':restored,'archived':archived,'redundant':len(list(folder(e,'pdf/redundant').glob('*.pdf'))),'errors':errors,'deletedDerived':len(deleted),'archivedMarkdown':archived_markdown,'restoredMarkdown':restored_markdown}
+    if events or deleted or restored_markdown:e.write_json(base(e)/'logs'/f'corpus-files-{time.time_ns()}.json',{'time':time.time(),**result,'moves':events,'deleted':deleted})
     return result
 
 

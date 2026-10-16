@@ -100,7 +100,7 @@ def capture(e,name):
         for node in u['nodes']:
             seen=set();entries={}
             for chunk in (records if records is not None and node in u['leaves'] else evidence.get(node['id'],{}).get('chunks',[])):
-                entries.setdefault(chunk['metadata']['pmid'],[]).append(review_export.reference_entry(chunk,w.storage.project_dir(e.ROOT,e.PROJECT),seen))
+                entries.setdefault(chunk['metadata']['pmid'],[]).append(review_export.reference_entry(chunk,w.storage.project_dir(e.ROOT,e.PROJECT),seen,image_loader=lambda obj:w.display_image(path,w.storage.project_dir(e.ROOT,e.PROJECT),obj)))
             refs[node['serial']]=entries
     partial=any(not w.complete_unit(u,saved[u['id']]) for u in units)
     # No live asset paths, provider secrets, or model lookups are needed to read/export this.

@@ -274,15 +274,24 @@ def rpc(e,name,op,a):
         folder=path/'logs';folder.mkdir(parents=True,exist_ok=True);return e.open_local(folder)
     if op=='open-prompts':
         folder=path/'review_parts';folder.mkdir(parents=True,exist_ok=True);return e.open_local(folder)
-    if op=='section':
+    if op in ('section','resource'):
         ident=a.get('nodeId','')
         if not re.fullmatch('[a-f0-9]{32}',ident):raise ValueError('节点标识无效')
         units=tree_units(manuscripts.context(e,name)['rows']);u=next((u for u in units if ident in [n['id'] for n in u['nodes']]),None)
-        if not u:return {'sections':[],'evidence':{}}
+        if not u:
+            if op=='resource':raise ValueError('该综述单元没有此图片证据')
+            return {'sections':[],'evidence':{}}
         saved=saved_unit(path,u)
         evidence={n['id']:read_artifact(path/'retrieval'/f'{n["id"]}.json') for n in u['leaves']}
         # Completed body must show its original evidence, even after a failed regeneration.
         selected_evidence=saved.get('evidence',evidence)
+        if op=='resource':
+            for leaf in selected_evidence.values():
+                for record in leaf.get('chunks',[]):
+                    for obj in record.get('resources',[]):
+                        if obj.get('id')==a.get('resourceId') and obj.get('kind')=='figure':
+                            return {'dataUrl':display_image(path,storage.project_dir(e.ROOT,e.PROJECT),obj)}
+            raise ValueError('该综述单元没有此图片证据')
         shared=bool(saved.get('sections') and all(s.get('citationPoolVersion') in review_bundle.READ_VERSIONS for s in saved['sections'])) or (not saved and bool(prepared(path,u)))
         display=display_document(e,name,only_unit=u['id']) if saved else {}
         return {**saved,'sections':[display[s['node_id']] for s in saved.get('sections',[])],'evidence':selected_evidence,'unit':u,'sharedEvidence':review_bundle.display_records(u,selected_evidence) if shared else None}
@@ -556,6 +565,19 @@ async def run(e,name,token,retriever_factory=None):
                         current['error']='正文已保留，但自动保存稿件失败：'+safe_error(ex)
                         e.write_json(path/'writing-job.json',current)
 
+def display_image(path,project,obj):
+    # Prepared resources belong to the review, independently of corpus/vector life.
+    import base64
+    sha=obj.get('assetSha256','');kind=obj.get('mime','')
+    if re.fullmatch('[a-f0-9]{64}',sha) and kind in ('image/png','image/jpeg','image/gif','image/webp'):
+        ref={'path':'resources/'+sha+'.'+kind.split('/')[1],'sha256':sha}
+        try:
+            raw=review_bundle.read_file(path/'review_parts',ref)
+            if resources.mime(raw)!=kind:raise ValueError('图片内容与类型不一致')
+            return 'data:'+kind+';base64,'+base64.b64encode(raw).decode()
+        except (ValueError,OSError):pass
+    return resources.image_data(project,obj)
+
 def display_document(e,name,rows=None,only_unit=None):
     ctx=manuscripts.context(e,name);language=lang.normalize(ctx.get('config',{}).get('language')) if ctx.get('config',{}).get('promptVersion') else 'zh'
     rows=rows if rows is not None else ctx['rows'];path=outline.work(e,name)
@@ -569,7 +591,7 @@ def display_document(e,name,rows=None,only_unit=None):
         value=saved[unit['id']]
         if not value:continue
         pool=review_bundle.make({'topic':'','config':{'language':'','requirements':''}},unit,value.get('evidence',{}))
-        for section in review_content.render_sections(value['sections'],pool['resources'],storage.project_dir(e.ROOT,e.PROJECT),numbers,pool['evidencePool'],language=language):result[section['node_id']]=section
+        for section in review_content.render_sections(value['sections'],pool['resources'],storage.project_dir(e.ROOT,e.PROJECT),numbers,pool['evidencePool'],language=language,image_loader=lambda obj:display_image(path,storage.project_dir(e.ROOT,e.PROJECT),obj),allow_missing_images=True):result[section['node_id']]=section
     return result
 
 def assemble(e,name,include_blocks=False):

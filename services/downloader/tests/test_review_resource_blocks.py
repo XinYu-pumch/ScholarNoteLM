@@ -49,6 +49,21 @@ class ResourceBlocksTests(unittest.TestCase):
   self.assertIn('a',b.decode(self.value(blocks),package,self.fx.unit,{'model':'vision','visionModels':['vision']})[1])
   sections,errors=self.decode(blocks,{'model':'vision','visionModels':['vision']});self.assertFalse(errors)
   self.assertEqual(sections[1]['blocks'][0]['imageInput'],'attached')
+ def test_review_images_survive_vector_cleanup_and_missing_images_preserve_text(self):
+  import shutil
+  sections,errors=self.decode([{'type':'markdown','text':'Before [E1]'}, {'type':'resource','resource_id':'R2'}, {'type':'markdown','text':'After [E2]'}],{'model':'vision','visionModels':['vision']})
+  self.assertFalse(errors)
+  shutil.rmtree(self.fx.project/'vectors')
+  loader=lambda obj:w.display_image(self.fx.project,self.fx.project,obj)
+  rendered=c.render_sections(sections,self.fx.bundle['resources'],self.fx.project,image_loader=loader,allow_missing_images=True)
+  self.assertTrue(rendered[1]['displayBlocks'][1]['dataUrl'].startswith('data:image/png;base64,'))
+  image=next((self.fx.folder/'resources').glob('*.png'));image.write_bytes(b'corrupt')
+  rendered=c.render_sections(sections,self.fx.bundle['resources'],self.fx.project,image_loader=loader,allow_missing_images=True)
+  blocks=rendered[1]['displayBlocks'];self.assertEqual([v['type'] for v in blocks],['markdown','notice','markdown'])
+  self.assertIn('Before (PMID: 12345678)',blocks[0]['text']);self.assertIn('After (PMID: 23456789)',blocks[2]['text'])
+  with self.assertRaises(ValueError):c.render_sections(sections,self.fx.bundle['resources'],self.fx.project,image_loader=loader)
+  invalid=copy.deepcopy(sections);invalid[1]['blocks'][1]['pmid']='999'
+  with self.assertRaisesRegex(ValueError,'不一致'):c.render_sections(invalid,self.fx.bundle['resources'],self.fx.project,image_loader=loader,allow_missing_images=True)
  def test_unknown_wrong_type_extra_fields_and_intro_resources_rejected(self):
   for rid in ('R999','E1','../outside'):
    self.assertIn('a',self.decode([{'type':'resource','resource_id':rid}])[1])
@@ -130,6 +145,14 @@ class ResourceWorkerTests(unittest.TestCase):
    preview=w.rpc(e,'Test','preview',{})
    self.assertEqual(sum(b['type']=='resource' for b in preview['displayBlocks']),10)
    self.assertEqual({b['label'] for b in preview['displayBlocks'] if b['type']=='resource'},{'表 1','图 1'})
+   # Removing active corpus assets must not break preview, evidence, capture or export.
+   import shutil
+   shutil.rmtree(self.base/'vectors')
+   node=self.detail['rows'][2]['id'];image_id=next(o['id'] for o in objects if o['kind']=='figure')
+   self.assertTrue(w.rpc(e,'Test','resource',{'nodeId':node,'resourceId':image_id})['dataUrl'].startswith('data:image/png;base64,'))
+   with self.assertRaises(ValueError):w.rpc(e,'Test','resource',{'nodeId':node,'resourceId':'not-in-unit'})
+   self.assertEqual(sum('dataUrl' in b for b in w.rpc(e,'Test','preview',{})['displayBlocks']),5)
+   captured=w.manuscripts.capture(e,'Test');self.assertTrue(any(r.get('dataUrl') for refs in captured['references'].values() for entries in refs.values() for entry in entries for r in entry['resources']))
    for form in ('md','html','docx'):w.export(e,'Test',form)
    html=next((self.path/'exports').glob('*/*.html')).read_text();self.assertIn('class="body-resource"',html);self.assertIn('data:image/png;base64,',html)
    md=next((self.path/'exports').glob('*/*.md')).read_text();self.assertIn('![图 1](resources/',md)

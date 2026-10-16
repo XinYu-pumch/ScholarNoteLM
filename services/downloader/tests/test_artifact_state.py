@@ -29,7 +29,7 @@ class ArtifactStateTests(unittest.TestCase):
   self.materialize('1');c.sync(e);before=c.documents(e)[0]['version']
   e.atomic(self.base/'markdown/1.md','Manually edited evidence. '*30);c.sync(e)
   self.assertEqual(self.state()['markdownState'],'latest');self.assertNotEqual(c.documents(e)[0]['version'],before)
- def test_removed_article_loses_all_derived_versions_but_keeps_pdf(self):
+ def test_removed_article_restores_markdown_but_rebuilds_vectors(self):
   self.materialize('1');c.sync(e);d=c.documents(e)[0];version=d['version'];generation=a.epoch(e,'1')
   with c.connect(e) as db:
    db.execute('INSERT INTO embeddings VALUES(?,?,?,?)',('model','hash',1,b'float'))
@@ -41,8 +41,8 @@ class ArtifactStateTests(unittest.TestCase):
   with c.connect(e) as db:
    for table in ('documents','chunks','indexed','embedding_owners'):self.assertEqual(db.execute(f'SELECT COUNT(*) FROM {table} WHERE pmid=?',('1',)).fetchone()[0],0)
    self.assertEqual(db.execute('SELECT COUNT(*) FROM embeddings').fetchone()[0],0)
-  self.xml(['1','2']);f.reconcile(e);self.assertTrue((self.base/'pdf/1.pdf').exists());self.assertFalse((self.base/'markdown/1.md').exists());self.assertGreater(a.epoch(e,'1'),generation)
-  c.sync(e);d=c.documents(e)[0];self.assertEqual(d['state'],'blocked');self.assertFalse(d['indexed'])
+  self.xml(['1','2']);f.reconcile(e);self.assertTrue((self.base/'pdf/1.pdf').exists());self.assertTrue((self.base/'markdown/1.md').exists());self.assertEqual(self.state()['markdownState'],'latest');self.assertGreater(a.epoch(e,'1'),generation)
+  c.sync(e);d=c.documents(e)[0];self.assertGreater(d['chunks'],0);self.assertFalse(d['indexed'])
  def test_removal_preserves_shared_cache_owned_by_remaining_article(self):
   c.sync(e)
   with c.connect(e) as db:
@@ -62,7 +62,7 @@ class ArtifactStateTests(unittest.TestCase):
   def during_conversion(text,cfg):
    result=clean(text,cfg);self.xml(['2']);f.reconcile(e);self.xml(['1','2']);f.reconcile(e);return result
   with patch.object(worker,'ROOT',e.ROOT),patch.object(m,'clean',side_effect=during_conversion),patch.object(socket.socket,'connect',socket.socket.connect),patch.dict(os.environ,{}):worker.run('test','race')
-  self.assertEqual(m.read_job(e)['failed'],1);self.assertFalse((self.base/'markdown/1.md').exists());self.assertFalse((self.base/'markdown/raw/1.md').exists());self.assertTrue((self.base/'pdf/1.pdf').exists())
+  self.assertEqual(m.read_job(e)['failed'],1);self.assertEqual(self.state()['markdownState'],'latest');self.assertEqual((self.base/'markdown/raw/1.md').read_text(),'# Results\n\n'+('Important evidence. '*30));self.assertTrue((self.base/'pdf/1.pdf').exists())
 
  def download_result(self,p,state,batch='b',created=1,attempt=True):
   e.execute('INSERT INTO batches(id,project,created,state,snapshot,config) VALUES(?,?,?,?,?,?)',(batch,e.PROJECT,created,'done','{}','{}'))

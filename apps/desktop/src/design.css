@@ -945,3 +945,64 @@ input[type='checkbox'], input[type='radio'] { accent-color: var(--accent); }
 .model-reasoning-control { flex:0 0 100%; display:flex; flex-wrap:wrap; align-items:center; gap:var(--space-3); font-size:var(--fs-footnote); }
 .research-settings .wb-form .model-reasoning-control>label { display:flex; flex-direction:row; align-items:center; gap:var(--space-3); margin:0; }
 .model-reasoning-control .app-select { width:auto; }
+
+/* Stable feedback: background operations must not move the active row. */
+.query-feedback { height:var(--space-10); display:flex; align-items:center; overflow:auto; margin:0; }
+.query-feedback .wb-working { margin:0; padding:0; background:transparent; border:0; min-height:var(--control-height); width:100%; }
+.library-page .selection-bar { min-height:var(--space-10); flex-wrap:nowrap; overflow-x:auto; gap:var(--space-3); }
+.library-page .selection-bar>* { flex-shrink:0; white-space:nowrap; }
+.library-page .selection-bar>span { min-width:120px; }
+.library-page .selection-bar.is-empty { background:var(--subtle); color:var(--muted); }
+.settings-feedback { height:var(--space-10); flex:none; overflow:auto; margin-bottom:var(--space-2); }
+.settings-feedback>:is(.wb-alert,.wb-success,.wb-working) { margin:0; padding:var(--space-2); min-height:var(--control-height); font-size:var(--fs-footnote); }
+
+/* Settings categories stay in place; only the content pane scrolls. */
+.main-content:has(>.research-settings) { overflow:hidden; }
+.main-content>.research-settings { height:100%; min-height:0; display:flex; flex-direction:column; margin:0 auto; width:100%; padding-bottom:0; }
+.research-settings>.page-heading { flex:none; }
+.research-settings>.settings-layout { flex:1; min-height:0; overflow:hidden; flex-direction:row; }
+.research-settings .settings-nav { flex:none; align-self:stretch; overflow-y:auto; display:block; width:170px; padding-bottom:var(--space-5); }
+.research-settings .settings-nav button { justify-content:flex-start; }
+.research-settings .settings-body { min-height:0; overflow-y:auto; padding:0 var(--space-3) var(--space-8); scrollbar-gutter:stable; }
+
+/* Key controls use an inset grid, so press/focus never displaces the eye. */
+.model-key-input { display:grid; grid-template-columns:minmax(0,1fr) var(--control-height); align-items:center; }
+.model-key-input input { grid-area:1 / 1 / 2 / 3; min-width:0; width:100%; padding-right:var(--space-10)!important; }
+.model-key-input .icon-button { grid-area:1 / 2; position:static; transform:none; margin:0 var(--space-1) 0 0; width:var(--control-height-sm); height:var(--control-height-sm); min-height:var(--control-height-sm); padding:0; border:0; box-shadow:none; background:transparent; color:var(--muted); }
+.model-key-input .icon-button:not(:disabled):active { transform:none; background:var(--pressed); }
+.model-key-input .icon-button:hover { background:var(--hover); color:var(--accent); }
+.model-key-input .icon-button[aria-pressed=true] { color:var(--accent); }
+
+/* Model name, options, and test feedback have consistent places. */
+.model-unified-list { max-height:none; overflow:visible; display:grid; gap:var(--space-2); }
+.model-unified-row { display:grid; grid-template-columns:minmax(0,1fr); gap:var(--space-2); padding:var(--space-3); border:1px solid var(--line); border-radius:var(--radius-md); background:var(--surface); }
+.model-unified-row:last-child { border-bottom:1px solid var(--line); }
+.model-unified-row .model-unified-name { font-weight:var(--fw-medium); font-size:var(--fs-subhead); }
+.model-row-controls { gap:var(--space-2) var(--space-4); }
+.model-row-options,.model-row-actions { display:flex; align-items:center; gap:var(--space-3); }
+.model-row-controls>.model-row-options { flex:0 1 auto; flex-wrap:wrap; }
+.model-row-actions { margin-left:auto; }
+.model-row-controls .model-reasoning-control { flex:0 1 auto; gap:var(--space-2); }
+.research-settings .wb-form .model-reasoning-control>label { gap:var(--space-2); font-size:var(--fs-footnote); font-weight:var(--fw-regular); }
+.model-reasoning-control .app-select-trigger { min-height:var(--control-height-sm); height:var(--control-height-sm); font-size:var(--fs-footnote); }
+.model-row-actions>.icon-button { margin-left:auto; color:var(--muted); }
+.model-row-actions>.text-button { padding:var(--space-1) var(--space-2); border-radius:var(--radius-sm); background:var(--accent-wash); }
+.model-row-controls .model-reasoning-control .app-select { width:112px; }
+:root[lang="en"] .model-row-controls .model-reasoning-control .app-select { width:140px; }
+.model-test-feedback { min-height:var(--space-4); max-height:var(--space-4); line-height:var(--space-4); overflow:auto; display:flex; gap:var(--space-3); }
+.model-test-feedback .model-row-result { flex:1; font-size:var(--fs-footnote); margin:0; }
+
+/* Outline reading density; editing keeps its existing textarea affordances. */
+.review-studio .review-outline-row { min-height:var(--control-height); padding-top:0; padding-bottom:0; }
+.review-studio .review-outline-row.level-1 { padding-top:var(--space-2); padding-bottom:var(--space-1); }
+.review-outline-title { padding:0; line-height:1.45; }
+@media(max-width:1000px) {
+ .research-settings .settings-nav { width:135px; }
+ .research-settings>.settings-layout { gap:var(--space-3); }
+}
+@media(pointer:coarse) {
+ .model-key-input { grid-template-columns:minmax(0,1fr) var(--target-touch); }
+ .model-key-input input { min-height:var(--target-touch); padding-right:var(--target-touch)!important; }
+ .model-key-input .icon-button { width:var(--target-touch); height:var(--target-touch); }
+ .review-studio .review-outline-row:has(button) { min-height:var(--target-touch); }
+}
