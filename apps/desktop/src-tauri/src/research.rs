@@ -902,7 +902,12 @@ fn same_candidate_search(run: &Value, term: &str, filters: &Value) -> bool {
         && ["start","end","sort","mode"].iter().all(|k|run["filters"][k]==filters[k])
 }
 fn query_fetch_stale(run: &Value, text: &str, filters: &Value) -> bool {
-    !same_candidate_search(run,text,filters) || ["limit","jcr","quartiles","unknown"].iter().any(|k|run["filters"][k]!=filters[k])
+    !same_candidate_search(run,text,filters)
+        || ["limit","jcr"].iter().any(|k|run["filters"][k]!=filters[k])
+        || (filters["jcr"]==true && quartile_selection(&run["filters"])!=quartile_selection(filters))
+}
+fn quartile_selection(filters: &Value) -> std::collections::BTreeSet<String> {
+    filters["quartiles"].as_array().into_iter().flatten().filter_map(|q|q.as_str().map(str::to_owned)).collect()
 }
 fn qualifies(paper: &Value, filters: &Value, index: Option<&Jcr>) -> bool {
     if s(paper,"abstract").trim().is_empty() {return false;}
@@ -2922,6 +2927,19 @@ mod tests {
         }
         assert!(query_fetch_stale(&run,"kidney[tiab] AND immunity[tiab]",&f));
         assert!(!query_fetch_stale(&run,"kidney[tiab]",&f));
+    }
+    #[test]
+    fn inactive_jcr_fields_and_quartile_order_do_not_invalidate_results() {
+        let mut f=defaults();f["jcr"]=json!(false);
+        let run=json!({"selectionPolicy":SELECTION_POLICY,"text":"kidney","filters":f});
+        f["quartiles"]=json!(["Q2"]);f["unknown"]=json!("exclude");
+        assert!(!query_fetch_stale(&run,"kidney",&f));
+        f["jcr"]=json!(true);assert!(query_fetch_stale(&run,"kidney",&f));
+        f["quartiles"]=json!(["Q1","Q2"]);
+        let active=json!({"selectionPolicy":SELECTION_POLICY,"text":"kidney","filters":f});
+        f["quartiles"]=json!(["Q2","Q1","Q1"]);assert!(!query_fetch_stale(&active,"kidney",&f));
+        f["unknown"]=json!("keep");assert!(!query_fetch_stale(&active,"kidney",&f));
+        f["quartiles"]=json!(["Q1"]);assert!(query_fetch_stale(&active,"kidney",&f));
     }
     #[test]
     fn pending_run_skips_current_xml_and_cancel_preserves_old_run() {

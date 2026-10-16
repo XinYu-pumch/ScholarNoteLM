@@ -39,7 +39,7 @@ class WritingTests(unittest.TestCase):
    original=w.profile_signature(p)
    for vision in (['fixture'],['other','fixture','third'],['fixture','fixture']):
     self.assertEqual(w.profile_signature({**p,'visionModels':vision}),original)
-   for change in ({'visionModels':['other']},{'model':'other'},{'temperature':.4},{'endpoint':'https://different.example/v1'},{'id':'different'}):
+   for change in ({'visionModels':['other']},{'model':'other'},{'temperature':.4},{'endpoint':'https://different.example/v1'}):
     self.assertNotIn(original,w.compatible_profile_signatures({**p,**change}))
    if provider=='opencode_go':
     self.assertNotIn(original,w.compatible_profile_signatures({**p,'reasoningByModel':{'fixture':'low'}}))
@@ -51,7 +51,11 @@ class WritingTests(unittest.TestCase):
    old={**PROFILE,'provider':provider,'visionModels':['fixture'],'reasoningByModel':{'fixture':'high'}}
    with patch.dict(PROFILE,old):self.seed()
    # This singleton hash is exactly the pre-fix representation, not a new cache.
-   self.assertEqual(w.profile_signature(old),w.legacy_profile_signature(old))
+   cfg=w.config(self.path);source=w.source_signature(e);models=w.retrieval.signature(e.ROOT)
+   for u in w.tree_units(self.detail['rows']):
+    f=self.path/'sections'/f'{u['id']}.json';saved=r.read(f)
+    saved['signature']=w.unit_signature(u,cfg,'Review',source,w.legacy_profile_signature(old),models,legacy=True)
+    e.write_json(f,saved)
    files=list((self.path/'sections').glob('*.json'));before={f:f.read_bytes() for f in files}
    with patch.object(r,'profile',return_value={**old,'visionModels':['fixture','other']}):
     result=self.status();self.assertEqual(result['latest'],4)
@@ -69,7 +73,7 @@ class WritingTests(unittest.TestCase):
     f=self.path/'sections'/f'{u["id"]}.json';saved=r.read(f)
     pre=w.prepare_unit(e,self.path,{'config':cfg,'topic':'Review'},u,saved['evidence'])
     saved['signature']=w.unit_signature(u,cfg,'Review',source,w.legacy_profile_signature(p),models,pre['hash']);e.write_json(f,saved)
-   self.assertEqual(self.status()['latest'],4)
+   with patch.object(r,'profile',return_value={**p,'visionModels':['third','other','fixture']}):self.assertEqual(self.status()['latest'],4)
    with patch.object(w.subprocess,'Popen') as proc:
     result=w.rpc(e,'Test','retry',{});proc.assert_not_called()
    self.assertEqual(result['latest'],4)
@@ -83,6 +87,32 @@ class WritingTests(unittest.TestCase):
   # Unknown historical lists cannot be recovered from a hash: fail closed.
   unknown=w.legacy_profile_signature({**p,'visionModels':['removed','fixture']})
   self.assertNotIn(unknown,w.compatible_profile_signatures({**p,'visionModels':['fixture']}))
+
+ def test_legacy_budget_and_duplicate_profile_restore_without_rewriting(self):
+  self.seed();cfg=w.config(self.path,{'profileId':'original','contextChars':12000,'limitContext':True})
+  ctx=w.manuscripts.new_round(e,'Test',self.detail['rows'],'Review',cfg)
+  e.write_json(self.path/'writing-round.json',ctx)
+  source=w.source_signature(e);models=w.retrieval.signature(e.ROOT)
+  token=uuid.uuid4().hex;e.write_json(self.path/'logs'/token/'input.json',{'config':cfg})
+  for u in w.tree_units(self.detail['rows']):
+   u['promptSignature']=w.unit_signature(u,cfg,'Review',source,'',models,legacy=True)
+   f=self.path/'sections'/f'{u['id']}.json';saved=r.read(f)
+   pre=w.prepare_unit(e,self.path,{'config':cfg,'topic':'Review'},u,saved['evidence'])
+   saved.update(run=token,signature=w.unit_signature(u,cfg,'Review',source,w.legacy_profile_signature({**PROFILE,'id':'original'}),models,pre['hash'],legacy=True));e.write_json(f,saved)
+  before={f:f.read_bytes() for f in self.path.rglob('*.json')}
+  e.write_json(self.path/'writing-settings.json',{**cfg,'profileId':'copy','contextChars':500000,'limitContext':False})
+  with patch.object(r,'profile',return_value={**PROFILE,'id':'copy'}):
+   state=self.status();self.assertEqual(state['latest'],4);self.assertEqual(state['prepared'],4)
+   with patch.object(w.subprocess,'Popen') as spawn:w.rpc(e,'Test','retry',{});spawn.assert_not_called()
+  for f,content in before.items():
+   if f.name!='writing-settings.json':self.assertEqual(f.read_bytes(),content)
+  e.write_json(self.path/'writing-settings.json',{**cfg,'requirements':'New actual instructions'})
+  self.assertEqual(self.status()['latest'],0);self.assertEqual(self.status()['prepared'],0)
+
+ def test_new_outputs_ignore_transport_duplicate_id_and_budget(self):
+  self.seed()
+  e.write_json(self.path/'writing-settings.json',{'limitContext':True,'contextChars':12000})
+  with patch.object(r,'profile',return_value={**PROFILE,'id':'copy','timeout':900,'apiKey':'synthetic'}):self.assertEqual(self.status()['latest'],4)
 
  def test_scope_and_structure_validation(self):
   u=w.tree_units(self.detail['rows'])[0];ids=[n['id'] for n in u['nodes']];ev={ids[1]:{'chunks':[{'metadata':{'pmid':'1'}}]},ids[2]:{'chunks':[{'metadata':{'pmid':'2'}}]}}

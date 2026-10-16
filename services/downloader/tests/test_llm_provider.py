@@ -93,10 +93,14 @@ class ProviderTests(unittest.IsolatedAsyncioTestCase):
    self.assertNotEqual(fn({**p,'reasoningByModel':{p['model']:'max'}}),original)
    normal={**p,'provider':'openai'}
    self.assertEqual(fn(normal),fn({**normal,'reasoningByModel':{p['model']:'max'}}))
- def test_legacy_signatures_unchanged_and_provider_is_distinct(self):
+ def test_legacy_signatures_compatible_and_provider_is_distinct(self):
   p={'id':'p','model':'m','baseUrl':'https://host/v1','endpoint':'https://host/v1/chat/completions'}
-  for fn,keys in [(review_writing.profile_signature,('id','model','endpoint','temperature','sendTemperature','visionModels')),(qa_service.profile_signature,('id','model','baseUrl','temperature','timeout','apiKey','sendTemperature','visionModels'))]:
-   expected=vector_chunks.digest({k:p.get(k) for k in keys});self.assertEqual(fn(p),expected);self.assertEqual(fn({**p,'provider':'openai'}),expected);self.assertNotEqual(fn({**p,'provider':'opencode_go'}),expected)
+  for module,keys in [(review_writing,('id','model','endpoint','temperature','sendTemperature','visionModels')),(qa_service,('id','model','baseUrl','temperature','timeout','apiKey','sendTemperature','visionModels'))]:
+   expected=vector_chunks.digest({k:p.get(k) for k in keys})
+   self.assertEqual(module.legacy_profile_signature(p),expected)
+   self.assertIn(expected,module.compatible_profile_signatures(p))
+   self.assertNotEqual(module.profile_signature(p),module.profile_signature({**p,'provider':'opencode_go'}))
+   self.assertEqual(module.profile_signature(p),module.profile_signature({**p,'id':'copy','apiKey':'rotated','timeout':900,'sendTemperature':True,'visionModels':['other']}))
  async def test_connection_retry_reuses_session_and_cancellation_is_prompt(self):
   seen=[]
   async def handler(req):

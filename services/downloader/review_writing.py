@@ -85,24 +85,46 @@ def rows_at(e,path):
 
 # 'sendTemperature' is retired but stays in the key list so existing signatures remain valid.
 def legacy_profile_signature(p):return chunks.digest(llm_provider.signature_fields(p,('id','model','endpoint','temperature','sendTemperature','visionModels')))
-def profile_signature(p):
-    # Preserve the existing fields and singleton/absent hashes. Only the selected
-    # model's image capability affects review_bundle.messages/decode.
-    vision=[p['model']] if p.get('model') in (p.get('visionModels') or []) else None
-    return legacy_profile_signature({**p,'visionModels':vision})
+def profile_signature(p):return chunks.digest(llm_provider.semantic_fields(p))
 
 def compatible_profile_signatures(p):
-    # Old artifacts contain only a hash, not the original profile fields. Accept
-    # exact legacy hashes; never ignore model/temperature/provider/effort changes.
-    values={profile_signature(p),legacy_profile_signature(p)}
-    if p.get('model') not in (p.get('visionModels') or []):
-        values.add(legacy_profile_signature({**p,'visionModels':[]}))
-    return values
+    return {profile_signature(p),*(legacy_profile_signature(old) for old in llm_provider.legacy_vision_profiles(p))}
 
-def matches_unit_signature(saved,unit,cfg,topic,source,profiles,models,prompt_hash=''):
-    return complete_unit(unit,saved) and any(saved.get('signature')==unit_signature(unit,cfg,topic,source,ps,models,prompt_hash) for ps in profiles)
-def unit_signature(unit,cfg,topic,source,model_signature,models,prompt_hash=""):
-    return chunks.digest([SYSTEM,review_format.FORMAT,review_bundle.VERSION,{k:v for k,v in unit.items() if k not in ('signature','promptSignature')},{k:v for k,v in cfg.items() if k not in ('concurrency','profileId','model') and (k!='limitContext' or v)},topic,source,model_signature,models,prompt_hash])
+def semantic_config(cfg):
+    return {k:v for k,v in cfg.items() if k not in ('concurrency','profileId','model','limitContext','contextChars')}
+
+def unit_signature(unit,cfg,topic,source,model_signature,models,prompt_hash="",*,legacy=False):
+    settings=({k:v for k,v in cfg.items() if k not in ('concurrency','profileId','model') and (k!='limitContext' or v)} if legacy else semantic_config(cfg))
+    return chunks.digest([SYSTEM,review_format.FORMAT,review_bundle.VERSION,{k:v for k,v in unit.items() if k not in ('signature','promptSignature')},settings,topic,source,model_signature,models,prompt_hash])
+
+def signature_configs(path,cfg,saved=None):
+    # Replay guard-only settings from the originating run/round, never overwrite
+    # artifacts or bypass the material/model checks encoded in the original hash.
+    values=[cfg]
+    if path is not None:
+        values.append(read_artifact(path/'writing-round.json').get('config',{}))
+        run=(saved or {}).get('run','')
+        if re.fullmatch('[a-f0-9]{32}',run):values.append(read_artifact(path/'logs'/run/'input.json').get('config',{}))
+    return [c for c in values if c and semantic_config({**DEFAULTS,**c})==semantic_config({**DEFAULTS,**cfg})]
+
+def unit_signatures(path,unit,cfg,topic,source,ps,models,prompt_hash='',saved=None):
+    configs=signature_configs(path,cfg,saved);result=set()
+    for model in models if isinstance(models,set) else {models}:
+        result.add(unit_signature(unit,cfg,topic,source,ps,model,prompt_hash))
+        result.update(unit_signature(unit,c,topic,source,ps,model,prompt_hash,legacy=True) for c in configs)
+    return result
+
+def matches_unit_signature(saved,unit,cfg,topic,source,profiles,models,prompt_hash='',path=None):
+    if not complete_unit(unit,saved):return False
+    configs=signature_configs(path,cfg,saved)
+    for model in models if isinstance(models,set) else {models}:
+        for ps in profiles:
+            if saved.get('signature')==unit_signature(unit,cfg,topic,source,ps,model,prompt_hash):return True
+            if any(saved.get('signature')==unit_signature(unit,c,topic,source,ps,model,prompt_hash,legacy=True) for c in configs):return True
+    return False
+
+def current_prepared(path,unit,cfg,topic,source,models):
+    return prepared(path,unit,unit_signatures(path,unit,cfg,topic,source,'',models))
 
 def read_artifact(path):
     try:
@@ -119,7 +141,7 @@ def prepared(path,unit,expected=None):
     data=read_artifact(path/'prompts'/f'{unit["id"]}.json')
     try:
         if not data or any(not valid_retrieval(data.get('evidence',{}).get(n['id'],{})) for n in unit['leaves']):return None
-        if data.get('format')!=review_bundle.VERSION or (expected is not None and data.get('signature')!=expected):return None
+        if data.get('format')!=review_bundle.VERSION or (expected is not None and data.get('signature') not in (expected if isinstance(expected,set) else {expected})):return None
         if data.get('evidenceHash') and data['evidenceHash']!=chunks.digest(data['evidence']):return None
         if len(data.get('plans',[]))!=1:return None
         for plan in data['plans']:
@@ -179,7 +201,7 @@ def round_inputs(ctx,source,models,rcfg):
     return frozen.get('sourceSignature',source),frozen.get('modelsSignature',models),frozen.get('retrieval',rcfg)
 
 def material_settings_changed(ctx,cfg,topic):
-    return ctx.get('topic',topic)!=topic or any(cfg.get(k)!=ctx.get('config',{}).get(k,DEFAULTS.get(k)) for k in ('topK','requirements','language','limitContext','contextChars'))
+    return ctx.get('topic',topic)!=topic or any(cfg.get(k)!=ctx.get('config',{}).get(k,DEFAULTS.get(k)) for k in ('topK','requirements','language','promptVersion'))
 
 def same_model(a,b):
     import vector_service as v
@@ -202,11 +224,15 @@ def status(e,name):
     except ValueError:profiles=set();model='';model_label=''
     import status_cache
     live_source=status_cache.cached(e,'review.source-signature',lambda:source_signature(e));rcfg=retrieval_settings.snapshot(e.ROOT,e.PROJECT);live_models=retrieval.signature(e.ROOT,rcfg);source,models,material_cfg=round_inputs(ctx,live_source,live_models,rcfg);j=job(e,name);items=[];preparations={}
+    model_options={models} if ctx.get('materialSnapshot') else retrieval.compatible_signatures(e.ROOT,rcfg)|{models}
     for u in units:
         saved=saved_unit(path,u)
-        pre=prepared(path,u,unit_signature(u,cfg,state.get('topic',''),source,'',models))
+        if profiles:
+            for old_cfg in signature_configs(path,cfg,saved):
+                profiles.update(compatible_profile_signatures({**p,'id':old_cfg.get('profileId') or p.get('id')}))
+        pre=current_prepared(path,u,cfg,state.get('topic',''),source,model_options)
         preparations[u['id']]=pre
-        latest=not outline_changed and matches_unit_signature(saved,u,cfg,state.get('topic',''),source,profiles,models,pre['hash'] if pre else '')
+        latest=not outline_changed and matches_unit_signature(saved,u,cfg,state.get('topic',''),source,profiles,model_options,pre['hash'] if pre else '',path)
         live=j.get('items',{}).get(u['id'],{})
         phase='latest' if latest else 'outdated' if saved else 'pending'
         if j.get('state') in ACTIVE and live:phase=live.get('state',phase)
@@ -313,24 +339,27 @@ def rpc(e,name,op,a):
         source,models=frozen_source,frozen_models
         if mode=='write':rcfg=frozen_cfg
         # A new credential is verified live, but never changes the frozen artifact identity.
-    if mode=='write' and any(not prepared(path,u,unit_signature(u,cfg,state['topic'],source,'',models)) for u in units):
+    model_options={models} if ctx.get('materialSnapshot') else retrieval.compatible_signatures(e.ROOT,rcfg)|{models}
+    if mode=='write' and any(not current_prepared(path,u,cfg,state['topic'],source,model_options) for u in units):
         raise ValueError('请先为全部章节准备完整的写作材料（提示词）')
     if selected is not None and (not isinstance(selected,list) or not selected or any(i not in {u['id'] for u in units} for i in selected)):raise ValueError('选择的写作单元无效')
     e.write_json(path/'writing-settings.json',cfg)
     tasks=[]
     for u in units:
         u['promptSignature']=unit_signature(u,cfg,state['topic'],source,'',models)
-        pre=prepared(path,u,u['promptSignature'])
+        pre=current_prepared(path,u,cfg,state['topic'],source,model_options)
         u['signature']=unit_signature(u,cfg,state['topic'],source,ps,models,pre['hash'] if pre else '')
         if selected is not None and u['id'] not in selected:continue
         if mode=='write' and not pre:raise ValueError('提示词尚未准备或已过期，请先准备新一轮撰写，或继续本轮准备')
         old=saved_unit(path,u)
-        if selected is None and ((mode=='prepare' and pre) or (mode=='write' and matches_unit_signature(old,u,cfg,state['topic'],source,profiles,models,pre['hash'] if pre else ''))):continue
+        for old_cfg in signature_configs(path,cfg,old):
+            profiles.update(compatible_profile_signatures({**p,'id':old_cfg.get('profileId') or p.get('id')}))
+        if selected is None and ((mode=='prepare' and pre) or (mode=='write' and matches_unit_signature(old,u,cfg,state['topic'],source,profiles,model_options,pre['hash'] if pre else '',path))):continue
         tasks.append(u)
     if not tasks:return status(e,name)
     if mode=='write':manuscripts.save(e,name)
     token=uuid.uuid4().hex;run=path/'logs'/token;run.mkdir(parents=True)
-    snapshot={'token':token,'created':time.time(),'topic':state['topic'],'config':cfg,'mode':mode,'retrieval':rcfg,'profileId':p.get('id',''),'model':p.get('model',''),'profileSignature':ps,'sourceSignature':source,'modelsSignature':models,'rows':rows,'tasks':tasks,'frozenMaterials':True,'sessionRound':ctx['id']}
+    snapshot={'token':token,'created':time.time(),'topic':state['topic'],'config':cfg,'mode':mode,'retrieval':rcfg,'profileId':p.get('id',''),'model':p.get('model',''),'profileSignature':ps,'sourceSignature':source,'modelsSignature':models,'modelsAliases':sorted(model_options),'rows':rows,'tasks':tasks,'frozenMaterials':True,'sessionRound':ctx['id']}
     compact_io.write_json(e,run/'input.json',snapshot)
     j={'token':token,'state':'queued','created':time.time(),'updated':time.time(),'pid':0,'owner':a.get('owner',0),'total':len(tasks),'completed':0,'failed':0,'mode':mode,'phase':'准备提示词' if mode=='prepare' else '准备生成综述','items':{u['id']:{'state':'pending'} for u in tasks},'error':''}
     e.write_json(path/'writing-job.json',j)
@@ -417,7 +446,7 @@ async def run(e,name,token,retriever_factory=None):
             async with sem:
                 try:
                     check();update(unit['id'],state='writing',error='')
-                    pre=prepared(path,unit,unit['promptSignature'])
+                    pre=current_prepared(path,unit,cfg,snapshot['topic'],snapshot['sourceSignature'],set(snapshot.get('modelsAliases',[snapshot['modelsSignature']])))
                     if not pre:raise ValueError('提示词缺失或发生变化，请重新准备')
                     plan=pre['plans'][0];bundle=load_bundle(path,plan)
                     # Assert the canonical pool still matches the immutable retrieval snapshot.
@@ -453,7 +482,7 @@ async def run(e,name,token,retriever_factory=None):
                         if errors:raise ValueError('引用校验仍未通过：仅允许当前共享池中的证据 ID，父标题导语不能引用')
                     await verify_materials()
                     with outline.lock(e):
-                        check();current=prepared(path,unit,unit['promptSignature'])
+                        check();current=current_prepared(path,unit,cfg,snapshot['topic'],snapshot['sourceSignature'],set(snapshot.get('modelsAliases',[snapshot['modelsSignature']])))
                         if not current or current['hash']!=pre['hash']:raise ValueError('生成期间材料包或资源发生变化，结果未发布，请重新准备')
                         value={'signature':unit['signature'],'unitId':unit['id'],'unit_id':unit['serial'],'sections':sections,'evidence':evidence,'created':time.time(),'run':token,'model':p['model'],'promptHash':pre['hash']}
                         e.write_json(path/'sections'/f'{unit["id"]}.json',value)
@@ -466,7 +495,7 @@ async def run(e,name,token,retriever_factory=None):
                 check();evidence={}
                 try:
                     if mode=='write':
-                        pre=prepared(path,unit,unit['promptSignature'])
+                        pre=current_prepared(path,unit,cfg,snapshot['topic'],snapshot['sourceSignature'],set(snapshot.get('modelsAliases',[snapshot['modelsSignature']])))
                         if not pre:raise ValueError('提示词缺失或已过期，请重新准备')
                         writing_tasks.append(asyncio.create_task(write_unit(unit,pre['evidence'])));await asyncio.sleep(0);continue
                     update(unit['id'],state='retrieving',error='')

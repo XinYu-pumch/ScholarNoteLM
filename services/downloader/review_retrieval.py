@@ -10,6 +10,10 @@ def signature(root,cfg=None):
     import vector_service as v
     cfg=cfg or settings.snapshot(root);emb=embedding_config(root,cfg)
     return chunks.digest([POLICY,chunks.TEMPLATE,chunks.RECALL_POLICY,chunks.HEADING_MIN_CHARS,v.profile(emb),cfg.get('embeddingFingerprint',settings.fingerprint(emb))])
+def compatible_signatures(root,cfg):
+    import vector_service as v
+    emb=embedding_config(root,cfg)
+    return {signature(root,cfg),*(chunks.digest([POLICY,chunks.TEMPLATE,chunks.RECALL_POLICY,chunks.HEADING_MIN_CHARS,pid,cfg.get('embeddingFingerprint',settings.fingerprint(emb))]) for pid in v.profile_aliases(emb))}
 def embedding_config(root,cfg):
     import vector_service as v,project_embedding
     e=SimpleNamespace(ROOT=root)
@@ -32,7 +36,7 @@ class APIRecall:
         self.np=np;self.e=e;self.check=check;self.cfg=embedding_config(e.ROOT,cfg);self.queries={}
         self.fingerprint=settings.fingerprint(self.cfg)
         if not settings.verified(e.ROOT,self.cfg) or self.fingerprint!=cfg.get('embeddingFingerprint',self.fingerprint):raise ValueError('Embedding 配置已变化或未验证，请重新验证并准备提示词')
-        pid=v.profile(self.cfg);keys=[chunks.digest(chunks.embedding_text(r)) for r in records];wanted=set(keys)
+        pid=v.cache_profile(e,self.cfg);keys=[chunks.digest(chunks.embedding_text(r)) for r in records];wanted=set(keys)
         with chunks.connect(e) as c:
             cached={row['input_hash']:np.frombuffer(row['vector'],dtype='<f4').copy() for row in c.execute('SELECT * FROM embeddings WHERE profile=?',(pid,)) if row['input_hash'] in wanted}
         pending=list(dict.fromkeys(k for k in keys if k not in cached));by_key={k:r for k,r in zip(keys,records)}

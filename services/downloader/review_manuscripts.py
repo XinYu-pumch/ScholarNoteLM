@@ -38,7 +38,7 @@ def context(e,name):
                     import embedding_profiles,project_embedding
                     try:
                         candidate={**cfg,'embeddingModel':project_embedding.selection(embedding_profiles.get(e,cfg['embeddingProfile']))}
-                        if w.retrieval.signature(e.ROOT,candidate)==frozen['modelsSignature']:frozen['retrieval']=candidate
+                        if frozen['modelsSignature'] in w.retrieval.compatible_signatures(e.ROOT,candidate):frozen['retrieval']=candidate
                     except ValueError:pass
                 ctx={**ctx,'materialSnapshot':frozen}
             return ctx

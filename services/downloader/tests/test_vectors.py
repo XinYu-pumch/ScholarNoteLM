@@ -96,3 +96,33 @@ class VectorTests(unittest.TestCase):
    db.execute('INSERT INTO indexed VALUES(?,?,?,?)',(old_profile,'123',d['version'],old_input))
   self.assertFalse(c.inspect_documents(e,new_profile)[0]['indexed'])
   self.assertFalse(c.inspect_documents(e,old_profile)[0]['indexed'])
+
+ def test_equivalent_endpoint_reuses_legacy_vectors_in_qa_recall_and_index(self):
+  import struct,importlib.util,qa_service,review_retrieval,retrieval_settings
+  self.xml();c.sync(e)
+  cfg={**v.DEFAULTS,'baseUrl':'https://example.test/v1','model':'fixture'}
+  full={**cfg,'baseUrl':v.endpoint(cfg)}
+  self.assertEqual(v.profile(cfg),v.profile(full))
+  self.assertEqual(retrieval_settings.fingerprint(cfg),retrieval_settings.fingerprint(full))
+  for historical in (cfg,full):
+   pid=v.legacy_profile(historical)
+   with c.connect(e) as db:
+    for table in ('profiles','embeddings','embedding_owners','indexed','indexed_metadata'):db.execute('DELETE FROM '+table)
+    doc=c.documents(e)[0];records=c.records_for(db,doc['version'],doc['metadata'])
+    db.execute('INSERT INTO profiles VALUES(?,?,?)',(pid,2,json.dumps(v.public(historical))))
+    for r in records:
+     h=c.digest(c.embedding_text(r))
+     db.execute('INSERT INTO embeddings VALUES(?,?,?,?)',(pid,h,2,struct.pack('<ff',1.,2.)))
+     db.execute('INSERT INTO embedding_owners VALUES(?,?,?)',(pid,h,'123'))
+   v.publish_document(e,cfg,pid,doc,lambda:None)
+   for current in (cfg,full):
+    self.assertEqual(v.cache_profile(e,current),pid)
+    self.assertTrue(c.inspect_documents(e,v.cache_profile(e,current))[0]['indexed'])
+    with patch.object(v,'config',return_value=current),patch.object(v,'embed',side_effect=AssertionError('no new embeddings')),patch.object(review_retrieval,'embedding_config',return_value=current),patch.object(retrieval_settings,'verified',return_value=True):
+     loaded,cached,_,coverage=qa_service.corpus(e)
+     self.assertEqual(len(cached),len(records));self.assertEqual(coverage['searchablePapers'],1)
+     # The production retrieval runtime also runs this test with NumPy installed.
+     if importlib.util.find_spec('numpy') is not None:
+      recall=review_retrieval.APIRecall(e,records,{},lambda:None,lambda _:None)
+      self.assertEqual(recall.matrix.shape,(len(records),2))
+    self.assertNotEqual(v.cache_profile(e,{**current,'modelRevision':'new'}),pid)

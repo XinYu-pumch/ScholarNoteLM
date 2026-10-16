@@ -34,7 +34,7 @@ class MiniReviewTests(unittest.TestCase):
   return [{'id':'chunk-'+str(i),'text':s['text'],'metadata':{'pmid':'123','title':'Study','sourceKind':'fulltext','documentVersion':'v1','sourcePath':'markdown/123.md',**{k:v for k,v in s.items() if k not in ('text','accepted','reason')}},'resources':[o for o in objects if i in o['chunkIndices']]} for i,s in enumerate(segments)]
  def execute(self,cfg=None,resume=None):
   cfg=q.config(e,{'topK':1,'minRounds':1,'maxRounds':3,**(cfg or {})});rid=uuid.uuid4().hex;path=q.runpath(e,rid)
-  snapshot={'id':rid,'policy':q.POLICY,'config':cfg,'mode':'topic','question':'What is the effect?','history':self.context,'pmids':None,'sourceSignature':'s','embeddingFingerprint':'v','plannerSignature':'m','answerSignature':'m','evidenceSignature':'m','retrievalConfig':{'method':'api'}}
+  snapshot={'id':rid,'policy':q.POLICY,'config':cfg,'mode':'topic','question':'What is the effect?','history':self.context,'pmids':None,'sourceSignature':'s','embeddingFingerprint':'v','plannerSignature':getattr(self,'signature','m'),'answerSignature':getattr(self,'signature','m'),'evidenceSignature':getattr(self,'signature','m'),'retrievalConfig':{'method':'api'}}
   if resume:snapshot['resumeFrom']=resume
   e.write_json(path/'input.json',snapshot);e.write_json(path/'job.json',{'id':rid,'question':snapshot['question'],'answerModel':'fixture','events':[],'round':0,'answer':'','state':'queued'})
   profile={'model':'fixture','visionModels':['fixture'] if self.vision else []}
@@ -64,7 +64,7 @@ class MiniReviewTests(unittest.TestCase):
    def retrieve(self,query,candidates,k):
     owner.searches.append((query,candidates,k));return [{**r,'retrievalScore':.9} for r in owner.rows[:getattr(owner,'recall_count',1)]]
   papers=[{'pmid':'123','title':'Study','sourceKind':'fulltext'}]
-  with patch.object(q,'chat',side_effect=chat),patch.object(q,'current_signature',return_value='s'),patch.object(q,'profile_signature',return_value='m'),patch.object(q,'models',return_value=(profile,profile)),patch.object(q,'evidence_model',return_value=profile),patch.object(q.retrieval_settings,'fingerprint',return_value='v'),patch.object(q,'corpus',return_value=([self.rows[0]],{},papers,{'papers':1,'searchablePapers':1})),patch.object(mini.retrieval,'Retriever',Retriever),patch.object(mini.retrieval,'ready',return_value=True):
+  with patch.object(q,'chat',side_effect=chat),patch.object(q,'current_signature',return_value='s'),patch.object(q,'profile_signature',return_value=getattr(self,'signature','m')),patch.object(q,'models',return_value=(profile,profile)),patch.object(q,'evidence_model',return_value=profile),patch.object(q.retrieval_settings,'fingerprint',return_value='v'),patch.object(q,'corpus',return_value=([self.rows[0]],{},papers,{'papers':1,'searchablePapers':1})),patch.object(mini.retrieval,'Retriever',Retriever),patch.object(mini.retrieval,'ready',return_value=True):
    asyncio.run(q.run(e,rid))
   return q.read(path/'job.json'),q.read(path/'evidence.json',[]),path
  def test_disabled_fulltext_skips_selection_loading_and_expansion(self):
@@ -122,6 +122,13 @@ class MiniReviewTests(unittest.TestCase):
  def test_resume_reuses_successful_planning(self):
   self.fail_answer=True;job,_,_=self.execute({'fulltextEnabled':True});self.assertEqual(job['state'],'failed')
   self.fail_answer=False;self.calls=[];done,_,_=self.execute({'fulltextEnabled':True},resume=job['id']);self.assertEqual(done['state'],'done',done.get('error'))
+  self.assertEqual(len(self.calls),1);self.assertIn('小综述，按 materialBundle',self.calls[0][0])
+
+ def test_old_profile_hash_reuses_successful_calls_after_upgrade(self):
+  self.signature=q.legacy_profile_signature({'model':'fixture','visionModels':[]})
+  self.fail_answer=True;job,_,_=self.execute();self.assertEqual(job['state'],'failed')
+  self.signature='m';self.fail_answer=False;self.calls=[]
+  done,_,_=self.execute(resume=job['id']);self.assertEqual(done['state'],'done',done.get('error'))
   self.assertEqual(len(self.calls),1);self.assertIn('小综述，按 materialBundle',self.calls[0][0])
 
 

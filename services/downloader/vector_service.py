@@ -14,10 +14,32 @@ def config(e):
     import project_embedding
     return project_embedding.config(e)
 def public(cfg):return {**{k:v for k,v in cfg.items() if k!='apiKey'},'hasKey':bool(cfg.get('apiKey'))}
-def profile(cfg):
+def legacy_profile(cfg):
     identity=[cfg['baseUrl'],cfg['model'],cfg.get('modelRevision',''),chunks.TEMPLATE]
     if providers.protocol(cfg):identity.append(providers.protocol(cfg))
     return chunks.digest(identity)
+def profile(cfg):
+    # Canonical identity is the actual HTTP endpoint, preserving full-URL presets.
+    return legacy_profile({**cfg,'baseUrl':endpoint(cfg)})
+
+def profile_aliases(cfg):
+    url=endpoint(cfg)
+    return list(dict.fromkeys([profile(cfg),legacy_profile({**cfg,'baseUrl':url[:-len('/embeddings')]})]))
+
+def cache_profile(e,cfg):
+    """Resolve old URL spelling without writing, rebuilding, or changing vectors.
+
+    Prefer the canonical store if present. Otherwise continue using the existing
+    historical store for both spellings, including subsequent indexing writes.
+    """
+    aliases=profile_aliases(cfg);db=files.base(e)/'vectors/chunks.sqlite3'
+    if db.is_file():
+        with sqlite3.connect(db.as_uri()+'?mode=ro',uri=True) as c:
+            if c.execute("SELECT 1 FROM sqlite_master WHERE type='table' AND name='profiles'").fetchone():
+                for pid in aliases:
+                    if c.execute('SELECT 1 FROM profiles WHERE id=?',(pid,)).fetchone():return pid
+    return aliases[0]
+
 def settings(e):
     cfg=config(e)
     import retrieval_settings,embedding_profiles
@@ -135,13 +157,13 @@ def start(e,a):
         if mode not in ('incremental','rebuild','recompute'):raise ValueError('索引更新模式无效')
         if mode!='incremental' and a.get('confirm')!=e.PROJECT:raise ValueError('请确认索引重建范围')
         (files.base(e)/'metadata/index-cleared.json').unlink(missing_ok=True)
-        chunks.sync(e);docs=chunks.documents(e,profile(cfg));pmids=a.get('pmids')
+        chunks.sync(e);docs=chunks.documents(e,cache_profile(e,cfg));pmids=a.get('pmids')
         if pmids is not None:
             if not isinstance(pmids,list) or any(p not in {d['pmid'] for d in docs} for p in pmids):raise ValueError('只能索引当前 XML 中的文献')
             docs=[d for d in docs if d['pmid'] in pmids]
         docs=[d for d in docs if d['chunks']]
         if not docs:raise ValueError('没有可索引的文本：请完成全文转换，或检查摘要及最小分块长度')
-        job={'tokenBudget':a.get('tokenBudget','auto'),'adaptive':bool(a.get('adaptive',cfg.get('adaptive',False))),'id':uuid.uuid4().hex,'state':'queued','project':e.PROJECT,'profile':profile(cfg),'config':public(cfg),'pmids':[d['pmid'] for d in docs],'created':time.time(),'owner':a.get('owner',0),'requestId':request,'mode':mode,'completed':0,'failed':0,'skipped':0,'current':'','items':[]}
+        job={'tokenBudget':a.get('tokenBudget','auto'),'adaptive':bool(a.get('adaptive',cfg.get('adaptive',False))),'id':uuid.uuid4().hex,'state':'queued','project':e.PROJECT,'profile':cache_profile(e,cfg),'config':public(cfg),'pmids':[d['pmid'] for d in docs],'created':time.time(),'owner':a.get('owner',0),'requestId':request,'mode':mode,'completed':0,'failed':0,'skipped':0,'current':'','items':[]}
         out=files.folder(e,'logs/vectorization-'+job['id']);job['logPath']=str(out);e.write_json(job_path(e),job)
         env={**os.environ,'SCHOLARNOTELM_ROOT':str(e.ROOT),'PYTHONUTF8':'1','PYTHONDONTWRITEBYTECODE':'1','TMPDIR':str(e.ROOT/'tmp'),'TEMP':str(e.ROOT/'tmp'),'TMP':str(e.ROOT/'tmp')}
         python=e.ROOT/('runtimes/marker/Scripts/python.exe' if os.name=='nt' else 'runtimes/marker/bin/python')
@@ -198,7 +220,7 @@ def run(e,job_id):
     job.update(state='running',pid=os.getpid());save()
     try:
         with storage.file_lock(files.base(e)/'metadata/vector-worker.lock'),index_lock(e),storage.file_lock(e.ROOT/'config/storage.lock',shared=True):
-            if profile(cfg)!=pid:raise ValueError('Embedding 配置已改变，请重新启动索引')
+            if pid not in profile_aliases(cfg):raise ValueError('Embedding 配置已改变，请重新启动索引')
             if job.get('mode') in ('rebuild','recompute'):
                 with chunks.connect(e) as c:
                     c.execute('DELETE FROM indexed WHERE profile=?',(pid,));c.execute('DELETE FROM indexed_metadata WHERE profile=?',(pid,))
@@ -296,7 +318,7 @@ def run(e,job_id):
 def search(e,a):
     query=str(a.get('query','')).strip()
     if not query or len(query)>4000:raise ValueError('请输入 1–4000 字符的检索问题')
-    cfg=config(e);pid=profile(cfg);chunks.sync(e);docs=chunks.documents(e,pid)
+    cfg=config(e);pid=cache_profile(e,cfg);chunks.sync(e);docs=chunks.documents(e,pid)
     selected=a.get('pmid');kind=a.get('sourceKind','all');method=a.get('method','semantic')
     if method not in ('semantic','keyword'):raise ValueError('检索模式无效')
     docs=[d for d in docs if (not selected or d['pmid']==selected) and (kind=='all' or d['sourceKind']==kind) and (method=='keyword' or d['indexed'])]
@@ -411,9 +433,9 @@ def rpc(e,action,a):
         cfg=config(e)
         if action=='status':
             import status_cache
-            docs=status_cache.documents(e,profile(cfg))
+            docs=status_cache.documents(e,cache_profile(e,cfg))
         else:
-            chunks.sync(e);docs=chunks.documents(e,profile(cfg))
+            chunks.sync(e);docs=chunks.documents(e,cache_profile(e,cfg))
         if action=='status':return {**settings(e),'refreshing':any(d.get('refreshing') for d in docs),'metadataPending':sum(d['indexed'] and not d.get('metadataReady') for d in docs),'job':read_job(e),'documents':len(docs),'readyDocuments':sum(d['indexed'] for d in docs),'chunks':sum(d['chunks'] for d in docs),'readyChunks':sum(d['chunks'] for d in docs if d['indexed']),'eligibleDocuments':sum(bool(d['chunks']) for d in docs),'items':[{'pmid':d['pmid'],'pdfState':d['metadata'].get('pdfState','missing'),'markdownState':d['metadata'].get('markdownState','missing'),'vectorState':d['state'],'sourceKind':d['sourceKind']} for d in docs],'xmlFingerprint':chunks.digest((files.base(e)/'pubmed/current.xml').read_text()) if (files.base(e)/'pubmed/current.xml').exists() else ''}
         if action=='documents':return docs
         p=e.pmid(a['pmid']);doc=next((d for d in docs if d['pmid']==p),None)

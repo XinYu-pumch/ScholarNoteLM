@@ -88,6 +88,32 @@ class RetryTests(unittest.TestCase):
   self.assertEqual(q.thread(e,self.t['id'])['runIds'],[rid])
   new=q.rpc(e,'regenerate',{'threadId':self.t['id'],'runId':rid})['id']
   self.assertEqual(q.thread(e,self.t['id'])['runIds'],[new]);self.assertEqual(q.read(q.runpath(e,new)/'input.json')['config']['topK'],9)
+ def test_resume_accepts_concurrency_and_inactive_rcs_budget(self):
+  rid=self.add('Question','failed')
+  q.rpc(e,'settings.save',{'evidenceConcurrency':7,'rcsCandidateK':80})
+  new=q.rpc(e,'resume',{'threadId':self.t['id'],'runId':rid})['id']
+  snapshot=q.read(q.runpath(e,new)/'input.json')
+  self.assertEqual(snapshot['resumeFrom'],rid);self.assertEqual(snapshot['config']['evidenceConcurrency'],7)
+
+ def test_resume_uses_semantic_models_and_preserves_legacy_memo_aliases(self):
+  p={'id':'original','model':'fixture','baseUrl':'https://example.invalid/v1','apiKey':'old','timeout':60,'visionModels':['fixture','other']}
+  real_signature=lambda p:q.chunks.digest(q.llm_provider.semantic_fields(p))
+  with patch.object(q,'profile_signature',side_effect=real_signature),patch.object(q,'models',return_value=(p,p)),patch.object(q,'evidence_model',return_value=p):
+   rid=self.add('Question','failed');path=q.runpath(e,rid);snapshot=q.read(path/'input.json')
+   old=q.legacy_profile_signature(p)
+   snapshot['config']['answerProfile']='original'
+   for role in ('planner','answer','evidence'):snapshot[role+'Signature']=old
+   e.write_json(path/'input.json',snapshot)
+   # Exact old credentials permit upgrade; thereafter credential/ID changes are harmless.
+   new=q.rpc(e,'resume',{'threadId':self.t['id'],'runId':rid})['id']
+   migrated=q.read(q.runpath(e,new)/'input.json')
+   self.assertIn(old,migrated['profileAliases'][real_signature(p)])
+   j=q.read(q.runpath(e,new)/'job.json');j['state']='failed';e.write_json(q.runpath(e,new)/'job.json',j)
+   changed={**p,'id':'copy','apiKey':'rotated','timeout':300,'visionModels':['third','fixture']}
+   with patch.object(q,'models',return_value=(changed,changed)),patch.object(q,'evidence_model',return_value=changed):
+    resumed=q.rpc(e,'resume',{'threadId':self.t['id'],'runId':new})['id']
+    self.assertIn(old,q.read(q.runpath(e,resumed)/'input.json')['profileAliases'][real_signature(p)])
+
  def test_parallel_threads_have_independent_status_cancel_and_retry(self):
   failed=self.add('Retry later','failed');second=q.rpc(e,'new',{});third=q.rpc(e,'new',{})
   with patch.object(q,'job',side_effect=REAL_JOB),patch.object(e,'process_alive',return_value=True):

@@ -66,12 +66,27 @@ def evidence_model(e,cfg,answer):
 
 def model_label(p):return (p.get('name','')+'/' if p.get('name') else '')+p['model']
 
-def profile_signature(p):
-    # 'sendTemperature' is retired but stays in the key list so cached QA work remains valid.
+def legacy_profile_signature(p):
     return chunks.digest(llm_provider.signature_fields(p,('id','model','baseUrl','temperature','timeout','apiKey','sendTemperature','visionModels')))
 
+def profile_signature(p):return chunks.digest(llm_provider.semantic_fields(p))
+
+def compatible_profile_signatures(p):
+    return {profile_signature(p),*(legacy_profile_signature(old) for old in llm_provider.legacy_vision_profiles(p))}
+
+def semantic_config(cfg):
+    ignored={'evidenceConcurrency','plannerProfile','plannerModel','answerProfile','answerModel','evidenceProfile','evidenceModel'}
+    if not cfg.get('rcsEnabled',False):ignored.add('rcsCandidateK')
+    return {k:v for k,v in {**DEFAULTS,**cfg}.items() if k not in ignored}
+
+def role_profiles(e,cfg):
+    planner,answer=models(e,cfg)
+    return {'planner':planner,'answer':answer,'evidence':evidence_model(e,cfg,answer)}
+
+def profile_matches(p,signature):return signature in compatible_profile_signatures(p)
+
 def documents(e):
-    if not chunks.cleared(e):return chunks.inspect_documents(e,vectors.profile(vectors.config(e)))
+    if not chunks.cleared(e):return chunks.inspect_documents(e,vectors.cache_profile(e,vectors.config(e)))
     # Clearing an index must not hide the XML corpus or recreate derived files.
     articles,_=chunks.xml_articles(e);result=[]
     for pmid,article in articles.items():
@@ -130,7 +145,7 @@ def validate_findings(items,group):
 
 def corpus(e,pmids=None,load_vectors=True):
     """Read valid existing chunks/cache. Never sync/rebuild or generate document embeddings."""
-    cfg=vectors.config(e);profile=vectors.profile(cfg)
+    cfg=vectors.config(e);profile=vectors.cache_profile(e,cfg)
     docs=documents(e)
     if pmids is not None:docs=[d for d in docs if d['pmid'] in pmids]
     records=[];cached={};db=files.base(e)/'vectors/chunks.sqlite3'
@@ -237,7 +252,7 @@ def start(e,a):
     if mode not in ('topic','overview'):raise ValueError('阅读模式无效')
     if a.get('resumeFrom'):
         previous=read(runpath(e,a['resumeFrom'])/'input.json',{})
-        if any(previous.get(k)!=v for k,v in {'question':text,'config':cfg,'mode':mode,'sourceSignature':current_signature(e),'policy':POLICY}.items()):
+        if semantic_config(previous.get('config',{}))!=semantic_config(cfg) or any(previous.get(k)!=v for k,v in {'question':text,'mode':mode,'sourceSignature':current_signature(e),'policy':POLICY}.items()):
             raise ValueError('原文、范围或配置已改变，无法继续检查点；请重新生成')
     retrieval_cfg=None
     if mode=='topic':
@@ -256,8 +271,19 @@ def start(e,a):
         snapshot.update(retrievalConfig=retrieval_cfg,retrievalSignature=review_retrieval.signature(e.ROOT,retrieval_cfg))
     if a.get('resumeFrom'):
         prior=read(runpath(e,a['resumeFrom'])/'input.json',{})
-        for key in ('question','config','pmids','mode','sourceSignature','embeddingFingerprint','plannerSignature','answerSignature','evidenceSignature','policy','retrievalSignature'):
+        for key in ('question','pmids','mode','sourceSignature','embeddingFingerprint','policy'):
             if prior.get(key)!=snapshot.get(key):raise ValueError('原文、范围或配置已改变，无法继续检查点；请重新生成')
+        if mode=='topic' and prior.get('retrievalSignature') not in review_retrieval.compatible_signatures(e.ROOT,retrieval_cfg):
+            raise ValueError('召回配置已改变，无法继续检查点；请重新生成')
+        aliases={}
+        for role,p in role_profiles(e,cfg).items():
+            old_cfg=prior.get('config',{})
+            old_id=old_cfg.get(role+'Profile') or old_cfg.get('answerProfile') or p.get('id')
+            candidates=compatible_profile_signatures(p)|compatible_profile_signatures({**p,'id':old_id})
+            old_sig=prior.get(role+'Signature')
+            if old_sig not in candidates:raise ValueError('模型配置已改变，无法继续检查点；请重新生成')
+            aliases.setdefault(profile_signature(p),[]).extend([old_sig,*prior.get('profileAliases',{}).get(old_sig,[])])
+        snapshot['profileAliases']={sig:sorted(set(values)) for sig,values in aliases.items()}
         snapshot['history']=prior['history'];snapshot['resumeFrom']=a['resumeFrom']
         snapshot['promptVersion']=prior.get('promptVersion')
         snapshot['contentLanguage']=prior.get('contentLanguage','zh')
@@ -566,11 +592,11 @@ async def run(e,rid):
         if current_signature(e)!=snapshot['sourceSignature']:raise InputsChanged('文献或原文版本在问答期间变化，请重新提问')
         if retrieval_settings.fingerprint(vectors.config(e))!=snapshot['embeddingFingerprint']:raise InputsChanged('Embedding 配置在问答期间改变，请重新提问')
         pp,ap=models(e,cfg)
-        if profile_signature(pp)!=snapshot['plannerSignature'] or profile_signature(ap)!=snapshot['answerSignature']:raise InputsChanged('模型配置在问答期间改变，请重新提问')
-        if snapshot.get('evidenceSignature') and profile_signature(evidence_model(e,cfg,ap))!=snapshot['evidenceSignature']:raise InputsChanged('证据模型配置在问答期间改变，请重新提问')
+        if not profile_matches(pp,snapshot['plannerSignature']) or not profile_matches(ap,snapshot['answerSignature']):raise InputsChanged('模型配置在问答期间改变，请重新提问')
+        if snapshot.get('evidenceSignature') and not profile_matches(evidence_model(e,cfg,ap),snapshot['evidenceSignature']):raise InputsChanged('证据模型配置在问答期间改变，请重新提问')
         if snapshot.get('retrievalSignature'):
             import review_retrieval
-            if review_retrieval.signature(e.ROOT,retrieval_settings.snapshot(e.ROOT,e.PROJECT))!=snapshot['retrievalSignature']:raise InputsChanged('召回或重排配置已改变，请重新提问')
+            if snapshot['retrievalSignature'] not in review_retrieval.compatible_signatures(e.ROOT,retrieval_settings.snapshot(e.ROOT,e.PROJECT)):raise InputsChanged('召回或重排配置已改变，请重新提问')
     materials=Guard(e,None,validate_inputs)
     async def verify_materials(ignore_cancel=False):
         check(ignore_cancel=ignore_cancel)
@@ -607,8 +633,12 @@ async def run(e,rid):
         cache_parts=[POLICY,profile_signature(p),stage,payload,system,contract]
         if snapshot.get('promptVersion'):cache_parts.append([snapshot['promptVersion'],snapshot.get('contentLanguage','zh')])
         cache_key=chunks.digest(cache_parts)
-        if cache_key in memo:
-            cached=memo[cache_key]
+        found=cache_key if cache_key in memo else None
+        if found is None and memo:
+            aliases=compatible_profile_signatures(p)|set(snapshot.get('profileAliases',{}).get(profile_signature(p),[]))
+            found=next((key for sig in sorted(aliases) if (key:=chunks.digest([cache_parts[0],sig,*cache_parts[2:]])) in memo),None)
+        if found is not None:
+            cached=memo[found]
             if structured:qa_protocol.validate(cached,contract or stage)
             event('cache',stage=stage,status='done',reason=stage+'：复用此问题已完成的检查点')
             if stream:save(draft=cached)
@@ -735,6 +765,7 @@ async def run(e,rid):
                     f={'eid':eid,**span,'finding':card['summary']}
                     if f not in findings:findings.append(f)
             return eid
+        card_keys={p.stem for p in (root(e)/'cards').glob('*.json')}
         async def assess(hit):
             record=hit['record']
             key=chunks.digest([qa_evidence.VERSION,POLICY,snapshot['question'],snapshot['history'],aspects,
@@ -742,6 +773,12 @@ async def run(e,rid):
             dest=reviews.safe(root(e),'cards',key+'.json')
             async with semaphore:
                 check();card=read(dest)
+                if not card and card_keys:
+                    aliases=compatible_profile_signatures(assessor)|set(snapshot.get('profileAliases',{}).get(profile_signature(assessor),[]))
+                    for sig in sorted(aliases):
+                        old_key=chunks.digest([qa_evidence.VERSION,POLICY,snapshot['question'],snapshot['history'],aspects,record['id'],record['metadata'],record['text'],sig])
+                        card=read(reviews.safe(root(e),'cards',old_key+'.json')) if old_key in card_keys else None
+                        if card:break
                 if card:
                     event('cache',status='done',reason='复用已核对的 RCS 证据卡',result={'chunkId':record['id']})
                 else:

@@ -17,7 +17,7 @@ from embedding_controller import Controller, MAX_CONCURRENCY
 
 def populate(e,cfg,pmids,check,notify,out,budget_mode="conservative",on_ready=lambda p:None):
     import vector_service as v
-    pid=v.profile(cfg);docs={d['pmid']:d for d in chunks.documents(e,pid) if d['pmid'] in pmids}
+    pid=v.cache_profile(e,cfg);docs={d['pmid']:d for d in chunks.documents(e,pid) if d['pmid'] in pmids}
     wanted={};owners={};epochs={p:d['metadata'].get('rebuildEpoch',0) for p,d in docs.items()}
     with chunks.connect(e) as db:
         for p,d in docs.items():

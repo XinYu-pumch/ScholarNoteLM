@@ -170,7 +170,7 @@ def run(e,ident):
                 value=json.loads(proc.stdout)
                 if not value.get('ok'):raise ValueError(value.get('error','索引启动失败'))
                 record('index',wait_for(lambda:v.read_job(e)))
-                status=m.status(e);docs=c.documents(e,v.profile(v.config(e)))
+                status=m.status(e);docs=c.documents(e,v.cache_profile(e,v.config(e)))
                 indexed={d['pmid'] for d in docs if d['indexed']}
                 j['unindexed']=[i['pmid'] for i in status['items'] if i['pmid'] not in indexed]
             j['state']='partial' if j.get('unindexed') or any(s.get('failed') or s['state']=='failed' for s in j['stages']) else 'done'
@@ -241,7 +241,7 @@ def rpc(e,op,a):
     if op=='overview':
         import markdown_service as m,vector_chunks as c,vector_service as v
         import status_cache
-        status=m.status(e);docs=status_cache.documents(e,v.profile(v.config(e)))
+        status=m.status(e);docs=status_cache.documents(e,v.cache_profile(e,v.config(e)))
         root=files.base(e)/'review'
         reviews=sum(1 for d in root.iterdir() if d.is_dir() and not d.is_symlink() and (d/'review.json').is_file()) if root.exists() else 0
         return {'papers':len(files.current(e) or []),'pdf':status['pdfCount'],'indexed':sum(d['indexed'] for d in docs),'reviews':reviews}

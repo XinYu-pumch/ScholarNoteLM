@@ -50,3 +50,30 @@ def signature_fields(profile,fields):
         level=(profile.get('reasoningByModel') or {}).get(profile.get('model'))
         if level:result['reasoningLevel']=level
     return result
+
+
+def semantic_fields(profile):
+    """Only parameters that affect delivered model input/output; never credentials."""
+    result=signature_fields(profile,('model','temperature'))
+    result['endpoint']=profile.get('endpoint') or endpoint(profile,lambda url:url.rstrip('/') if url.rstrip('/').endswith('/chat/completions') else url.rstrip('/')+'/chat/completions')
+    result['vision']=profile.get('model') in (profile.get('visionModels') or [])
+    return result
+
+def legacy_vision_profiles(profile):
+    """Bounded exact replay of old image lists, with selected capability unchanged.
+
+    Hash-only history cannot recover deleted model names. Never guess capability
+    or accept a hash without matching all the other original signature fields.
+    """
+    from itertools import permutations,islice
+    selected=profile.get('model');enabled=selected in (profile.get('visionModels') or [])
+    names=list(dict.fromkeys([*(profile.get('visionModels') or []),*(profile.get('models') or [])]))
+    if enabled and selected not in names:names.append(selected)
+    if not enabled:names=[n for n in names if n!=selected]
+    candidates=[profile.get('visionModels'),[selected] if enabled else None]
+    if not enabled:candidates.append([])
+    # Most historic profiles contain a small handful of models. Bound work even
+    # for providers advertising hundreds of models; exact current lists still work.
+    names=names[:6]
+    candidates.extend(list(seq) for size in range(len(names)+1) for seq in islice(permutations(names,size),720) if (selected in seq)==enabled)
+    for vision in candidates:yield {**profile,'visionModels':vision}
