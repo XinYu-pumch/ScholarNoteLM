@@ -234,10 +234,12 @@ def status(e,name):
         preparations[u['id']]=pre
         latest=not outline_changed and matches_unit_signature(saved,u,cfg,state.get('topic',''),source,profiles,model_options,pre['hash'] if pre else '',path)
         live=j.get('items',{}).get(u['id'],{})
-        phase='latest' if latest else 'outdated' if saved else 'pending'
+        # Completion belongs to the saved manuscript; model freshness is separate.
+        completed=complete_unit(u,saved)
+        phase='latest' if latest else 'done' if completed else 'outdated' if saved else 'pending'
         if j.get('state') in ACTIVE and live:phase=live.get('state',phase)
         elif live.get('state') in ('failed','cancelled'):phase=live['state']
-        items.append({'id':u['id'],'serial':u['serial'],'title':u['title'],'nodes':[n['id'] for n in u['nodes']],'leafIds':[n['id'] for n in u['leaves']],'state':phase,'latest':latest,'promptReady':bool(pre) and not outline_changed,'hasContent':bool(saved),'error':live.get('error',''),'received':live.get('received',0),'reasoningCharacters':live.get('reasoningCharacters',0),'revision':chunks.digest([saved.get('created'),bool(saved),pre.get('hash') if pre else None,outline_changed])})
+        items.append({'id':u['id'],'serial':u['serial'],'title':u['title'],'nodes':[n['id'] for n in u['nodes']],'leafIds':[n['id'] for n in u['leaves']],'state':phase,'completed':completed,'latest':latest,'promptReady':bool(pre) and not outline_changed,'hasContent':bool(saved),'error':live.get('error',''),'received':live.get('received',0),'reasoningCharacters':live.get('reasoningCharacters',0),'revision':chunks.digest([saved.get('created'),bool(saved),pre.get('hash') if pre else None,outline_changed])})
     preparation_count=0;shortfalls=0
     for u,item in zip(units,items):
         for n in u['leaves']:
@@ -254,10 +256,10 @@ def status(e,name):
     attempted=bool(j) or (path/'writing-round.json').exists() or any((path/'prompts').glob('*.json'))
     material_changed=bool(ctx.get('materialSnapshot')) and material_settings_changed(ctx,cfg,state.get('topic',''))
     prep_state='ready' if ready else 'stale' if outline_changed or material_changed or (attempted and incompatible) else 'partial' if attempted else 'idle'
-    write_state='complete' if items and all(i['latest'] for i in items) else 'partial' if any(i['hasContent'] for i in items) or (j.get('mode')=='write' and j) else 'idle'
+    write_state='complete' if items and all(i['completed'] for i in items) else 'partial' if any(i['hasContent'] for i in items) or (j.get('mode')=='write' and j) else 'idle'
     stages={'preparation':{'state':prep_state,'completed':preparation_count,'total':sum(len(u['leaves']) for u in units),'shortfalls':shortfalls},
-            'writing':{'state':write_state,'completed':sum(len(i['nodes']) for i in items if i['latest']),'total':sum(len(i['nodes']) for i in items)}}
-    return {'stages':stages,'materialModel':material_cfg.get('embeddingModel',{}).get('model','') if ctx.get('materialSnapshot') else '','projectModel':rcfg.get('embeddingModel',{}).get('model',''),'materialModelChanged':not same_model(material_cfg,rcfg),'draftCount':len(manuscripts.listing(e,name,drafts=True)),'outlineChanged':outline_changed,'hasContent':any(i['hasContent'] for i in items),'currentOutlineCount':len(current_rows),'manuscriptCount':len(manuscripts.listing(e,name)),'config':cfg,'rows':rows,'units':items,'job':{**j,**progress_counts(j)},'fileRevision':chunks.digest([outline_changed,[(i['id'],i['revision']) for i in items]]),'model':model,'modelLabel':model_label,'runtimeReady':runtime(e,rcfg).is_file() and retrieval.ready(e.ROOT,rcfg),'retrieval':retrieval_settings.public(e),'effectiveCandidateK':retrieval_settings.effective(rcfg,cfg['topK']),'prepared':sum(i['promptReady'] for i in items),'latest':sum(i['latest'] for i in items),'total':len(items),'path':str(path)}
+            'writing':{'state':write_state,'completed':sum(len(i['nodes']) for i in items if i['completed']),'total':sum(len(i['nodes']) for i in items)}}
+    return {'stages':stages,'materialModel':material_cfg.get('embeddingModel',{}).get('model','') if ctx.get('materialSnapshot') else '','projectModel':rcfg.get('embeddingModel',{}).get('model',''),'materialModelChanged':not same_model(material_cfg,rcfg),'draftCount':len(manuscripts.listing(e,name,drafts=True)),'outlineChanged':outline_changed,'hasContent':any(i['hasContent'] for i in items),'currentOutlineCount':len(current_rows),'manuscriptCount':len(manuscripts.listing(e,name)),'config':cfg,'rows':rows,'units':items,'job':{**j,**progress_counts(j)},'fileRevision':chunks.digest([outline_changed,[(i['id'],i['revision']) for i in items]]),'model':model,'modelLabel':model_label,'runtimeReady':runtime(e,rcfg).is_file() and retrieval.ready(e.ROOT,rcfg),'retrieval':retrieval_settings.public(e),'effectiveCandidateK':retrieval_settings.effective(rcfg,cfg['topK']),'prepared':sum(i['promptReady'] for i in items),'latest':sum(i['latest'] for i in items),'completed':sum(i['completed'] for i in items),'total':len(items),'path':str(path)}
 
 def runtime(e,cfg=None):
     cfg=cfg or retrieval_settings.read(e.ROOT);kind='retrieval'
@@ -298,7 +300,7 @@ def rpc(e,name,op,a):
     if op=='preview':
         md,state,body,evidence,refs,blocks=assemble(e,name,True)
         ordered=[{'type':'markdown','text':'# '+(manuscripts.context(e,name).get('topic') or name)}]
-        if any(not u['latest'] for u in state['units']):ordered.append({'type':'markdown','text':'> 草稿：含尚未生成或待更新章节。'})
+        if any(not u['completed'] for u in state['units']):ordered.append({'type':'markdown','text':'> 草稿：含尚未完成章节。'})
         for row in state['rows']:ordered.extend([{'type':'markdown','text':'#'*min(len(row['serial'].split('.')),6)+' '+row['serial']+' '+row['title']},*blocks.get(row['id'],[])])
         if refs:ordered.append({'type':'markdown','text':'## 参考文献\n\n'+'\n'.join('- PMID: '+p for p in sorted(refs,key=int))})
         return {'markdown':md,'displayBlocks':ordered}
@@ -327,7 +329,7 @@ def rpc(e,name,op,a):
         selected=None  # Recompute missing/invalid artifacts, including interrupted and pending units.
         mode='prepare' if current['job'].get('mode')=='prepare' else 'write'
     if op=='prepare' and selected is not None:raise ValueError('新一轮准备须覆盖完整大纲')
-    source=source_signature(e);models=retrieval.signature(e.ROOT,rcfg);ps=profile_signature(p);profiles=compatible_profile_signatures(p)
+    source=source_signature(e);models=retrieval.signature(e.ROOT,rcfg);ps=profile_signature(p)
     ctx=manuscripts.context(e,name)
     if op=='prepare':
         if any(saved_unit(path,u).get('sections') for u in tree_units(ctx['rows'])) and a.get('confirm') is not True:
@@ -361,9 +363,9 @@ def rpc(e,name,op,a):
         if selected is not None and u['id'] not in selected:continue
         if mode=='write' and not pre:raise ValueError('提示词尚未准备或已过期，请先准备新一轮撰写，或继续本轮准备')
         old=saved_unit(path,u)
-        for old_cfg in signature_configs(path,cfg,old):
-            profiles.update(compatible_profile_signatures({**p,'id':old_cfg.get('profileId') or p.get('id')}))
-        if selected is None and ((mode=='prepare' and pre) or (mode=='write' and matches_unit_signature(old,u,cfg,state['topic'],source,profiles,model_options,pre['hash'] if pre else '',path))):continue
+        # Only an explicit unit selection authorizes replacing complete bodies.
+        # Keep signature checks for diagnostics and publication, not resume scheduling.
+        if selected is None and ((mode=='prepare' and pre) or (mode=='write' and complete_unit(u,old))):continue
         tasks.append(u)
     if not tasks:return status(e,name)
     if mode=='write':manuscripts.save(e,name)
@@ -558,7 +560,7 @@ async def run(e,name,token,retriever_factory=None):
             with outline.lock(e):
                 try:
                     current=status(e,name)
-                    if current['total'] and current['latest']==current['total']:manuscripts.save(e,name)
+                    if current['total'] and current['completed']==current['total']:manuscripts.save(e,name)
                 except Exception as ex:
                     current=outline.read(path/'writing-job.json',{})
                     if current.get('token')==token:
@@ -599,7 +601,7 @@ def assemble(e,name,include_blocks=False):
     full_units={u['id']:u for u in tree_units(state['rows'])};display=display_document(e,name,state['rows'])
     for unit in state['units']:
         saved=saved_unit(path,full_units[unit['id']])
-        if not unit['latest']:warnings.append(unit['serial'])
+        if not unit['completed']:warnings.append(unit['serial'])
         if saved:
             body.update({s['node_id']:display[s['node_id']]['markdown'] for s in saved['sections']})
             original=saved.get('evidence',{})
@@ -608,7 +610,7 @@ def assemble(e,name,include_blocks=False):
                 pool=review_bundle.records(full_units[unit['id']],original)
                 for leaf in full_units[unit['id']]['leaves']:evidence[leaf['id']]={**original.get(leaf['id'],{}),'chunks':pool}
     title=manuscripts.context(e,name).get('topic') or name;lines=['# '+title,'']
-    if warnings:lines+=['> 草稿：以下写作单元尚未生成或待更新：'+', '.join(warnings),'']
+    if warnings:lines+=['> 草稿：以下写作单元尚未完成：'+', '.join(warnings),'']
     for row in state['rows']:
         lines+=['#'*min(len(row['serial'].split('.')),6)+' '+row['serial']+' '+row['title'],'',body.get(row['id'],''),'']
         refs.update({pmid:{} for pmid in citations(body.get(row['id'],''))})

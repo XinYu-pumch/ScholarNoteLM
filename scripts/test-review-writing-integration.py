@@ -41,7 +41,7 @@ try:
   app=Path(temp);(app/'runtimes').mkdir();(app/'tmp').mkdir()
   for runtime in ('downloader','retrieval'):(app/'runtimes'/runtime).symlink_to(ROOT/'runtimes'/runtime,target_is_directory=True)
   (app/'services').symlink_to(ROOT/'services',target_is_directory=True);(app/'models').symlink_to(ROOT/'models',target_is_directory=True)
-  pf.setup(app,ROOT,f'http://127.0.0.1:{server.server_port}/v1',['fixture'])
+  pf.setup(app,ROOT,f'http://127.0.0.1:{server.server_port}/v1',['fixture','fixture-next'])
   e.ROOT,e.PROJECT=app,'test';base=storage.project_dir(app,'test')
   text='The gut microbiota regulates mucosal immune responses through short chain fatty acids, intestinal barrier function and regulatory T cells. These mechanisms are supported by experimental evidence, but effects depend on host context.'
   articles=''.join(f'<PubmedArticle><MedlineCitation><PMID>{123+i}</PMID><Article><ArticleTitle>Microbiota study {i}</ArticleTitle><Abstract><AbstractText>{text} Variant {i}.</AbstractText></Abstract></Article></MedlineCitation></PubmedArticle>' for i in range(9))
@@ -128,6 +128,28 @@ try:
   tick_cancel=time.monotonic();rpc('writing.cancel');cancelled=wait();assert cancelled['job']['state']=='cancelled',cancelled
   assert time.monotonic()-tick_cancel<3
   assert all((path/'sections'/name).read_bytes()==content for name,content in before.items())
+  # Resume with another provider/model: keep complete units and generate only the hole.
+  slow=False;target=d['units'][-1]
+  (path/'review_parts'/f'section_{target["serial"]}.json').unlink()
+  retained={p:p.read_bytes() for p in sections if p.stem!=target['id']}
+  next_base=f'http://127.0.0.1:{server.server_port}/'+('v1' if pf.ENABLED else 'v2')
+  with sqlite3.connect(cfg) as c:
+   c.execute('UPDATE settings SET value=? WHERE key=?',(json.dumps([pf.profile({'id':'next-provider','model':'fixture-next','baseUrl':next_base,'apiKey':'isolated-test-secret','timeout':10})]),'profiles'))
+   c.execute('UPDATE settings SET value=? WHERE key=?',(json.dumps('next-provider'),'activeProfile'))
+  d=rpc('writing.status');assert d['completed']==2 and d['latest']==0,d
+  n=len(requests);rpc('writing.start');d=wait()
+  assert d['completed']==3 and d['latest']==1 and d['job']['total']==1,d
+  assert d['stages']['writing']['state']=='complete'
+  assert len(requests)==n+1 and requests[-1]['model']=='fixture-next'
+  assert all(p.read_bytes()==content for p,content in retained.items())
+  assert '草稿：' not in rpc('writing.preview')['markdown']
+  assert not rpc('writing.export',format='md')['partial']
+  import review_manuscripts
+  assert any(set(review_manuscripts.get(e,'ReviewTest',item['id'])['models'])=={'fixture','fixture-next'} for item in rpc('writing.manuscripts')),'Mixed-model manuscript was not automatically archived'
+  n=len(requests);rpc('writing.start');rpc('writing.retry');assert len(requests)==n
+  # Explicitly selected complete units remain rewritable with the new provider.
+  rpc('writing.start',unitIds=[d['units'][0]['id']]);d=wait()
+  assert d['job']['total']==1 and len(requests)==n+1 and d['completed']==3
   # A fresh preparation always archives then clears; resume above deliberately did not.
   archived=rpc('writing.manuscripts');assert archived and any(not a['partial'] for a in archived)
   preserved={str(p):p.read_bytes() for p in exported.values()}
@@ -147,5 +169,5 @@ try:
    if f.suffix in ('.txt','.json','.log','.csv','.md'):assert 'isolated-test-secret' not in f.read_text(errors='replace')
    if f.suffix=='.gz':assert b'isolated-test-secret' not in gzip.decompress(f.read_bytes())
   pf.verify()
-  print(json.dumps({'success':True,'auditStorage':log_storage,'seconds':round(time.monotonic()-tick,2),'requests':len(requests),'writingUnits':3,'leafQueries':4,'topK':7,'peakHttpConcurrency':peak,'checks':['real Rust RPC','real independent worker','verified API recall, default no reranking','Chinese queries unchanged','two-stage prompt files sent exactly','writing does not recall again','abstract fallback','mixed-depth complete assembly','all latest skips generation','external section and prompt deletion','JSON failure result archived','retry sends failed item only','exports md/html/docx','cancel active HTTP within 3 seconds','completed bodies retained','no API key in artifacts','fresh round archives then resets','resume preserves round','independent workspace copy','reset preserves exports','historical exports after reset']},ensure_ascii=False),flush=True)
+  print(json.dumps({'success':True,'auditStorage':log_storage,'seconds':round(time.monotonic()-tick,2),'requests':len(requests),'writingUnits':3,'leafQueries':4,'topK':7,'peakHttpConcurrency':peak,'checks':['real Rust RPC','real independent worker','verified API recall, default no reranking','Chinese queries unchanged','two-stage prompt files sent exactly','writing does not recall again','abstract fallback','mixed-depth complete assembly','all complete skips generation','external section and prompt deletion','JSON failure result archived','retry sends failed item only','exports md/html/docx','cancel active HTTP within 3 seconds','completed bodies retained','model switch resumes missing units only','mixed-model completion and auto archive','explicit rewrite after model switch','no API key in artifacts','fresh round archives then resets','resume preserves round','independent workspace copy','reset preserves exports','historical exports after reset']},ensure_ascii=False),flush=True)
 finally:server.shutdown();server.server_close()

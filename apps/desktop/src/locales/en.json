@@ -1010,7 +1010,7 @@
   "收起证据": "Hide evidence",
   "查看证据": "View evidence",
   "本组章节一起撰写：": "Written together:",
-  "写作材料或设置已变化，正文需要更新。": "Materials or settings changed; the text needs updating.",
+  "写作材料或设置与原正文不同。续写会保留已有正文；如需应用当前设置，请主动重写。": "Materials or settings differ from those used for this text. Continuing preserves existing text; choose rewrite to apply the current settings.",
   "此处将显示该小节的综述正文。": "This section’s text will appear here.",
   "本章包含以下小节": "Sections in this chapter",
   "关闭综述证据面板": "Close review evidence panel",

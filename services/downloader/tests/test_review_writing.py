@@ -372,6 +372,59 @@ class WritingTests(unittest.TestCase):
   j=r.read(self.path/'writing-job.json');self.assertEqual(list(j['items']),[failed['id'],pending['id']])
   self.assertEqual(j['total'],2)
   self.assertEqual(result['stages']['writing'],{'state':'partial','completed':3,'total':7})
+ def prepare_seeded_units(self):
+  self.seed();cfg=w.config(self.path);source=w.source_signature(e);models=w.retrieval.signature(e.ROOT)
+  units=w.tree_units(self.detail['rows'])
+  for u in units:
+   u['promptSignature']=w.unit_signature(u,cfg,'Review',source,'',models)
+   saved=r.read(self.path/'sections'/f'{u["id"]}.json')
+   pre=w.prepare_unit(e,self.path,{'config':cfg,'topic':'Review'},u,saved['evidence'])
+   saved['signature']=w.unit_signature(u,cfg,'Review',source,w.profile_signature(PROFILE),models,pre['hash'])
+   e.write_json(self.path/'sections'/f'{u["id"]}.json',saved)
+  return units
+ def test_resume_after_model_switch_only_schedules_missing_units(self):
+  units=self.prepare_seeded_units();missing=units[-1]
+  (self.path/'review_parts'/f'section_{missing["serial"]}.json').unlink()
+  retained={p:p.read_bytes() for p in (self.path/'sections').glob('*.json')}
+  changed={**PROFILE,'provider':'opencode_go','model':'new-model','endpoint':'https://new.example/v1','reasoningByModel':{'new-model':'high'}}
+  for op in ('start','retry'):
+   e.write_json(self.path/'writing-job.json',{'state':'cancelled','mode':'write','items':{missing['id']:{'state':'cancelled'}}})
+   with patch.object(r,'profile',return_value=changed),patch.object(w.subprocess,'Popen') as proc:
+    proc.return_value.pid=os.getpid();result=w.rpc(e,'Test',op,{})
+   self.assertEqual(result['completed'],3);self.assertEqual(result['latest'],0)
+   self.assertEqual(result['stages']['writing'],{'state':'partial','completed':6,'total':7})
+   self.assertEqual(list(result['job']['items']),[missing['id']])
+  self.assertTrue(all(p.read_bytes()==content for p,content in retained.items()))
+ def test_complete_mixed_model_body_is_not_a_draft_or_rewritten(self):
+  self.prepare_seeded_units()
+  before={p:p.read_bytes() for p in (self.path/'sections').glob('*.json')}
+  with patch.object(r,'profile',return_value={**PROFILE,'model':'other-model'}):
+   state=self.status();self.assertEqual(state['completed'],4);self.assertEqual(state['latest'],0)
+   self.assertEqual(state['stages']['writing'],{'state':'complete','completed':7,'total':7})
+   self.assertTrue(all(u['completed'] and u['state']=='done' for u in state['units']))
+   with patch.object(w.subprocess,'Popen') as spawn:
+    w.rpc(e,'Test','start',{});w.rpc(e,'Test','retry',{});spawn.assert_not_called()
+   self.assertNotIn('草稿：',w.rpc(e,'Test','preview',{})['markdown'])
+   self.assertFalse(w.export(e,'Test','md')['partial'])
+  self.assertTrue(all(p.read_bytes()==content for p,content in before.items()))
+ def test_explicit_rewrite_still_replaces_selected_complete_units(self):
+  units=self.prepare_seeded_units();selected=[units[0]['id']]
+  with patch.object(r,'profile',return_value={**PROFILE,'model':'other-model'}),patch.object(w.subprocess,'Popen') as spawn:
+   spawn.return_value.pid=os.getpid();state=w.rpc(e,'Test','start',{'unitIds':selected})
+  self.assertEqual(list(state['job']['items']),selected)
+ def test_resume_keeps_material_guards_and_detects_incomplete_body(self):
+  units=self.prepare_seeded_units();u=units[-1]
+  internal=self.path/'sections'/f'{u["id"]}.json';saved=r.read(internal);saved['sections'][0]['markdown']=''
+  e.write_json(internal,saved);e.write_json(self.path/'review_parts'/f'section_{u["serial"]}.json',w.review_format.public_part(u,saved['sections'],saved['evidence']))
+  self.assertEqual(self.status()['completed'],3)
+  with patch.object(w.subprocess,'Popen') as spawn:
+   spawn.return_value.pid=os.getpid();state=w.rpc(e,'Test','start',{})
+  self.assertEqual(list(state['job']['items']),[u['id']])
+  e.write_json(self.path/'writing-job.json',{'state':'cancelled'})
+  (self.path/'prompts'/f'{u["id"]}.json').unlink()
+  with patch.object(w.subprocess,'Popen') as spawn:
+   with self.assertRaisesRegex(ValueError,'准备完整'):w.rpc(e,'Test','start',{})
+   spawn.assert_not_called()
  def test_frozen_materials_survive_project_model_and_key_change(self):
   import vector_service as v,embedding_profiles as profiles,project_embedding as binding,retrieval_settings as settings
   old={**v.DEFAULTS,'id':'a','name':'A','baseUrl':'https://a.example/v1','model':'model-a','apiKey':'fixture-secret'}
