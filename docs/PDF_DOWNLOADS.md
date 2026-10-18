@@ -1,4 +1,4 @@
-# PDF 下载（0.6.0）
+# PDF 下载
 
 ## 系统网络配置
 
@@ -8,7 +8,7 @@ Sci-Hub 后台 Chromium 保留原生系统代理发现及变更通知，不写�
 
 ## 入口与行为
 
-- 文献库：下载缺失 PDF、下载选中、单篇下载、打开 PDF、关联本地 PDF（25 MB 以内）、导出当前集合 PDF 压缩包。
+- 文献库：下载缺失 PDF、下载选中、单篇下载、打开 PDF、导出当前集合 PDF 压缩包。
 - 任务中心：按批次查看真实状态、逐篇来源/错误、暂停、继续、取消、重试失败、下载报告和日志文件夹。
 - 设置 → PDF 下载：按开放获取、Zotero、Sci-Hub 镜像分组；下载速度与超时可展开调整。Bloom 固定使用随应用提供的 `data/reference/download/scihub.bloom`，不再提供用户导入或路径配置。
 - 缺少 Unpaywall 邮箱会跳过该来源，其他来源继续。没有真实 PubMed 记录的示例文献不可下载。
@@ -16,7 +16,7 @@ Sci-Hub 后台 Chromium 保留原生系统代理发现及变更通知，不写�
 ## 来源顺序
 
 校验已有 PDF → PMC S3 + Europe PMC getPdf 双路并行 → 历史来源缓存 / Sci-Hub Bloom → Unpaywall → Sci-Hub 补救 / 重试 → Zotero 本地补充。
-成功的文件立即退出后续来源。2026-10-03 起停用额外的 OA 慢速补救、Europe PMC 深度回退和 PMC 慢速补救；旧配置中的 enhanced 开关不再生效。常规开放获取和 Zotero 来源保留。
+成功的文件立即退出后续来源。已停用额外的 OA 慢速补救、Europe PMC 深度回退和 PMC 慢速补救；旧配置中的 enhanced 开关不再生效。常规开放获取和 Zotero 来源保留。
 
 BADR 的 DOI 规范化、Bloom 读取、镜像轮换及独立镜像锁、Europe PMC 候选解析逻辑提取到 `services/downloader/badr_sources.py`；不在运行时引用 BADR。启用 TLS 校验，正文落地前统一经过 PDF 校验。
 
@@ -26,7 +26,7 @@ PMC S3 使用 `prefix=PMCID.&delimiter=/` 发现版本，支持分页，读取�
 
 S3 采用正常证书验证，对网络异常、429、500/502/503/504 有限退避重试。PDF 写入批次 staging，验证 PDF 签名、可读页数、官方 MD5（若有），生成 SHA-256，再原子移动到 `pdf/<PMID>.pdf`。
 
-## PMC 双路并行（2026-09-29）
+## PMC 双路并行
 
 - S3 按 PMCID 数字部分正序领取任务，默认并发 5；Europe PMC 按倒序领取任务，默认并发 4。两路共用完成状态，同篇只允许一路持有下载任务，校验并发布成功后另一来源跳过。
 - 一路失败即可由另一路领取，无须等整轮结束。每篇每来源每轮只进入一次，来源内部仍有有限重试；两路都未成功才进入 Sci-Hub 等后续步骤。
@@ -39,7 +39,7 @@ S3 采用正常证书验证，对网络异常、429、500/502/503/504 有限退�
 
 实现：`services/downloader/pmc_parallel.py`（共享调度）、`europe_pmc_pdf.py`（直接 getPdf），沿用 `engine.py` 的发布、校验和任务生命周期。设置页支持修改 getPdf 并发、请求总时限和最大尝试次数；新增默认值兼容旧配置。
 
-## 正式 Sci-Hub 浏览器传输（2026-09-21）
+## 正式 Sci-Hub 浏览器传输
 
 正式 Sci-Hub 两轮及历史文件/文章页缓存均使用 **Playwright headless Chromium**，通过真实 `page.goto()`、渲染后的 DOM、浏览器 `download` 事件 / `response.body()` 取得内容。不使用 Playwright APIRequestContext，不再调用 curl_cffi，也不在浏览器故障时静默回退。`badr_sources.py` 的旧 Sci-Hub 兼容函数也委托同一实现，Europe PMC 等其他客户端保持原状。
 
@@ -55,17 +55,15 @@ DOM 加载后最多等待 1.5 秒出现有效 PDF 候选或验证提示；空 `d
 
 Sci-Hub 发布继续使用 batch staging、PDF 校验、`publish()`、原子替换、来源缓存和两个项目报告；在文件锁和数据库事务内额外复查当前 DOI、成员生命周期、清空标记、批次控制、宿主存活及目标文件指纹。等待期间新放入或替换的项目 PDF 不覆盖，移出集合的文献不写回。
 
-运行时要求：`runtimes/node/bin/node`（Windows 分支为 `runtimes/node/node.exe`）、项目安装的 `@playwright/test` 及其 `playwright-core`、版本匹配的 `runtimes/playwright/` Chromium。沿用本机已有 Node/Playwright/Chromium，不在运行时自动安装或下载浏览器。Python 仍使用原 downloader 环境。源码修改后下一次下载 worker 启动生效；已有 worker 不会热替换，先让任务结束或暂停，再启动新 worker。本次不修改前端/Rust，也不重新打包旧桌面应用。
+运行时要求：`runtimes/node/bin/node`（Windows 分支为 `runtimes/node/node.exe`）、项目安装的 `@playwright/test` 及其 `playwright-core`、版本匹配的 `runtimes/playwright/` Chromium。沿用本机已有 Node/Playwright/Chromium，不在运行时自动安装或下载浏览器。Python 仍使用原 downloader 环境。源码修改后下一次下载 worker 启动生效；已有 worker 不会热替换，先让任务结束或暂停，再启动新 worker。
 
-历史实验只作为参考，其初版额外 DOI 文本门槛和早期 `invalid_pdf` 数字不作为正式成功标准。
-
-## 候选、身份与有限补救（2026-09-21 增强）
+## 候选、身份与有限补救
 
 - `scihub_candidates.py`：按 citation_pdf_url → 下载链接 → object/iframe/embed → 其他明确 PDF/storage 链接提取，去重，每页最多 12 个。忽略 data/about/javascript/blob/片段占位；缩减超长内联 data 负载，保留有引号/无引号属性的 DOM 解析能力。不从绝对 URL 中截取路径后擅自更换主机。
 - 文件返回 404/410 后，才对 `/storage/<shard>/<rest>` 尝试同主机同 rest 的 `2024`、`zero`；这些只是候选，不宣称是万能分片。不因单文件 404 禁用整个分片。候选仍不可得时最多额外刷新文章页两次；每轮去重文件地址最多 24 个，且受原时间预算约束。429、带 Retry-After 的响应沿原健康模型延期，不截短服务器等待时间。不新增 sci.bban.top 兜底。
 - `scihub_identity.py`：在可终止进程内调用原 `engine.validate_pdf()`，再读取前两页，排除明确 References/Bibliography 后的文本；DOI 保留标点，或用完整标题归一化/字符 5-gram 高覆盖匹配。没有 DOI 不直接判失败。标题高覆盖阈值为 0.75；仅在文本充分、标题覆盖极低并有不同 DOI/PDF 标题等冲突证据时判 mismatch，其他情况归入 unverifiable。这是启发式身份检查，不等于人工确认，也不是语义质量保证。
 - 每次身份检查最多 4 秒；超时、文本抽取失败和扫描件均为待核验。记录检查政策版本、实际 PDF SHA-256、DOI/完整标题身份键及历史缓存哈希是否相同。已有本地 PDF 不自动重判、删除或重新下载。
-- match 才发布；mismatch 继续其他候选/来源；unverifiable 的原文件及 JSON 说明原子移入 `logs/<batch>/identity_pending/<PMID>/`，正式 `pdf/` 不落地，不计下载成功，不进入 Marker/全文索引，后续来源仍可补齐。批次 TXT/JSON/JSONL 记录原因及路径，项目缺失/来源报告继续只按正式有效文件计算。可人工核验后使用原有“关联本地 PDF”功能；不新增审批界面。摘要替代规则仍适用。
+- match 才发布；mismatch 继续其他候选/来源；unverifiable 的原文件及 JSON 说明原子移入 `logs/<batch>/identity_pending/<PMID>/`，正式 `pdf/` 不落地，不计下载成功，不进入 Marker/全文索引，后续来源仍可补齐。批次 TXT/JSON/JSONL 记录原因及路径，项目缺失/来源报告继续只按正式有效文件计算。当前没有 GUI 采纳/关联入口；人工核验后可按 PMID 放入项目 PDF 目录并执行本地文件检查。后端关联接口仍保留。摘要替代规则仍适用。
 - 正式发布复用辅助进程的 PDF 校验结果，在原生命周期 guard 外再核对暂存文件的设备/inode/大小/mtime/ctime；不用第二个不可终止的解析线程重复检查。原 staging、原子发布、缓存及来源报告机制不变。
 
 ## Altcha 独立实现与验收
@@ -76,11 +74,9 @@ Sci-Hub 发布继续使用 batch staging、PDF 校验、`publish()`、原子替�
 
 仅成功验证后捕获该 origin 的 Cookie 到批次 sidecar 内存，新文章 context 按原 Cookie 属性导入。进程内共享，不写应用配置/数据库，不加载或保存长期浏览器登录档案；Chromium 自身使用临时目录，批次/取消/异常收尾沿既有清理路径删除。不同项目进程不共享 Cookie，但共用原入口互斥锁。单纯状态/设置查询不会启动浏览器或验证。
 
-历史实验的 120/120 是文件下载口径，不作为正式成功率承诺；其 identity 脚本原本未接入下载成功判定。
-
 ## 持久化与文件
 
-0.5.0 起，项目文件保存在用户选择的工作目录，系统参考数据仍保存在应用安装目录。详见 [项目存储说明](PROJECT_STORAGE.md)。
+项目文件保存在用户选择的工作目录，系统参考数据仍保存在应用安装目录。详见 [项目存储说明](PROJECT_STORAGE.md)。
 
 - `pubmed/`：XML 与快照。
 - `pdf/<PMID>.pdf`、`abstracts/<PMID>.md`：原文与摘要。
@@ -89,7 +85,7 @@ Sci-Hub 发布继续使用 batch staging、PDF 校验、`publish()`、原子替�
 - `metadata/downloads.sqlite3`：当前项目下载数据库。
 - `packages/current-literature.zip`：当前 XML 匹配的 PDF / 摘要包，每次成功打包替换旧包。
 
-下载完成不会标记为已索引，也不会删除已有 Markdown。删除/归档检索式不删除历史文件；恢复纳入可以复用有效 PDF。关联本地 PDF 由用户确定文献身份，应用校验文件可读性。
+下载完成不会标记为已索引，也不会删除已有 Markdown。移出当前集合会归档 PDF 和兼容 Markdown、清除活动摘要/向量，历史记录保留；重新纳入按 [生命周期](ARTIFACT_LIFECYCLE.md) 恢复。手工提供 PDF 的文献身份由用户确定，应用校验可读性。
 
 每个项目只允许一个未完成批次，避免重复下载。每个项目使用独立下载进程和数据库，批次内按来源并发。批次固定创建时的文献快照。继续保留原批次配置；失败重试读取最新设置并保留旧尝试日志。报告按批次汇总全部尝试，并区分最终失败、跳过和未完成。
 
@@ -99,14 +95,14 @@ Sci-Hub 发布继续使用 batch staging、PDF 校验、`publish()`、原子替�
 
 Rust RPC 管理受信任的 PubMed 集合输入并调用本地 Python 下载服务；队列控制和文件记录由下载服务的 SQLite 持久化，独立后台进程执行网络请求。数据不会仅保存在浏览器中。
 
-当前 Mac 已准备项目内运行时。其他机器先准备对应平台的 uv，再运行 `python scripts/setup-downloader.py`；运行时、虚拟环境和依赖缓存均定向到项目根目录。Windows 的进程启动、文件打开、文件锁分支已实现，但尚未在 Windows 实机验证。
+现有安装使用项目内运行时；初始化脚本为 `scripts/setup-downloader.py`。新机器需先准备对应平台的引导环境，不能将此目录当作已验证的跨平台安装包。Windows 的进程启动、文件打开、文件锁分支已实现，但尚未在 Windows 实机验证。
 
 - `runtimes/downloader/bin/python -m unittest discover -s services/downloader/tests`
 - `runtimes/downloader/bin/python scripts/test-download-live.py`：隔离目录中真实下载 PMC4860105，对应 PMID 27019327，校验正文 Key、官方 MD5、文件名。
 - `PLAYWRIGHT_BROWSERS_PATH="$PWD/runtimes/playwright" runtimes/node/bin/node scripts/test-download-ui.mjs`
 - 同上加 `UI_BROWSER=webkit` 检查 WebKit。
 
-批量下载的成功率受各来源可用性影响。本轮没有对用户项目执行全量下载，也没有使用用户 LLM 密钥。
+批量下载的成功率受各来源可用性影响。UI 测试须先阅读脚本并连接隔离开发服务；live 测试会访问真实外网。
 
 ## Sci-Hub 队列与镜像约束
 
@@ -146,20 +142,17 @@ Unpaywall 超时后不再进入额外的慢速补救。摘要仍明确标记为 
 验证：下载测试、`scripts/test-scheduler-http.py`（真实 Chromium / httpx 访问本地测试服务器）、`scripts/test-retry-ui.mjs`（Chromium / WebKit，隔离目录中的实际 RPC）。
 
 
-## 历史来源与 Sci-Net（0.5.4）
+## 历史来源与 Sci-Net
 
 - 支持 `div.pdf iframe[src]`，相对 PDF 地址基于重定向后的文章页解析，去除 `#view` 等片段。
 - 最终文件来自 Sci-Net 时显示 `Sci-Net`，不再全部记为 Sci-Hub。
 - 来源存放在项目 `metadata/downloads.sqlite3` 的 `source_cache`，按 PMID + 规范化 DOI 隔离。清空 PDF / 摘要不清除此表。
-- 自动回填应用旧成功下载记录，以及旧日志中确实观察到、DOI 匹配的 Sci-Net 文章页；文章页只是候选，不视为已下载。
-- 已有哈希的地址优先。缓存文件必须通过 PDF 格式、页数校验，且与已验证哈希相同；内容变化或没有旧哈希时，需在正文中找到目标 DOI。失效或身份不符时继续其他来源。扫描件无法核对正文时，不通过这个缓存身份校验，但仍可尝试常规来源。
+- 已有哈希的地址优先。缓存文件同样执行前述三态身份检查：PDF 可读性、历史哈希及 DOI / 完整标题；同哈希不单独证明文献身份，没有 DOI 也不直接失败。match 才发布，mismatch 继续其他来源，unverifiable 保存待核验原件。
 - 不缓存带查询参数的临时签名链接，不记录 Cookie 或认证信息。暂停后不重复本阶段已消耗的缓存请求；显式失败重试重新给予有限机会。
 - JSON / TXT 报告包含来源缓存成功数，逐次请求包含 `known-file`、`known-page-file`、`entry-file` 路径和实际来源。
-- 本轮把实验中逐篇核对 DOI 与哈希的 14 个地址写入 gut 来源缓存，没有复制实验 PDF 到项目文献库。导入记录见 `SOURCE_CACHE_SEED.json`。
+## Zotero 本地补充
 
-正式引擎对原 20 篇样本实测：14 成功、6 未取得，约 40.06 秒；9 篇 Bloom 命中、5 篇未命中；来源分别为 Sci-Hub 9、Sci-Net 5。测试目录独立于 gut，重新从网络取得全部成功文件，并再次检查正文 DOI。见 `SOURCE_CACHE_LIVE_TEST.json`。这是此次样本实测，不保证网站后续可用性。
-
-## Zotero 本地补充（2026-09-20）
+本文 Zotero 规则针对下载器末轮补充，与 [主动导入 Zotero 来源](SEARCH_WORKBENCH.md#导入自-zotero) 的附件规则不同。
 
 Zotero 是最后的可选补充来源：常规网络下载阶段结束后，才处理本批次仍缺 PDF 且有 DOI 的文献；随后执行原有最终失败/延期判定、摘要回退和报告。它独立于 Fast OA 开关。独立“下载”仍只下载；项目整体流程和原有已明确选择的转换接续照常执行。
 
@@ -174,7 +167,7 @@ Zotero 是最后的可选补充来源：常规网络下载阶段结束后，才�
 - 优先级小的先选，同优先级按本机实际文件字节数降序，完全并列时随机。跨父条目统一排序，成功选择的 key 写入批次进度、来源记录和报告，状态查询不会重新抽签。保留 fulltext / accepted-manuscript / submitted-manuscript / preprint / unspecified-pdf 类型，不将所有文件声称为正式出版版。
 - 只读取实际存在、非空的本机普通文件。只读 `/api/users/0/items/<key>/file/view/url` 返回 `file://` 后，由 Python 本地解码读取（空格、中文、百分号只解码一次），不会请求原始网址。损坏、加密不可读、变化中或复制失败的首选文件，尝试下一候选。分页或候选元数据不完整则整篇跳过。
 
-### 附件名称优先级（2026-09-21，v2）
+### 附件名称优先级
 
 数值越小越优先。v2 保留原 v1 全部规则，仅新增用户指定的 `PDF.pdf`；原 v1 资源保留作为历史快照。新增名称按既有标准规范化后精确匹配，不扩大为任意 `.pdf` 文件名。
 
@@ -193,7 +186,7 @@ Zotero 是最后的可选补充来源：常规网络下载阶段结束后，才�
 | 400 | PDF |
 | 500 | Submitted Version / 已提交版本 / 送出的版本 |
 | 510 | Preprint PDF |
-| 600 | PDF.pdf（新增，最低） |
+| 600 | PDF.pdf（最低） |
 
 同优先级先选本机实际字节数更大的文件；优先级和大小均相同再随机选择，成功选择记录在批次中。`PDF.pdf` 的稿件类型为 `unspecified-pdf`，不推断为正式发表版本。它仍须满足 DOI 精确匹配、`imported_url`、附件自身 HTTP(S) URL、补充材料排除与本机 PDF 可读性校验；仅磁盘文件名为 `PDF.pdf` 不会让未知附件标题通过。
 
@@ -219,11 +212,7 @@ Zotero 是最后的可选补充来源：常规网络下载阶段结束后，才�
 
 - `runtimes/downloader/bin/python -m unittest discover -s services/downloader/tests -p test_zotero.py`：本机模拟 API、小型 PDF、超时/取消/卡住解析/锁竞争/生命周期变化等隔离测试。
 - `runtimes/downloader/bin/python scripts/test-zotero-integration.py`：真实 Python RPC 和独立下载 worker，模拟慢响应和成功路径，检查代理绕过、报告、两份缺失清单、转换接续；不使用用户真实库或模型。
-- 本机 Zotero 9.0.6 安装资源只读核对了个人库和文件 URL 路由；真实 Local API 探测返回 403，确认跳过行为。真实库附件成功复制未做端到端验证；全部成功路径使用隔离 fixture。
 - macOS 已实际验证。Windows 的文件 URL 驱动器解码、隐藏辅助进程与终止分支已实现，Windows/Linux 尚未实机验证；不支持远程 UNC 文件 URL。
-- 不重新打包桌面应用。重新打开开发版后，在设置中保留默认地址即可；服务不可用时正常结束。
-
-本轮结果：全量后端 195 项通过（含 Zotero 专项 34 项），独立下载 worker 离线集成测试通过，前端 TypeScript/Vite 构建通过（保留已有 >500 kB 体积提示）。
 
 ## 项目级 PDF 来源报告
 

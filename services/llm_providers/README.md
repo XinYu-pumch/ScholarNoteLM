@@ -56,7 +56,7 @@ Go 的 Gemini 请求始终发送 `generationConfig.thinkingConfig.includeThought
 | Claude Haiku 5.5 | low / medium / high / xhigh / max |
 | Qwen 3.8 Max / Flash | low / medium / xhigh |
 
-其余 11 个模型当前没有登记离散强度档位，保持服务端默认；其中部分原生 API 只提供思考开关或 token 预算，不能套用其他模型的 low / medium / high。本次不将预算开关伪装成强度档位。
+其余 11 个模型当前没有登记离散强度档位，保持服务端默认；其中部分原生 API 只提供思考开关或 token 预算，不能套用其他模型的 low / medium / high。模块不将预算开关伪装成强度档位。
 
 请求体补丁只来自模块内审核过的 manifest：Chat 使用 `reasoning_effort`，Responses 使用 `reasoning.effort`，Gemini 使用 `generationConfig.thinkingConfig.thinkingLevel`，Messages 使用 `output_config.effort` 及模型相应的 `thinking` 模式。GLM Flash 的 Go 上游拒绝 `thinking` 字段，只发送 `reasoning_effort`。非法档位在保存和发送前明确报错，不静默降档。
 

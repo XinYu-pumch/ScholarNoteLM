@@ -27,7 +27,7 @@
 按改动范围选择，至少包括：
 
 ```sh
-runtimes/downloader/bin/python -m unittest discover -s services/downloader/tests   # Python 全量（约 500 项）
+runtimes/downloader/bin/python -m unittest discover -s services/downloader/tests   # Python 全量
 ./scripts/cargo-local.sh test --manifest-path apps/desktop/src-tauri/Cargo.toml --bin research-cli
 ./scripts/npm-local.sh run build                                                  # tsc + Vite 构建
 ```

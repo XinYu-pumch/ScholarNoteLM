@@ -1,43 +1,33 @@
 # 文档索引
 
-2026-10-05 整理：历史规划、按日期的变更记录、验证截图和测试结果 JSON 已从工作区删除，仍可在 git 历史中找回（基线提交 `9205e6b`）。本目录只保留现行规范；文档与源码冲突时以源码为准。
+以下说明以当前源码为准。根 README 保留产品约定与入口，专题文档维护各自功能细节；历史规划、实跑数字和旧协议不作为现行规范。被合并或删除的旧文档仍可从 Git 历史查阅。
 
-## 从这里开始
-
-| 文档 | 内容 |
-| --- | --- |
-| [AGENTS.md](../AGENTS.md) | 给开发 agent 的硬性约束、常用命令与提交前验证（`CLAUDE.md` 引用同一文件） |
-| [根 README](../README.md) | 接手入口：当前状态、产品约定、运行方式、架构、数据约定、综述协议、测试 |
-| [开发版](DEVELOPMENT.md) | 启动、热更新与构建 |
-| [本地维护](LOCAL_MAINTENANCE.md) | 运行时、缓存与可删除范围 |
-
-## 功能规范
-
-| 主题 | 文档 |
-| --- | --- |
-| 检索工作台、检索助手、MeSH | [SEARCH_WORKBENCH.md](SEARCH_WORKBENCH.md) |
-| PDF 下载 | [PDF_DOWNLOADS.md](PDF_DOWNLOADS.md) |
-| Marker 转换与参考文献清洗 | [MARKDOWN.md](MARKDOWN.md) |
-| 正文分块、Embedding、索引与限速 | [VECTORIZATION.md](VECTORIZATION.md) |
-| 位置关联图表 | [positional-evidence-resources.md](positional-evidence-resources.md) |
-| 阅读与笔记 | [READING.md](READING.md) |
-| 文献问答 | [LITERATURE_QA.md](LITERATURE_QA.md) |
-| 问答上下文、历史证据与并行对话 | [QA_CONTEXT.md](QA_CONTEXT.md) |
-| 综述大纲与撰写 | [REVIEW_OUTLINES.md](REVIEW_OUTLINES.md) |
-| 综述共享材料包与图表引用协议 | [review-shared-pool.md](review-shared-pool.md)、[review-resource-blocks.md](review-resource-blocks.md) |
-| 文件生命周期与“最新”判定 | [ARTIFACT_LIFECYCLE.md](ARTIFACT_LIFECYCLE.md) |
-| 系统资源与项目存储 | [PROJECT_STORAGE.md](PROJECT_STORAGE.md) |
-| Design System：视觉、组件、布局、交互、任务状态与迁移验收 | [UI_DESIGN.md](UI_DESIGN.md)、[验收矩阵](design-system/acceptance.md) |
-
-## 评估与待办
+## 接手与维护
 
 | 文档 | 内容 |
 | --- | --- |
-| [全流程复盘报告](pipeline-run-20261004/REPORT.md) | 一次完整实跑暴露的问题与改进建议，按优先级排列 |
-| [清理规划](cleanup-plan-20261004.md) | 已执行的清理（第 7 节）与尚未决定的事项（第 3、4 节） |
-| [gut 问答评估](GUT_QA_EVALUATION.md) | 人工评估文献问答的问题集与预期行为 |
+| [根 README](../README.md) | 当前功能、产品决定、已知边界、架构入口 |
+| [AGENTS.md](../AGENTS.md) | 开发约束与验证要求；CLAUDE.md 引用同一规范 |
+| [DEVELOPMENT.md](DEVELOPMENT.md) | 启动、运行时、RPC、隔离测试 |
+| [LOCAL_MAINTENANCE.md](LOCAL_MAINTENANCE.md) | 缓存清理与不可误删的依赖、数据 |
+| [PROJECT_STORAGE.md](PROJECT_STORAGE.md) | 项目布局、迁移、删除、紧凑存储 |
+| [ARTIFACT_LIFECYCLE.md](ARTIFACT_LIFECYCLE.md) | 归档恢复、内容指纹与更新判定 |
 
-## 注意
+## 功能与协议
 
-- 测试脚本会把截图和结果 JSON 写入 `docs/`。这些是运行产物，不要提交，也不要当作规范。
-- 不要依据已删除的历史文档恢复旧功能，例如重排、BM25 / MedCPT、PaddleOCR、清洗策略开关、旧版单篇精读 RAG、Chroma、演示项目。
+| 文档 | 内容 |
+| --- | --- |
+| [SEARCH_WORKBENCH.md](SEARCH_WORKBENCH.md) | PubMed 数量边界、Zotero 导入、JCR、MeSH、检索助手 |
+| [PDF_DOWNLOADS.md](PDF_DOWNLOADS.md) | 下载来源、队列、身份校验、预算与报告 |
+| [MARKDOWN.md](MARKDOWN.md) | Marker、清洗、全文转换 |
+| [VECTORIZATION.md](VECTORIZATION.md) | 分块、Embedding 配置、配额、索引与召回 |
+| [positional-evidence-resources.md](positional-evidence-resources.md) | 图表位置关联与资源快照 |
+| [READING.md](READING.md) | PDF / 摘要阅读、笔记与单篇全文聊天 |
+| [LITERATURE_QA.md](LITERATURE_QA.md) | 问答流程、上下文、历史证据、重试和评估问题集 |
+| [REVIEW_OUTLINES.md](REVIEW_OUTLINES.md) | 大纲、两阶段撰写、续写与稿件导出 |
+| [REVIEW_PROTOCOL.md](REVIEW_PROTOCOL.md) | 共享材料、正文块、引用与图表编号的当前协议 |
+| [可选 LLM 供应商](../services/llm_providers/README.md) | opencode_go 接口、会话、思考参数与移除方式 |
+| [UI_DESIGN.md](UI_DESIGN.md) | 视觉 token、布局、组件及交互契约 |
+| [design-system/acceptance.md](design-system/acceptance.md) | 页面、状态、窗口、键盘与原生验收矩阵 |
+
+测试截图、结果 JSON 和本机项目报告不是产品规范。编辑本目录不授权修改 `workspace/` 中的研究材料。不要按旧文档恢复已删除功能，具体名单见根 README 第 1 节。

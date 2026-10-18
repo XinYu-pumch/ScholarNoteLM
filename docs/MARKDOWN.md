@@ -1,6 +1,6 @@
 # 冗余文件与本地全文 Markdown
 
-文献库提供“XML → 获取 PDF → 转换全文 → 检索索引”的顺序流程；任务中心保留转换详情。设置 → Markdown 转换配置计算设备与文字提取 worker。日常使用开发版启动入口，本次不更新旧的打包版。
+文献库提供“XML → 获取 PDF → 转换全文 → 检索索引”的顺序流程；任务中心保留转换详情。设置 → Markdown 转换配置计算设备与文字提取 worker。日常使用开发版启动入口。
 
 ## 当前 XML 决定有效文献
 
@@ -50,7 +50,7 @@
 
 计算设备支持自动、CPU、MPS、CUDA。当前 Mac 已验证 MPS。沿用 BADR 的 `disable_ocr=True`，扫描 PDF 可能没有足够正文，此时报告失败；当前未实现 OCR 设置或扫描件自动补救。完成 Markdown 转换不等于完成向量索引或 RAG。
 
-文字提取 worker 默认自动：少于 40 页使用 1 个，40 页及以上使用 4 个；可手动选择 1、2、4、8、16。pdftext 按页数限制实际进程数：`max(1, min(设置值, 页数 // 10))`。这仅并行化文字提取，不增加同时转换的论文数，整批仍只加载一套模型。依据是 2026-09-20 的本机样本实验（报告已归档到 `backups/history-20261002.tar.gz`）；该阈值是折中，并非所有设备上的速度保证。
+文字提取 worker 默认自动：少于 40 页使用 1 个，40 页及以上使用 4 个；可手动选择 1、2、4、8、16。pdftext 按页数限制实际进程数：`max(1, min(设置值, 页数 // 10))`。这仅并行化文字提取，不增加同时转换的论文数，整批仍只加载一套模型。自动阈值是性能折中，不是所有设备上的速度保证。
 
 设置保存在应用内 `config/markdown.json`，在下一次创建转换任务时生效。逐篇转换日志记录页数、请求 worker 数与按页数上限计算的 worker 数。调整 worker 不改变清洗签名，不触发已有文献重跑。
 
@@ -68,12 +68,12 @@
 
 本机从用户现有 BADR 环境独立复制模型和依赖，不依赖 BADR 目录继续存在。原环境的 Transformers 4.57 与这套 Surya 模型配置不兼容，已按 BADR Marker 的 poetry.lock 固定为 Transformers 4.49.0、tokenizers 0.21.0，安装包保存在 app 内。`scripts/setup-marker-local.py BADR目录` 可在当前 Mac 重新导入，保留 ScholarNoteLM 的严格本地模型加载器。
 
-Mac Python 环境不能复制到 Windows 使用。Windows 需要独立安装对应平台的 PyTorch 等依赖；本次未实机验证 Windows 转换。
+Mac Python 环境不能复制到 Windows 使用。Windows 需要独立安装对应平台的 PyTorch 等依赖；Windows 转换尚未实机验证。
 
 ## 验证
 
-- 本次 95 项单元测试通过，包含删除派生文件、仅恢复 PDF、内容指纹及旧任务防写回。
-- `scripts/test-markdown-corpus.py` 通过真实 Rust RPC 验证：重叠检索式归档与恢复、12 个并发状态请求、独立进程重新清洗保持原稿、调试清空包含冗余文件。结果见 `MARKDOWN_CORPUS_TEST.json`。
-- 本机实际转换 PMID 31777065：3 页，MPS，约 7.8 秒，成功生成原稿与清洗稿，记录 2 项删除；转换进程禁用网络。此耗时是该篇实测，不代表其他论文或设备速度。
+- `runtimes/downloader/bin/python -m unittest discover -s services/downloader/tests`：生命周期、内容指纹、兼容备份恢复、旧任务防写回。
+- `scripts/test-markdown-corpus.py`：真实 Rust RPC、重叠检索式归档恢复、并发状态查询、独立重新清洗及调试清空；运行前确认隔离目录。
+- `scripts/test-literature-workflow.py`：下载进程与实际 Marker 衔接、worker 配置和已有 Markdown 复用。会加载本地模型，不能当成轻量文档验证；按脚本说明准备隔离环境。
 
-- `scripts/test-literature-workflow.py` 真实 Rust RPC + Python 下载进程 + Marker：独立目录里，无页面轮询自动衔接；3 页用 1 个、46 页用 4 个，均成功；缺失 PDF 保留摘要；worker 设置变更后复用两份 Markdown，不加载模型。详见 `LITERATURE_WORKFLOW_TEST.json`。
+运行产物不是规范，不依赖已删除的测试 JSON、截图或某篇论文的历史耗时来判断当前功能。

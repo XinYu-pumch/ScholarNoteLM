@@ -1,138 +1,74 @@
 # ScholarNoteLM
 
-以 PubMed 文献集合为基础的一站式研究桌面应用：检索与项目管理 → 获取 PDF / 摘要 → 本地 Markdown 转换 → 文本块与向量检索 → 综述大纲和正文撰写，以及基于项目证据的多轮文献问答。
+本地优先的生物医学文献研究桌面应用：PubMed 检索 / Zotero 导入 → PDF 或摘要 → Marker 转 Markdown → 分块与 Embedding → 综述大纲、正文和文献问答。
 
-**本文是新开发者 / 新 agent 的接手入口**；硬性约束和提交前验证见 [AGENTS.md](AGENTS.md)。 最后核对：**2026-10-13**。包版本仍为 `0.6.0`，不能仅凭版本号判断功能进度。当前主要在 **macOS Apple Silicon 开发版**上运行；Windows 是目标平台，尚未实机验证或提供已验证安装包。
+本文是使用与开发入口。按 **2026-10-18 的当前源码**核对，包版本为 `0.6.0`；版本号不代表旧打包副本已同步更新。开发约束见 [AGENTS.md](AGENTS.md)，功能细节见 [文档索引](docs/README.md)。文档与源码冲突时以源码为准。
 
-## 1. 接手先读：现在做到哪里了
+## 1. 产品约定与已知边界
 
-当前应用已有真实检索、下载、转换、向量化和综述生成流程，**不是只有 UI 的原型**。文献问答已接入真实多轮检索。2026-10-04 起不再内置演示项目和示例文献，全新安装从空白项目列表开始；“阅读与笔记”支持只读 PDF / 摘要、单篇全文对话、手写笔记与真实阅读记录，详见 [阅读规范](docs/READING.md)。
+### 当前功能与约定
 
-| 模块 | 当前状态 |
-| --- | --- |
-| 项目与存储 | 项目目录可由用户选择；系统资源与项目产物分离 |
-| 检索工作台 | 每条检索式独立筛选、执行，按 PMID 去重合并 XML |
-| 检索助手 | 真实 LLM 流式聊天，设计检索式；分支、编辑重发、新建/重命名/删除对话 |
-| JCR / MeSH | JCR 上传校验；官方 MeSH XML 构建本地索引、应用运行期间自动检查更新 |
-| PDF 下载 | 真实多来源下载、镜像队列、暂停/恢复/重试、逐批次报告 |
-| Markdown | 固定使用 Marker，内置仅清洗参考文献；原稿与替换历史保留 |
-| 文本块 / 向量 | 段落拆分、Embedding API、SQLite 向量缓存与余弦召回、可视化文本块调试 |
-| 综述大纲 | 基于摘要的真实 LLM 生成，完整树编辑、CSV 校验、导出完整提示词 |
-| 综述正文 | Embedding API 正文召回；先准备提示词，再生成片段、按大纲装配 |
-| 阅读与笔记 | PDF 竖向连续滚动与自定义缩放 / 摘要只读阅读、按标题/PMID 选择、单篇多对话及逐轮复制/重新生成/分支、完整未清洗 Markdown 上下文、共享压缩快照 |
-| 导出 | BADR 风格片段 JSON、Markdown、带引用详情的 HTML、Word |
-| 文献问答 | 新提问统一使用项目范围主题问答；已有文献概览记录可继续查看；检索规划、证据阅读、回答三种模型角色；流式回答与证据快照（RCS 后端仍在，界面不再提供开关） |
+| 范围 | 当前行为 | 详细说明 |
+| --- | --- | --- |
+| 文献来源 | PubMed 记录及 PMID 是文献身份；检索式独立筛选、执行，合并去重；Zotero DOI 映射到 PubMed 后导入来源快照 | [检索与导入](docs/SEARCH_WORKBENCH.md) |
+| 检索助手 | 流式讨论、MeSH 核验、检索式建议；用户加入并执行后才检索 PubMed | [检索助手](docs/SEARCH_WORKBENCH.md) |
+| 全文获取 | 多来源下载、暂停/恢复/重试；没有全文时可用摘要，获取阶段完成不代表 PDF 齐全 | [下载](docs/PDF_DOWNLOADS.md) |
+| Markdown | 固定 Marker、本地离线、禁用 OCR；只清洗参考文献，保留原稿、图片与编辑历史 | [转换](docs/MARKDOWN.md) |
+| 索引与检索 | 段落分块、远程 Embedding、SQLite 向量缓存、余弦召回；项目独立绑定模型 | [向量化](docs/VECTORIZATION.md) |
+| 综述 | 独立工作区、单份当前大纲、准备材料后联合撰写；续写保留完整片段，只补缺失单元 | [工作区](docs/REVIEW_OUTLINES.md)、[协议](docs/REVIEW_PROTOCOL.md) |
+| 文献问答 | 新提问统一为项目范围主题问答，多轮召回与按需历史证据；旧概览记录保留 | [问答](docs/LITERATURE_QA.md) |
+| 阅读与笔记 | 只读 PDF / 摘要、阅读位置、手写笔记、单篇全文对话；使用完整未清洗 Markdown 或摘要 | [阅读](docs/READING.md) |
+| 导出 | 综述 JSON、Markdown、单文件离线 HTML、Word；保留证据、图表和引用绑定 | [工作区](docs/REVIEW_OUTLINES.md) |
+| 资源与文件 | 系统配置/模型/运行时留在应用目录，研究项目可迁移到用户指定位置 | [存储](docs/PROJECT_STORAGE.md)、[生命周期](docs/ARTIFACT_LIFECYCLE.md) |
 
-### 当前有效的产品决定
+下列决定已经生效，不应依据旧规划恢复：
 
-以下约定来自已确认的需求；不要根据早期规划或遗留代码反向恢复旧方案：
+- 不内置演示项目；默认进入文献库。项目菜单提供切换、创建和永久删除。
+- 项目文件夹和综述工作区名支持 1–64 个中文、英文字母、数字或下划线；不允许空格、连字符及 Windows 保留名，英文不区分大小写。
+- GUI 不再提供 XML 上传、手动关联 PDF 入口；后端保留相应接口与旧来源读取。手工放入 `pdf/<PMID>.pdf` 后可执行本地文件检查，文件名对应关系由用户负责。
+- 不恢复重排、BM25 / MedCPT、PaddleOCR、清洗策略开关、旧版单篇精读 RAG、Chroma。现有单篇全文聊天是独立功能。
+- 综述工作区只有一份当前大纲，不提供工作区内的大纲版本管理。未迁移的旧 schema-1 布局直接报错；当前代码不会自动迁移它。
+- 每个终末标题使用原文 query，不翻译中文、不拼接父标题；默认每节召回 7 块、写作并发 3。并发允许任意正整数，实际活跃请求不超过待写单元。
+- 完整写作材料冻结文献与 Embedding 模型，切换项目模型或清空活动索引后仍可使用；未完成材料不能跨模型拼接。正文完成度与当前模型设置是否相同分开判断。
+- 失效判定以实际输入为准。配置 ID、LLM 密钥/超时、并发、其他模型图片开关不让新产物过期；历史哈希须精确验证，不能猜测恢复为最新。旧签名键不得随意删改。
+- 系统有 HTTP(S) 代理时跟随系统，没有时直连；分流由代理软件决定，不绑定 Clash。新请求适应代理变化，本机回环保持直连，已建立连接不强行迁移。
+- `opencode_go` 为默认折叠、仅一份配置的可选供应商。特殊请求头、端点、思考档位和 Gemini 思考摘要在独立模块内实现；普通 OpenAI 兼容配置不按名称自动转换。见 [供应商维护说明](services/llm_providers/README.md)。
+- 界面语言与内容语言独立；切换中文 / EN 不翻译已有研究内容。新内容默认语言只初始化新综述/对话；已有大纲另建另一语言综述，重试和分支沿用原轮次语言。
+- UI 视觉与交互按 [Design System](docs/UI_DESIGN.md) 维护：聊天输入可达、状态反馈不挤动列表、设置分类固定、未保存草稿有离开保护。纯视觉修改只改样式。
 
-1. **PubMed 是文献条目的唯一来源**，以 PMID 作为文献身份。允许导入 PubMed XML、补充以 PMID 命名的本地 PDF。
-2. **先使用开发版，不为每次修改重新打包。** 旧 `dist/macos/ScholarNoteLM.app` 不会随源码更新。
-3. 系统模型、运行时、依赖、参考数据、配置、可配置缓存留在应用根目录；项目数据由用户指定工作目录。
-4. 项目文件夹及综述工作区名称为 **1–64 个中文、英文字母、数字或下划线**（`storage.FOLDER_PATTERN`）；不允许空格、连字符及 Windows 保留名，英文不区分大小写。
-5. 每个综述工作区只有一份当前大纲，**不提供工作区内的版本管理**；旧的 schema-1 `versions/` 已全部迁移，遇到未迁移的旧格式会直接报错。
-6. 大纲深度不预设上限；导出格式受 Markdown/HTML 六级标题、Word 样式层级限制，但必须保留完整编号和所有节点。
-7. Query 使用**终末标题原文**；中文不翻译英文，不默认拼接父标题。
-8. 正常综述召回使用**已保存且验证通过的 Embedding API**，常用 `Pro/BAAI/bge-m3`；BM25、MedCPT 的执行代码和模型已移除。
-9. 不提供重排；Qwen3 重排代码和模型已移除。
-10. 每节默认 7 个文本块、写作并发默认 3，放在综述撰写页；并发允许任意正整数，不设人工上限。直接返回 topK，不设置额外候选池。
-11. 单次写作请求不设应用侧字符预算，不截断材料；旧 `contextChars` / `limitContext` 字段仅为历史签名兼容保留，即使旧配置开启预算也不再限制请求。普通 OpenAI 兼容调用不发送应用侧 `max_tokens` / `max_completion_tokens`；可选供应商原生协议的必填参数见第 26 条。
-12. 保留已经确认的段落分块方法。内部 metadata 支撑追踪、去重和失效判断；**给写作 LLM 的素材仅需 PMID + 原文**，不要因此删除数据库内部必要字段。
-13. PDF 下载尝试结束但未取得全文，有摘要时可视为获取阶段“最新”，后续使用摘要。**获取阶段完成不等于 PDF 存在**。
-14. 阅读聊天直接使用完整未清洗 Markdown（无 PDF 时使用摘要），与项目文献问答独立，不恢复旧版单篇精读 RAG 流程。
-15. 界面遵循 [ScholarNoteLM Design System](docs/UI_DESIGN.md)：视觉 token、布局、按钮层级、任务状态、交互与可访问性契约。纸白与墨蓝配色、统一系统中英文字体、统一组件层（`tokens.css`、`design.css`）。纯视觉改动不得夹带交互变化；已确认的交互修正按 Design System 分批实施并单列验证。聊天输入框始终可见。
-16. 应用默认进入文献库，项目概览页已移除；项目切换、创建和删除仍在左上角项目菜单。综述与问答的引用界面只显示阅读所需内容，不展示内部哈希等技术详情。
-17. 工作区选择与常用页面操作集中在左侧，低频操作放入更多菜单；导出 XML 仅位于文献来源。全局顶栏保留面包屑、界面语言与主题切换，保存失败另行提示。
-18. 模型连接配置、综述大纲/生成要求和撰写设置的未保存修改已有离开保护：继续编辑、不保存并离开、保存并离开；保存失败保留草稿。撰写设置的取消、关闭、Escape 与遮罩行为一致。通知按严重程度显示，错误不再使用成功勾号。PDF 下载/镜像、全文转换、Embedding、问答、NCBI、MeSH 和项目保存位置已接入同一保护。原生关闭窗口与 macOS ⌘Q 会先处理这些草稿，再等待项目状态（含笔记）写入完成；写入失败阻止退出。文献库、检索和综述 Tabs 支持方向键、Home/End 移动焦点，Enter/Space 激活。CSV、新建项目/综述工作区、检索式、批量筛选、模型列表与对话重命名已补齐草稿保护；CSV“校验并保存”直接落盘。更多菜单、表单错误、焦点返回、分栏键盘调整与状态记忆共用组件契约；阅读位置在离开/退出前等待写入，自动保存失败可重试。
-19. PDF 连续缩放时复用当前画布预览，暂停手势后再补绘清晰版本；缩放焦点跟随指针/捏合位置，不在每个输入事件中清空页面重画。
+### 输入、数量与质量边界
 
-20. 界面语言与内容语言独立：右上角 `中文 / EN` 即时切换并保存；设置中的“新内容默认语言”只影响新综述和新对话。全新安装按系统语言初始化一次，已有安装默认中文。切换界面不翻译研究内容、不清空输入、不改变正在执行的任务。文献准备/任务状态、逐条 JCR 警告与模型测试结果在显示时按界面语言翻译；模型操作区按可用宽度换行，避免英文按钮互相覆盖。
-21. 每份综述统一大纲、正文与导出语言；已有大纲后使用“创建另一语言的综述”，仅复用主题与要求，共享项目材料，不复制或翻译旧正文。每个检索、问答、阅读对话独立保存回答语言；更改只影响后续轮次，重新生成沿用原轮次语言，分支继承分支点语言。新任务保存内容语言与提示词版本；旧工作区缓存签名保持兼容。
-22. 新建 Embedding 配置时，Jina 预设默认使用 `jina-embeddings-v4`，API Key 留空，限额为 100 RPM / 100000 TPM，默认开启自动速度。预设更新不覆盖已有配置，也不自动切换或重建项目索引；详见 [文本向量化](docs/VECTORIZATION.md)。
-23. 综述撰写固定分为“准备写作材料”和“撰写综述”：全部材料完整后才能撰写；两阶段均可停止、重试缺失项，按整轮有效章节累计进度。完整校验稿件进入“已保存稿件”，不完整正文只保留当前草稿，重置时进入“历史草稿”。项目独立绑定 Embedding 模型，完整的综述材料冻结原模型与文献快照，切换模型/删除索引不会使其失效；未完成材料不得跨模型混用。工作区使用可收起的左侧列表，右击条目修改名称与描述，底部新建/删除；右侧只保留语言与主题，累计进度统一展示，全文预览支持再次点击退出，导出包含当前完整或未完成结果。续写保留已完成片段，只补缺失/未完成单元；切换正文模型不降低正文完成度，主动重写仍使用当前模型。详见 [综述工作区](docs/REVIEW_OUTLINES.md)。
-24. Embedding 自动速度按实际 token 用量与响应延迟调整批量和并发，慢而成功的请求增加并发，429/网络错误则冷却恢复。Jina v4 内置官方 tokenizer 以减少过度预留，首次使用无需联网下载；资源缺失或损坏时回退为文本字节预算；RPM/TPM 始终约束请求，手动批量/并发不限制自动模式。此改动不改变索引或综述缓存签名。
+- **PubMed 候选窗口保持 9,999**；EFetch 每批 100，直到符合摘要/JCR 条件的数量达标或候选耗尽。日期先由 PubMed 按发表日期限定；不足数量与候选窗口边界会在来源状态中说明，见 [检索规则](docs/SEARCH_WORKBENCH.md)。
+- 检索助手发送当前分支全部有效历史，不设单条输入字符上限。文献问答和单篇全文对话也不设问题字符上限；问答历史材料按需取回，并非每轮重发全部旧材料池。
+- 综述正文不设请求字符预算、不截断材料；`contextChars` / `limitContext` 仅保留历史签名兼容。大纲不限制标题数量、单标题字符数、CSV/响应总字符数或树深度，结构校验仍保留。
+- 普通 OpenAI 兼容调用不发送应用侧输出 token 上限。Go 的原生 Messages 协议要求 `max_tokens`，使用模块登记的模型公开输出上限；其他协议不增加应用输出上限。服务商自身限制仍可能使请求失败。
+- 取消 LLM 字符限制不等于取消 Embedding 的分块、配额、并发、重试或下载预算。各阶段仍按对应专题文档执行。
+- 引用校验确认结构与来源绑定，**不保证论断科学正确**。大纲看到的摘要未必进入某节写作材料，跨节仍可能矛盾；中文 query 的效果依赖模型。短正文、资助和声明等按既定清洗规则保留，可能占用召回名额。
+- 原文转换错误、图表拆分、缺失图注和模型误读不会由结构校验自动修复；目前不自动全篇事实审查。总结/改写的压缩程度仍需人工评价。
+- 当前主要验证 macOS Apple Silicon 开发版；Windows 尚未实机验证。扫描 PDF 可能因 OCR 关闭而无正文；新机器的完整安装/发行方案尚未验证为通用安装包。
 
-25. 外网请求默认跟随当前系统 HTTP(S) 代理：LLM、Embedding、PubMed、MeSH 和 PDF 获取使用系统网络配置，没有代理时直连；分流由代理软件决定，不绑定 Clash 或固定端口。系统代理开关或地址变化后，后续请求自动适应，无需重启应用。localhost/回环地址（含 Zotero、本机模型与开发通信）保持直连；已建立的流式回答和下载连接不强行迁移。Chromium 使用原生系统代理及变化通知；Rust 每次请求重新建立读取系统代理的客户端，Python 下载按每个请求及重定向重新解析代理。TLS 校验、模型参数及产物缓存签名不变。
+## 2. 启动与验证
 
-26. 模型设置提供默认折叠的 `opencode_go` 独立分组，只允许一份固定同名配置。每个模型独立选择其支持的思考强度，初始为“服务端默认”；未登记强度档位的模型保持默认。显式保存为该供应商的配置才使用 Go 请求头和各模型官方协议。普通 OpenAI 兼容配置（包括旧的同名配置）不自动转换。Go 的 Gemini 默认请求流式思考摘要，与正文分开处理，不改变所选思考强度。Go 支持四种原生协议、按对话/写作单元保持会话身份；Messages 的必填 `max_tokens` 使用模型公开输出上限，其余协议不增加应用输出上限。专属代码位于 `services/llm_providers/opencode_go/`，移除注册及目录即可停用；旧 Go 配置会明确报错，普通模型保持可用。配置、接口映射、删除方法和验证见 [可选 LLM 供应商](services/llm_providers/README.md)。
-
-27. 综述和问答按实际输入判定复用：LLM 配置 ID、密钥、超时、其他模型的图片开关不改变产物身份；等价配置可互换。问答并发和未启用的 RCS 候选数、已退役的综述请求字符预算不使已有结果过期，也不再阻止新请求。Embedding 的 Base URL 与等价完整 `/embeddings` 地址共用模型身份并兼容旧缓存。PubMed 只比较生效的筛选条件。旧签名保留精确校验，无法从历史哈希可靠还原的设置不强行认定相同。详见 [生命周期](docs/ARTIFACT_LIFECYCLE.md)。
-
-### 近期变更（2026-09-28 至 2026-10-04）
-
-- **2026-09-28 精简**：转换固定 Marker，只做参考文献清洗；删除 PaddleOCR、MedCPT、BM25、Qwen 重排和问答自动补读全文。主题问答与综述共用正文召回和位置关联图表；多个对话可同时生成，重试原地替换当前消息。
-- **2026-10-04 代码清理**（分支 `cleanup-20261004`）：删除死代码、死 CSS 和已完成迁移的兼容代码；全新安装不再注入演示项目；**移除 Chroma**，向量只保存在 `vectors/chunks.sqlite3`，所有召回直接对缓存做余弦排序。各项目的 `vectors/chroma/` 已无用，可删除。执行记录见 [清理规划](docs/cleanup-plan-20261004.md) 第 7 节。
-- **2026-10-04 视觉改版**（分支 `ui-redesign-20261004`）：新的设计规范见 [UI_DESIGN.md](docs/UI_DESIGN.md)，只改样式，不改交互。
-
-### 代码仓库与分支
-
-- 2026-10-04 起使用 git，`main` 是主分支。代码清理、视觉改版和文档整理已合并到 `main`；清理前的状态是基线提交 `9205e6b`。新工作在新分支上进行，验证通过后再合并。
-- `.gitignore` 排除了 `config/`（含 API Key）、`workspace/`（用户数据）、运行时、缓存、日志和备份。提交前确认没有把这些目录加入版本库。
-
-### 已知问题与待办
-
-- [全流程复盘报告](docs/pipeline-run-20261004/REPORT.md)：一次从检索到问答的完整实跑中暴露的问题，按优先级排列。重点是综述跨章节矛盾（大纲锚点文献未进入写作材料）、中文标题检索英文文献召回偏弱、致谢 / 基金等后置信息占用召回名额、“总结对话”几乎照抄原文。
-- [清理规划](docs/cleanup-plan-20261004.md) 第 3 节中尚未决定的事项：`Project` 中的原型字段、问答概览模式与旧 agent 循环、82 个旧 BADR 格式综述片段、Markdown 清洗签名中的旧配置键、只被测试使用的后端接口；第 4 节的重复实现合并。
-- 测试脚本把截图和结果 JSON 写进 `docs/`，运行后会再次产生未跟踪文件，不要提交。部分 UI 脚本依赖已删除的原型状态或本机项目快照，已经过时，使用前先阅读脚本。
-
-### 推荐阅读顺序
-
-先读本文第 2–6 节（运行、架构、数据约定、各阶段行为、综述协议），再按任务阅读 [文档索引](docs/README.md) 中的专题文档和对应源码。文档与源码冲突时以源码为准。
-
-## 2. 日常运行与开发
-
-所有命令在应用根目录执行。本机路径为：
-
-```text
-/Users/yuxin/AI_developing/ScholarNoteLM
-```
-
-### 启动现有开发版
-
-双击 `开发启动 ScholarNoteLM.command`，或：
+在项目根目录执行，优先使用项目内运行时：
 
 ```sh
-./scripts/npm-local.sh run desktop
+./scripts/npm-local.sh run desktop        # Tauri 开发版，也可双击“开发启动 ScholarNoteLM.command”
+./scripts/npm-local.sh run research:build # research.rs 改动后重建浏览器桥接 CLI
+./scripts/npm-local.sh run dev            # 独立浏览器调试，127.0.0.1:1420
+./scripts/npm-local.sh run build          # TypeScript + Vite
 ```
 
-前端保存后热更新；Rust/Tauri 修改后增量编译并重启窗口。Python RPC 的下一次调用、后台任务的下一次进程启动会读取新代码，**已经运行的 Python 任务不会热替换**。正在跑下载、Marker 或写作时，先检查任务状态再决定是否需要重启。
+不要同时启动独立 Vite 和 Tauri dev 争用 1420，也不要多实例编辑同一项目。前端热更新，Rust 按需重编译；已经运行的 Python worker 不热替换。旧启动器“启动 ScholarNoteLM.command”指向 `dist/macos/ScholarNoteLM.app`，该副本若存在也不会自动同步源码。只有明确需要独立包时才运行 `desktop:build`。详见 [开发说明](docs/DEVELOPMENT.md)。
 
-1420 端口已占用时，先确认已有开发版是否正在运行，避免重复启动。不要为了代码生效清空项目，不要同时打开多个应用实例编辑同一项目。
-
-### 浏览器开发与构建
+验证按改动范围选择，完整要求见 [AGENTS.md](AGENTS.md)：
 
 ```sh
-# 构建 Vite 桥接使用的 Rust CLI；修改 research.rs 后也需重新构建
-./scripts/npm-local.sh run research:build
-
-# 浏览器开发：http://127.0.0.1:1420
-./scripts/npm-local.sh run dev
-
-# TypeScript 检查 + Vite 生产构建
+runtimes/downloader/bin/python -m unittest discover -s services/downloader/tests
+./scripts/cargo-local.sh test --manifest-path apps/desktop/src-tauri/Cargo.toml --bin research-cli
 ./scripts/npm-local.sh run build
-
-# 仅需要独立打包时使用
-./scripts/npm-local.sh run desktop:build -- --debug --bundles app
 ```
 
-不要同时运行独立 Vite 和 Tauri dev 去争用同一个端口。Tauri 构建输出位于 `cache/tauri-target/debug/bundle/macos/`；旧启动器 `启动 ScholarNoteLM.command` 打开的是 `dist/macos/` 中的副本。
-
-### 项目内运行时
-
-| 路径 | 用途 |
-| --- | --- |
-| `runtimes/node/` | Node/npm；优先使用 `scripts/npm-local.sh` |
-| `runtimes/rust/`、`cache/cargo/` | Rust 工具链；优先使用 `scripts/cargo-local.sh` |
-| `runtimes/downloader/` | 下载、项目管理、综述服务、写作 HTTP 请求、Word 导出等 |
-| `runtimes/marker/` | Marker / Surya / PyTorch；索引进程与 `vector.*` RPC 也使用此环境 |
-| `runtimes/retrieval/` | 综述及问答检索、NumPy、HTTP 请求 |
-| `runtimes/playwright/` | 正式 Sci-Hub 后台 Chromium 下载与 UI 检查共用的浏览器 |
-| `models/marker/` | 本地 PDF 转换模型 |
-
-2026-09-28 已清理编译和安装缓存，当前开发版程序及 CLI 保留；下次源码编译会重新生成中间文件。`runtimes/retrieval` 通过 `.pth` 共享 Marker 的基础依赖，不能单独删除 Marker 环境。详见 [本地维护](docs/LOCAL_MAINTENANCE.md)。
-
-不要直接用系统 Python 替代这些环境。现有 macOS 虚拟环境与二进制不能复制到 Windows 直接使用。当前 Mac 环境已经准备好；全新机器的完整安装/发行方案仍需完善，不能把此目录当作已经验证的通用安装包。
+涉及综述、问答、向量或完整流程时追加相应隔离集成脚本，见 [开发与测试](docs/DEVELOPMENT.md)。所有 UI 脚本先看再跑；有的连接已有开发服务，有的依赖旧的本机快照。使用 `tmp/` 下的 `SCHOLARNOTELM_ROOT` 和本地模拟服务，不能把真实项目当测试夹具。截图和结果 JSON 是忽略的运行产物，不提交。
 
 ## 3. 架构与代码入口
 
@@ -177,375 +113,10 @@ React / TypeScript UI
 
 表中未注明路径的前端文件在 `apps/desktop/src/`；Python 文件在 `services/downloader/`。
 
-### RPC 调试要点
+## 4. 数据安全与维护入口
 
-CLI 为 `cache/tauri-target/debug/research-cli`。直接调用时必须设置 `SCHOLARNOTELM_ROOT`，输入为 `{"action":"...","args":{...}}`，输出为 `{"ok":true,"data":...}` 或错误对象。项目参数是项目 ID，不能假定永远等于文件夹名；路径须通过存储映射解析。
+`config/embedding.json` 和 `data/research/research.sqlite3` 含明文凭据，不能打印、分享或提交。项目数据库不复制系统密钥，但研究正文和请求日志仍是用户资料。`workspace/` 及自定义工作目录未经明确要求不得修改、清理或调用真实模型。
 
-综述主要 RPC：`review.writing.status`、`prepare`、`start`、`retry`、`cancel`、`section`、`preview`、`export`、`settings`。文献库新增按钮对应 `download.start`、`markdown.reconcile`、`markdown.start`。
+运行时、Marker 模型和下载浏览器不是普通缓存。磁盘清理先查看 [本地维护](docs/LOCAL_MAINTENANCE.md)；自动清理工具不删除当前程序、研究数据或安装环境。新产物的日志压缩、XML 共享、图片快照与稿件去重见 [项目存储](docs/PROJECT_STORAGE.md)。
 
-`review_service.rpc()` 已持有项目综述锁。不要在其同步子调用里重复获取同一非重入文件锁；后台 worker 自己持锁。曾通过真实 CLI 集成测试发现过这种重复加锁导致的“无法启动撰写进程”，不能仅靠直接调用 Python 函数的单元测试判断。
-
-## 4. 文件布局与数据约定
-
-### 系统资源：位于应用内部
-
-```text
-ScholarNoteLM/
-  apps/desktop/                 # React + Tauri + Rust
-  services/                     # Python 服务与后台任务
-  scripts/                      # 启动、构建、测试、环境准备
-  config/
-    storage.json                # 工作目录与项目 ID → 文件夹映射
-    markdown.json               # Marker 设备、文字提取 worker；清洗固定内置
-    embedding.json              # Embedding profiles、活动配置、RPM/TPM 与凭据
-    embedding-verification.json # 多个配置指纹各自的连接验证记录
-  data/
-    research/research.sqlite3   # 共享模型服务配置等系统设置
-    research/downloads.sqlite3  # 共享下载设置
-    research/embedding-rate.sqlite3 # 跨进程 Embedding 限速
-    reference/                  # JCR、MeSH、Sci-Hub Bloom
-    prototype/state.json        # 全局 UI / 项目列表等历史快照状态
-  models/                       # 仅保留 Marker 本地模型
-  runtimes/                     # 本地运行时与测试浏览器
-  installers/                   # 保留的依赖安装材料
-  cache/                        # npm、Cargo、模型及应用缓存
-  logs/                         # 开发与应用级日志
-  tmp/                          # 临时文件、隔离测试目录
-  backups/                      # 历史迁移和修改前备份
-  workspace/                    # 默认工作目录，可在设置中改到其他位置
-  dist/                         # 前端构建结果与旧桌面包
-```
-
-模型密钥是本地配置，数据库/JSON 未统一做应用层加密；不要把这些文件的内容打印进日志或复制到交接文档。也不要默认 `.gitignore` 已覆盖所有敏感路径，尤其是 `config/embedding.json` 和用户工作目录。
-
-“文件保存在 app 内”是可配置资源的目标；操作系统 WebKit、Xcode 等系统组件不完全由应用控制，不能承诺操作系统绝不写入其他目录。
-
-### 项目文件：位于用户工作目录
-
-项目选择统一使用左上方下拉菜单，侧栏不再重复列出“我的项目”；侧栏可滚动，短窗口仍能访问任务中心。菜单中的“删除当前项目”展示删除范围与项目路径，确认后永久删除完整项目文件夹，不移入 `.trash`、不保留恢复备份；不影响其他项目、Zotero 或全局配置。运行中的检索/聊天持有存储锁，下载、转换、索引、综述及待启动流程未结束时拒绝删除；暂停下载须先取消。删除最后一个项目后进入可创建新项目的空白页。已删除项目 ID 留有记录，旧请求不能重新创建该项目。删除中途失败可能已移除部分文件，应用会报告失败并允许处理占用后重试，不能将其视为完整恢复。
-
-```text
-<workspace>/<ProjectFolder>/
-  project.json
-  literature_without_pdf.txt   # 当前集合缺失有效 PDF 的 PMID
-  literature_pdf_sources.txt   # 当前集合全部有效 PDF 的来源汇总与逐篇清单
-  pubmed/
-    current.xml                 # 当前有效文献集合的派生 XML
-    queries/                    # 单条检索式执行结果与历史
-    snapshots/                  # 合并集合快照清单
-    objects/                    # 按内容哈希共享的 .xml.gz（查询/合并快照共用）
-    exports/
-  pdf/<PMID>.pdf
-  pdf/redundant/<PMID>.pdf       # 移出当前集合的 PDF
-  abstracts/<PMID>.md           # PubMed 摘要，不冒充全文
-  markdown/<PMID>.md            # 清洗后全文
-  markdown/raw/<PMID>.md        # Marker 原稿
-  markdown/assets/<PMID>/
-  vectors/
-    chunks.sqlite3              # 文本块、文档版本、Embedding 缓存与索引登记
-    exports/                    # 用户按需导出的逐篇完整 JSONL
-    chunks/                     # 旧版自动 JSONL；可无损压缩为 .jsonl.gz
-    sources/                    # 文本版本快照
-  metadata/
-    research.sqlite3            # 本项目检索式、文献成员关系、助手对话
-    downloads.sqlite3           # 本项目批次、尝试日志、来源缓存、文件登记
-    markdown/<PMID>.json         # 转换指纹与清洗记录
-    corpus-membership.json      # 成员关系及生命周期编号
-  logs/<task-id>/                # 下载 / 转换 / 索引报告
-  review/<ReviewName>/           # 当前真实综述工作区，见下一节
-  reader/                       # 单篇对话、共享 gzip 全文快照与阅读位置
-  notes/                        # 阅读与笔记页的手写笔记
-  qa/                           # 真实问答对话、逐轮证据、任务与导出
-  packages/current-literature.zip
-```
-
-`pubmed/current.xml` 是下游判断有效 PMID 的依据，但它由检索数据库导出；**不要通过手工删 XML 来代替在工作台归档/停用检索式**。同一 PMID 只要仍被其他启用来源纳入，就留在当前集合。
-
-### 新项目的自动节省空间
-
-以下优化直接用于正常写入，新建项目无需清理命令或额外开关；旧项目后续新产物也使用同样规则，既有文件无需批量迁移：
-
-- **日志**：综述/问答的冻结输入、模型请求、返回及问答推理日志直接保存为 `.gz`；下载批次的 JSON/TXT 报告也直接压缩。界面照常显示报告，显式用外部程序打开下载报告时才按需导出普通 TXT。运行状态、重试检查点及正在追加的 `worker.log` 仍使用原格式；旧版明文记录兼容读取。压缩不删减模型输入或历史内容。
-- **XML**：查询原始结果、抓取批次与合并集合按原始字节 SHA-256 共享 `pubmed/objects/<hash>.xml.gz`；历史清单和来源关系独立保留，相同内容不因再次检索或切换筛选而重复存储。`current.xml` 和用户导出仍是普通 XML。导出/恢复时解压校验，兼容旧版快照。内容不同的 XML 分别压缩，不进行语义合并；SQLite 的成员关系和历史记录不变。
-- **图片**：生成向量图片快照时，在 macOS/APFS 上使用写时复制，共享 Markdown 图片的底层磁盘块；两个路径仍是独立文件，编辑或删除原图不会破坏旧快照。共享快照不重复写入，同卷的应用内项目迁移也优先保留共享块。其他系统/磁盘不支持时退回独立复制，保留完整证据。文件大小相加仍可能显示两份逻辑大小，实际磁盘占用由文件系统共享，普通复制或打包也不保证保留这种共享。
-- **稿件与导出**：已保存稿件共享压缩图片；HTML 在单个文件内共享图片和证据；完整 JSONL 仅在用户显式导出时生成。详见第 6 节。
-
-### 文件生命周期与“最新”
-
-- 移出当前 XML：PDF 移到 `pdf/redundant/`，Markdown 清洗稿、原稿、图片、历史和转换记录先校验备份到 `archive/markdown/<PMID>/`，再移除活动文件；摘要、文本块和向量索引清除。仍被其他启用来源命中的文献不受影响。
-- 重新纳入：先恢复通过校验的冗余 PDF；PDF 内容、转换来源、原稿和清洗规则都匹配时恢复 Markdown，向量索引重新建立。备份缺失或不兼容时仍需转换。显式清空不会被旧备份自动撤销；生命周期编号继续阻止旧任务写回。
-- 以内容 SHA-256、模型/清洗/拆分/输入模板签名判断是否最新，不仅看文件时间戳。
-- 用户替换 PDF 后，Markdown/索引应失效；用户编辑清洗稿时保留编辑，并使索引失效；只改 worker 数不使已有 Markdown 失效。
-- 有 PDF 但对应 Markdown 未就绪时，索引等待转换，不使用旧全文伪装最新。
-- 无 PDF 时，向量数据可直接读取 XML 摘要；磁盘上是否存在 `abstracts/<PMID>.md` 不是能否使用摘要的唯一依据。
-- 获取阶段“摘要替代且最新”要求有实际下载尝试和失败/延期记录，并有可用摘要。当前有效 PDF 的 `pdfState` 仍按文件是否通过校验判断；用户删除此前成功的 PDF 不会直接被视为下载失败。
-- 手工放入 `pdf/<PMID>.pdf` 后，点击“获取 PDF → 更新”：校验文件、登记本地来源、刷新派生状态；该操作不发起下载或 Marker 转换。文件名映射由用户负责，PDF 可读性校验不等于内容确实属于该 PMID。
-- 清空 PDF / 摘要是显式调试操作，不用于日常刷新。打包只收录当前 XML 对应文件，新包成功后替换旧包。
-
-## 5. 各阶段的当前行为
-
-### 检索、聊天与参考数据
-
-2026-10-01：Zotero 导入改为可搜索的文件夹树和右侧范围预览，支持跨分支多选。父文件夹自动包含全部子文件夹，重叠范围及标准条目去重；一次多选保存为一个来源快照，报告保留所选文件夹完整路径。再次打开恢复本项目上次选择与展开状态；选择改变后需重新预览。
-
-2026-09-30 新增 **文献来源 → 导入自 Zotero**，原“检索式管理”改名为“文献来源”；移除 XML 上传和手动关联 PDF 的界面入口，已有 XML 来源仍可读取、停用与归档。
-
-- 只读 Zotero localhost API 的个人文献库，选择集合后递归读取全部子集合，按条目 key 去重。预览保存标准条目快照；没有有效 DOI 的条目跳过并记录。
-- DOI 每 50 个一批，以带引号的 `"DOI"[aid]` OR 检索；随后批量 EFetch XML，再与文献自身 DOI 精确核对。引用列表中的 DOI 不参与匹配。无匹配、歧义和请求失败分开记录；歧义条目不自动纳入或绑定 PDF。
-- 每次导入创建一个独立 Zotero 来源快照，不生成可执行的 PMID 检索式，不提供更新/重新检索按钮。重复 PMID 在文献库去重，但保留全部来源；来源支持改名、停用和归档。
-- Zotero 来源不继承日期、目标数量、JCR 或“必须有摘要”筛选，也不参与统一筛选设置。
-- 只读取本次选中条目的附件；复用现有标题白名单、补充材料排除和优先级，**不限制 linkMode 或附件 HTTP URL**。校验可读本地 PDF 后复制为 `pdf/<PMID>.pdf`，保留 Zotero 原文件；已有项目 PDF 不覆盖。原下载流程的末轮 Zotero 补救仍沿用其旧规则。
-- 后台任务离开页面仍继续；文献来源与任务中心均可查看进度、取消和逐条报告。提交前取消不创建来源；提交后取消保留已存元数据及 PDF。快照、PubMed 批次 XML 和报告位于 `metadata/zotero-imports/<任务ID>/`。
-- 验证：Rust 22 项、Zotero Python 44 项、项目任务 Python 12 项及隔离界面验收通过。真实 PubMed 使用 PrimaryMN 的 253 个 DOI，6 批全部映射到预期 PMID；第二次导入新增来源且复用 PDF，原 PrimaryMN XML 未改变。脚本：`scripts/test-zotero-import-live.py`（隔离 Zotero 模拟服务 + 真实 PubMed）、`scripts/test-zotero-import-ui.mjs`；真实 Zotero 库的端到端导入尚需启用本地 API 后使用。
-
-检索式通过“＋”直接新增表格行，包含标题、简写检索式、排序、数量、日期、JCR 和执行状态；双击可编辑详情。默认相关性、30 条，日期和 JCR 为空。JCR 是取得 PubMed 结果后的本地筛选，不是 PubMed 字段。
-
-目标数量指有摘要且符合 JCR 条件的文献数；探索检索先取最多 9,999 个候选 PMID，再分批筛选至目标数量。PubMed 当前将 10,000 条请求截为 9,999 条，因此候选请求、数量校验与全量检索日期分区使用同一 9,999 条边界。达到候选上限时明确提示；真正缺失、重复或无效的 PMID 仍阻止提交并保留旧结果。已有成功检索、综述和问答不会因此统一失效。
-
-检索助手只负责设计检索式、使用本地 MeSH 核验，不自动探测 PubMed 命中数。用户确认加入管理页后再明确执行。聊天 Enter 换行，macOS Cmd+Enter / Windows Ctrl+Enter 发送；仅消息区域滚动。只展示服务实际返回的推理内容，可展开/收起，生成结束自动折叠。
-
-JCR 默认文件来自 BADR 的本地副本，上传通过列名与记录校验才激活。MeSH 使用 NLM 官方压缩 XML 批量源建立 SQLite 索引，包含主题词、限定词及可选 SCR；应用运行期间定期检查更新，不安装应用关闭后仍运行的系统任务。详见 [检索工作台](docs/SEARCH_WORKBENCH.md)，其中旧存储路径和“未接入模块”段落需按本文理解。
-
-### PDF 下载
-
-当前顺序：**有效本地 PDF / 冗余恢复 → PMC S3 + Europe PMC getPdf 双路并行 → 历史来源缓存 / Sci-Hub Bloom 首轮 → Unpaywall → Sci-Hub 补救轮 → 可选增强补救 → Zotero 本地补充**。增强补救位于设置中，默认关闭；Zotero 始终在全部网络来源之后，不受 Fast OA / 增强补救开关影响。
-
-- **2026-09-21：正式 Sci-Hub 传输改为后台 Playwright Chromium**，不再使用 `curl_cffi.AsyncSession`。`scihub_retry.py` 保留队列、Bloom、历史缓存、镜像互斥、两轮与预算；`scihub_browser.py/.mjs` 负责 Python/Node 通信和真实页面导航、渲染 DOM、原生下载/浏览器响应。Sci-Net 仍按最终文件主机独立标注；PMC S3、Unpaywall、Europe PMC、Zotero 的访问客户端不变。
-- 浏览器按批次延迟启动、重复使用；每篇每轮独立临时 context，同篇文章页与文件共享 Cookie；仅经过 Altcha 验证的同站点 Cookie 可在当前批次内跨篇复用，批次退出即丢弃，不持久化登录。状态/设置查询不启动浏览器。运行时要求项目内 Node、`node_modules/@playwright/test` 及匹配的 `runtimes/playwright` Chromium；缺失或崩溃明确报错，不回退 HTTP。保持 TLS 校验；支持有界 Altcha 工作量证明协议，不提供人工验证码界面、图像识别或其他挑战的自动处理。
-- 页面导航、DOM 等待、完整响应体和原生下载都计入 12 秒入口 / 30 秒文件与每轮 75 秒实际请求预算。取消/暂停关闭 context，批次结束回收 sidecar/Chromium/临时文件；异常退出与宿主退出有清理路径。自动脚本子请求另行计数，嵌入 PDF/文件子请求受阻止后由原文件调度器显式下载。发布前复查当前 DOI、集合生命周期、任务控制和目标文件指纹，避免覆盖后来补入的 PDF。
-- **2026-09-29：PMC 双路并行。** 仅处理已有有效 PMCID 的文献，不再按 PMID 补查。S3 按 PMCID 数字正序（默认并发 5），Europe PMC `https://europepmc.org/api/getPdf?pmcid=PMC编号` 按倒序（默认并发 4）；共享任务状态、同篇独占、成功跳过、失败互补。getPdf 默认单次总时限 60 秒、最多 3 次尝试，限流共享冷却；不需要开启增强补救。暂停/继续保留已完成来源和请求预算，报告单独统计双路墙钟耗时。
-- PMC S3 根据 PMCID 找版本，读取官方版本 JSON 的 `pdf_url`，核对 PMID/PMCID，不用补充材料 PDF 凑正文；校验后以 PMID 命名。
-- Bloom 命中不是下载成功保证；未命中也不代表永远无法获取。报告区分“找到入口/文件”“实际下载成功”“失败/延期”。
-- 同一镜像入口同时最多一个请求，不同镜像可并行；镜像锁跨本应用的项目进程共享。
-- 各轮尽量遍历可用镜像，但受请求预算、锁等待、退避及取消限制，**不能宣称每篇每轮一定尝试完所有镜像**。
-- 下载后校验 PDF 签名、页数、可用校验和，再原子发布。Sci-Hub / Sci-Net 另做 DOI 或完整标题身份检查；明确错档继续其他候选，证据不足/扫描件保留到 `logs/<batch>/identity_pending/<PMID>/`，不计下载成功、不进入正式 `pdf/` 或自动转换/索引。已有本地文件与其他来源的规则不变。按批次保留 TXT / JSON / JSONL 报告。
-- Sci-Hub 解析完整候选列表，跳过 `data:` 等占位地址；404/410 才触发同主机有限分片补救，最多额外刷新入口两次。每镜像仍是一次已记账的访问机会，内部重放/刷新均计入预算，暂停恢复不重置；429/Retry-After 不提前重试。没有加入实验 CDN。
-- Altcha 由独立 `scihub_altcha.py` 模块处理：挑战 GET/提交 POST 通过当前 Chromium 页面显式 `fetch`，文章与 PDF 仍是页面导航/浏览器下载；同站点验证全过程持有原入口锁，不回退 curl。算法、工作量、时间和响应大小均有上限；取消可终止。身份检查在可终止辅助进程中复用原 PDF 校验，并在发布前核对同一暂存文件指纹。
-- 下载批次结束以及“获取 PDF → 检查本地文件”完成后，原子覆盖项目根目录的 `literature_without_pdf.txt`：按当前 XML 列出缺少有效 PDF 的 PMID，每行一个、按数值排序；全文齐全时保留空文件。损坏 PDF 计入缺失，移出 XML 的文献不列入；日志目录内同名文件继续保留批次语义。
-- 同时更新项目根目录的 `literature_pdf_sources.txt`：列出当前集合所有有效 PDF（不限于本批下载）的 PMID、相对文件名、具体来源，并汇总各来源数量。保留 Sci-Hub、Sci-Net、Zotero、PMC S3、Unpaywall、Europe PMC、用户提供/关联等来源；来源须对应当前文件的 SHA-256，无法确认时明确标记未知。替换文件不沿用旧来源，冗余备份/损坏/缺失文件不计入；无有效 PDF 时覆盖为总数 0 的报告。
-- 文献库的“下载”独立运行下载；主流程按钮接续下载、转换与索引。“更新”只检查本地文件，“执行转化”启动 Marker。
-
-- Zotero 本地地址在“设置 → PDF 下载”中配置，默认 `localhost:23119`（旧配置兼容），留空跳过；自动补齐协议/API 路径，只连本机且绕过环境代理。只读个人库元数据和本机附件，不启动 Zotero、不修改库/设置、不同步/下载、不访问附件原始网址、不读库数据库。
-- 以当前 PubMed DOI 精确匹配全部重复父条目，完整分页后合并附件；仅放行 PDF + `imported_url` + 附件自身 HTTP(S) URL + 精确标题白名单。未知标题绝不兜底。规则正式资源为 `services/downloader/resources/zotero-pdf-title-list.v2.json`；排除明确补充材料/目录标记，按优先级、实际大小、完全并列随机选择，记录附件 key 与稿件类型。
-- 2026-09-21 白名单 v2 保留 v1 全部条目与优先级，仅新增附件标题 `PDF.pdf`，优先级 600（最低，在 Preprint PDF 的 510 之后），稿件类型为 unspecified-pdf。匹配的是附件标题，不是磁盘文件名；其他 DOI、URL、导入类型、排除补充材料与 PDF 校验条件继续适用。
-- Zotero 探测 2 秒、请求 3 秒、每 DOI 15 秒、整个阶段 60 秒，最多 2 个可终止辅助进程，内部预留清理时间。文件复制/哈希/解析/发布均纳入预算，超时或取消杀掉辅助进程并清理 staging；发布复用同一暂存文件的校验并复查生命周期，避免再次无界解析。不可用/无匹配只跳过，保留原有失败/延期语义，两份缺失清单与下游接续使用最终结果。
-- 本机真实 Local API 只读探测返回 403，未启用或更改设置；成功复制、分页、异常、取消及独立下载 worker 均用 `tmp/` 隔离 fixture 验证。Windows/Linux 的对应分支尚未实机验证，详见下载文档。
-
-浏览器专项与真实应用入口隔离验证：`test_scihub_browser.py`、`scripts/test-scihub-browser-integration.py`；38 篇调度回归 `scripts/test-scheduler-http.py` 现使用真实 Chromium（OA 部分仍用 httpx）。
-
-详细来源、镜像锁及超时行为见 [PDF 下载](docs/PDF_DOWNLOADS.md)。运行时使用应用内的 `badr_sources.py`，不依赖原 BADR 目录继续存在。
-
-### Marker 与清洗
-
-单批次串行处理论文，**整批复用一套模型**；worker 是 pdftext 页级文字提取进程数，不是同时转换的论文数。默认自动：少于 40 页用 1，40 页及以上用 4；实际数量受页数约束。模型在本地，转换禁止网络，不调用 LLM。
-
-沿用 BADR 的非 OCR 模式（`disable_ocr=True`）；扫描 PDF 可能失败。保留 `markdown/raw/` 原稿，清洗可重做。参考文献清洗固定内置，不提供策略选项或关闭开关。当前仅清洗参考文献（包括明确标注的本文引用格式），不删除短段、标题、图注、列表或页眉页脚。详见 [Markdown](docs/MARKDOWN.md) 和 [图表关联证据](docs/positional-evidence-resources.md)。
-
-### 分块、Embedding 与索引
-
-当前 splitter：`paragraph-period-balanced-8192-alltext-resources-v3`。
-
-1. 空行分段，不合并短段、不添加 overlap。
-2. 段落超过 **8192 个 Python Unicode 字符**，选择靠近中点的英文句号 `.` 二分，仍超长则继续二分。
-3. 小数点不作为优先句界；无合适句号时按字符中点拆分。
-4. 所有非空短块保留；分类 metadata 不改变原文块。召回时排除少于 100 字符的 heading，长 heading、短正文和图注保留。
-
-Embedding 输入仅为 chunk 原文，模板版本为 `chunk-body-only-v2`；论文标题和章节路径只保存在 metadata 中，不拼入向量、关键词排名输入。旧的带标题向量使用不同索引版本，须重新建立索引，不能直接复用。**字符数不是 token 数**；模型拒绝超长输入时明确报错，不静默截断。文本块浏览器展示 PMID、原文、行号/上下文、metadata。完整图表独立保存，按同一份清洗稿的位置关联到文本块；召回后补入问答和综述材料。
-
-`vectors/chunks.sqlite3` 中的 Embedding 缓存是唯一的向量存储（2026-10-04 起不再使用 Chroma）；`indexed` 登记表示某篇文献的全部块都已有当前模型的向量。综述 API 召回直接对缓存做余弦排序，不要求所有文献都已登记为最新。遇到“生成缺失 API 向量”时，应检查模型身份、输入哈希、模板/文本版本和摘要块是否已有缓存，不能仅凭缺失数量断言为无 PDF 文献。
-
-索引和浏览不再自动保存每篇完整 JSONL，避免在每个块上重复写入摘要等文章级 metadata；数据库及界面仍保留完整 metadata。“导出 JSONL”按需写入 `vectors/exports/<PMID>.jsonl`，格式不变。已有 `vectors/chunks/` 副本不会因升级自动删除，可通过下述无损压缩命令保留为 `.jsonl.gz`。
-
-Embedding 的批量、并发、RPM/TPM 均保存到各自服务商配置，切换配置不会覆盖其他配置。新建配置可选择不含密钥的 siliconflow（`Pro/BAAI/bge-m3`，32 / 4 / 1800 / 450000）或 jina（`jina-embeddings-v5-text-nano`，32 / 2 / 100 / 100000）预设；数字依次为每批文本数、并发、RPM、TPM。预设均开启自动速度，批量与并发变灰且不作为自动调度上限；调度还参考延迟、限流和网络失败。手动新建的通用默认配额 60 RPM / 120000 估算 TPM 是应用值，不代表供应商账号配额；429 遵循 Retry-After。
-
-Jina 文献与查询分别使用 `retrieval.passage` / `retrieval.query`，不静默截断；协议签名单独隔离旧 Jina 向量，不改变 siliconflow 等既有缓存身份。Embedding 请求和模型列表遵循本机 HTTP(S) 代理与绕过规则，本机接口直连。验证绑定实际服务配置、协议与凭据指纹，修改后需重新验证。LLM 与 Embedding 密钥眼睛按钮点击显示、再次点击遮蔽，不因查看而改写已保存密钥。详见 [向量化](docs/VECTORIZATION.md)。
-
-## 6. 综述生成：实现与文件协议
-
-### 工作台布局
-
-综述工作区使用紧凑标题栏和大纲/撰写标签。已有大纲时默认收起生成设置；大纲浏览支持分支折叠，编辑时展示完整层级。撰写参数集中在“撰写设置”；主按钮随准备/撰写状态变化，重新准备、全部重写和重置位于更多菜单。目录可收起、调宽，正文和引用独立滚动；点击正文引文展开对应原文，窄窗口采用可关闭的证据抽屉。全文完成度与本次任务进度分开显示，生成、缓存签名和导出协议保持不变。
-
-检索助手不设单条输入字符上限，并发送当前对话分支的全部有效历史消息；文献问答和单篇全文对话也不设问题字符上限。模型服务的上下文限制和错误仍按原方式处理，其他参数限制不变。
-
-### 大纲与写作单元
-
-大纲输入为综述主题、可折叠额外要求、BADR 提示词和当前 XML 的摘要合集。保存完整 `prompt.txt` 供用户手动发送给其他 LLM。生成有活动状态、可取消；失败不覆盖原大纲。
-
-CSV 为序号/标题两列，校验父子关系、顺序、同级连续编号等，不设标题数量、单标题字符数或 CSV／响应总字符数上限，也不限制深度。稳定节点 ID 与显示编号分离。
-
-`review_writing.tree_units()` 沿用 BADR 的混合深度装配思路：同一父节点的直接子节点全部为叶节点时可组成一个单元；同层深浅混合时独立叶节点单独处理。必须保证每个叶节点恰好属于一个单元。**写作单元数不等于叶节点数，也不等于大纲总行数。**
-
-### 第一步：准备综述提示词
-
-1. 对终末标题原文召回已有块，不改变 chunking。
-2. 实际召回数 = 写作页 `topK`；不足时不重复填满。
-3. 只使用当前已验证的 Embedding 配置，不加载本地重排模型。
-4. 按单元生成 `review_parts/prompt_section_<编号>.json`：每个标题独立检索，同一写作单元共享去重后的文本池与图表池，检索来源保留为记录。图表内容保存在 `review_parts/resources/`；正文预览、综述引用图片和稿件导出均优先读取这份独立快照，清空活动向量索引不影响历史综述显示。图片确实丢失或损坏时显示局部提示，保留其余正文及引文；同名 TXT 为阅读预览。
-5. 只准备材料，不调用写作 LLM。`prompts/<稳定ID>.json` 保存证据、计划和文件哈希，用于恢复与失效判断。
-
-写作不设应用侧字符预算，保持同级终末标题联合撰写，不自动拆分节点，也不截断材料；输入过长时由模型服务返回错误。改成更强的写作模型不等于一定需要重做召回；应根据输入签名判断。
-
-### 第二步：生成综述
-
-读取 JSON 材料包，校验结构、关联关系及外置文件哈希，补入完整表格与勾选支持图片输入的模型所需图片后发送，**不再次召回或重排**。按用户并发运行，接收 SSE 正文和实际推理活动；超时按连续无新数据计算。
-
-模型输出 JSON，正文引用使用 `[E1]` 或 `[R1]`。程序校验节点覆盖、标题和当前单元证据 ID，将合法引用转换为 PMID，并保存原始引用映射。结构或引用失败时使用同一完整共享池联合修复一次，仍失败不发布。不是所有 JSON/网络错误都自动重试。应用里：
-
-- **生成 / 继续撰写综述**：保留结构完整且正式文件与内部记录一致的正文，只补缺失或未完成单元；更换厂商、模型、思考强度后不自动重写旧正文。
-- **重试失败项**：重新计算缺失或未完成单元，包括失败、取消和待处理项；已有完整正文保留，即使最近一次主动重写失败。
-- **重新生成此单元**：显式重写选中单元。
-- 批次进度按已结束任务计数，成功/失败/进行中/待处理/取消独立展示。100% 已处理不等于全部成功。
-- `logs/<run>/result.json` 保留每轮状态及错误，避免下轮覆盖 `writing-job.json` 后失去失败原因。
-- 文件、源文献或配置在任务中变动时，不能发布与当前输入不一致的结果。
-
-正文模型的图片输入签名只关注当前所选模型，不因其他模型的图片开关变化而失效；旧签名按可精确验证的兼容规则读取，不重写既有稿件。模型、思考强度或材料确实变化时仍记录设置差异，但不将已有完整正文算成缺失，也不授权自动覆盖；只有主动选择“重写本组章节”或“全部重新撰写”才替换已有正文。材料、大纲及发布前校验保持有效；混合模型的完整正文也会自动保存为完整稿件。详见 [综述工作区](docs/REVIEW_OUTLINES.md)。
-
-### 公共片段格式与导出
-
-`review_parts/section_<编号>.json` 的新格式为 `review-unit-object-refs-v3`，包含 `unit_id`、`sections`、`citation_validation`、`citation_scopes`、`evidencePool`、`resources`、`retrieval`、`markdown_content`。每个 section 保留原始 `sourceBlocks`、绑定资源的 `blocks`、兼容文本 `sourceMarkdown` / `markdown`、`citationRefs` 和协议版本。同处连续引文按 PMID 去重展示，内部证据 ID 全部保留。对外节点编号仍为大纲编号。
-
-同一单元的终末子标题可以使用整个共享池；父标题导语不引用。检索来源不再作为排他性引用权限。旧 BADR 风格片段仍可读取，但不会标记为新格式最新结果。图表仅作材料时不自动进入正文；模型可选择完整资源块，也可生成摘取/合并后的带引文结构表格。原表与生成表共用编号序列，图片单独编号；正文通过 `{{ref:R1}}` / `{{ref:T1}}` 引用，由程序装配编号与跳转。确定性校验检查对象存在、表格行列及每行证据 ID，不调用 LLM 做语义后验证。详见 [正文图表与引用展示](docs/review-resource-blocks.md) 和 [共享写作材料包](docs/review-shared-pool.md)。
-
-HTML 为离线阅读页面：低饱和深绿工具栏、连续正文、可折叠目录与当前章节定位、阅读进度；引用详情默认收起，点击 PMID 后按小节展开对应素材。窄屏使用可关闭侧栏，支持键盘操作；打印 / PDF 隐藏阅读控件。CSS 与脚本内嵌，打开页面无需联网。新导出的引用详情包含共享正文、完整关联表格与内嵌图片；表格使用安全的 Markdown/HTML 渲染。旧字符串素材继续兼容。Word 通过 python-docx 生成。装配按完整大纲顺序，不按异步完成顺序，组织标题也保留。`citation_validation.passed` **仅代表格式/范围检查通过，不是论断已被科学证据证明**。
-
-已保存稿件的内部 `document.json` 使用 `manuscript-shared-images-v1` 存储格式：相同图片在本综述工作区的 `manuscripts/assets/` 中只保存一份无损压缩的 data URL，读取时校验哈希并还原。稿件 ID、正文、引用、图片字节及原有输入签名不变；旧版内嵌图片 JSON 仍可直接读取。复制稿件归档时须包含整个 `manuscripts/` 目录，重置当前撰写不会删除其中的资源。**HTML 导出仍是包含所有图片、样式和脚本的单个文件，可以单独移动到其他位置离线阅读**，不会引用内部资源文件。
-
-HTML 内部采用 `offline-evidence-pool-v1`：相同图片、完整资源及证据片段各保存一份，章节/PMID 只保存对应列表。正文图片与引用详情共用同一内嵌图片，打开时由内嵌脚本还原显示，无外部文件、网络请求或画质损失。同一 PMID 在不同章节的证据范围、各次引用及正文展示位置仍独立保留；这是存储去重，不删正文引文。
-
-已有项目的内部重复数据可显式无损压缩（默认只读估算；`--apply` 才修改，并持有存储/综述/文献锁）：
-
-```sh
-runtimes/downloader/bin/python scripts/compact-project-storage.py
-runtimes/downloader/bin/python scripts/compact-project-storage.py --apply
-# 同时处理已导出的正式 HTML（仍为可独立移动的单文件）：
-runtimes/downloader/bin/python scripts/compact-project-storage.py --html
-runtimes/downloader/bin/python scripts/compact-project-storage.py --html --apply
-# 可用 --project <项目ID> 限定项目，--root <隔离根目录> 指定测试环境。
-```
-
-压缩默认仅迁移已保存稿件图片、压缩旧版自动 JSONL；只有显式添加 `--html` 才处理现有 HTML，并仅迁移已识别的正式阅读器格式，跳过早期原型或自定义阅读器。逐文件校验还原内容后原子发布，可中断后重跑；HTML 的正文、标题、引用关系、图片、样式及原导出时间均保留。不修改 PDF、问答、向量数据库、提示词材料包或运行历史，不触发下载、Embedding 或 LLM。活动任务持锁时拒绝执行；不要手工删除 `manuscripts/assets/`。
-
-### 工作区布局和外部文件修改
-
-```text
-review/<ReviewName>/
-  review.json                    # 名称、描述、迁移记录
-  outline-state.json             # 主题、要求、修订与生成状态
-  outline.csv / generated.csv    # 当前大纲 / 最初生成稿（恢复默认）
-  nodes.json                     # 稳定节点 ID
-  source.xml / abstracts.txt     # 大纲生成来源快照
-  prompt.txt / prompt.json       # 大纲完整提示词
-  response.txt                   # 大纲模型原始返回
-  writing-settings.json
-  writing-job.json               # 当前/最近批次状态
-  retrieval/<leaf-id>.json       # 各终末小节选中的块、分数与检索参数
-  prompts/<unit-id>.json         # 准备计划、文件哈希和证据
-  review_parts/
-    prompt_section_*.json         # 正式共享材料包
-    prompt_section_*.txt          # 自动生成的阅读预览
-    resources/                   # 按内容哈希保存的表格与图片
-    section_*.json               # 公共综述片段
-  sections/<unit-id>.json         # 内部正文、完整 metadata、签名、模型与任务信息
-  manuscripts/<稿件ID>/document.json # 已保存稿件，读取后内容哈希与稿件 ID 一致
-  manuscripts/assets/            # 各已保存稿件共享的不可变图片（无损压缩）
-  logs/<run-id>/
-    input.json.gz                # 无损压缩的冻结输入和任务列表
-    result.json                  # 本轮结果/错误；早期历史运行不一定有
-    *.prompt.json.gz / *.response.txt.gz
-    *.repair.prompt.json.gz / *.repair.response.txt.gz
-    worker.log
-  exports/                       # md / html / docx 静态导出
-  audit/                         # 实际综述审查报告
-```
-
-公共片段被删除后，`saved_unit()` 不从内部 `sections/` 缓存复活正文；公共文件若与内部记录不一致，也不能直接认定为已验证结果。删除/修改正式 JSON 或资源文件会使准备状态失效；TXT 预览不参与判断。撰写页空闲可见时约 2.5 秒检查一次，运行中约 1.2 秒；实际延迟还受 RPC 耗时影响。当前已打开正文和预览也会刷新。
-
-这是文件变动检测，**不是对任意外部编辑文件的自动导入**。已导出的 HTML/Word 是静态快照，文件变化后需重新导出。不要删私有 sidecar 来“清缓存”，否则会失去继续编辑、证据追踪与签名信息。
-
-## 7. 验证与工作方式
-
-先检查现有任务和所选工作目录，再做改动。测试优先使用 `tmp/` 下隔离项目、本机模拟 LLM/Embedding 服务；不要为了验证状态管理批量重新下载、转换或调用用户真实模型。
-
-### 常用检查命令
-
-```sh
-./scripts/npm-local.sh run build
-
-./scripts/cargo-local.sh test \
-  --manifest-path apps/desktop/src-tauri/Cargo.toml --bin research-cli
-
-# 综述、大纲、BADR 片段格式
-runtimes/downloader/bin/python -m unittest discover \
-  -s services/downloader/tests -p 'test_review*.py'
-
-# 文件状态、摘要替代、用户补充 PDF
-runtimes/downloader/bin/python -m unittest discover \
-  -s services/downloader/tests -p 'test_artifact_state.py'
-
-# 按本次改动选择 test_vectors.py / test_corpus_markdown.py / test_downloads.py 等
-# 全部 downloader 测试入口：
-runtimes/downloader/bin/python -m unittest discover -s services/downloader/tests
-
-# 真实 Rust RPC + 独立 worker + 本机模拟 API，临时项目隔离
-runtimes/downloader/bin/python scripts/test-review-writing-integration.py
-
-# 已启动 Vite 开发服务后：
-PLAYWRIGHT_BROWSERS_PATH="$PWD/runtimes/playwright" TMPDIR="$PWD/tmp" \
-  runtimes/node/bin/node scripts/test-review-progress-library-ui.mjs
-```
-
-2026-10-04 的基线：downloader 全量单元测试 507 项、Rust `research-cli` 测试 27 项全部通过；`test-review-writing-integration.py`、`test-qa-mini-review-integration.py`、`test-vectors-integration.py`、`test-library-pipeline.py`、`test-project-deletion.py` 通过；前端构建通过，仍有 Vite bundle 体积提示。
-
-`scripts/test-review-progress-library-ui.mjs` 读取本机 `gut/test1`，拦截写操作和部分状态；它依赖现有项目快照，不是空白安装通用测试。文档中的成功记录不替代未来改动后的对应验证。
-
-以下测试应按需要单独选择：
-
-| 测试 | 范围 / 注意点 |
-| --- | --- |
-| `scripts/test-review-integration.py` | 大纲与工作区 |
-| `scripts/test-review-writing-integration.py` | 独立 worker、两步写作、重试、文件缺失、取消、导出 |
-| `scripts/test-review-reader-ui.mjs` | 离线 HTML 目录、引用作用域、窄屏侧栏、键盘操作、打印与无外部请求 |
-| `scripts/test-vectors-integration.py` | 索引任务与 SQLite 向量召回 |
-| `scripts/test-markdown-corpus.py` | XML 变化、PDF 归档恢复与派生文件 |
-| `scripts/test-literature-workflow.py` | 实际 Marker 流程，不是轻量检查 |
-| `scripts/test-pubmed-live.py`、`test-download-live.py`、`test-source-cache-live.py` | 会访问真实外网，不是离线回归 |
-| `scripts/test-workbench-ui.mjs` 等 | 需要开发服务和测试浏览器，读取各脚本说明 |
-| `scripts/visual-check.mjs` | 早期原型截图脚本，会切换并保存真实主题设置，可能不适用于当前页面 |
-
-修改分块、Embedding 输入、检索策略或提示词协议时，检查对应签名/版本与缓存失效逻辑。不要只改 UI 而不改实际请求，也不要用演示数据补足真实失败结果。文件删除、外部替换、取消后继续及混合层级大纲都是关键回归场景。
-
-## 8. BADR 参考与进一步阅读
-
-本机参考源码：
-
-```text
-/Users/yuxin/AI_developing/BADR专业/BADR_重构0603_fetchpaper版
-```
-
-用户提供的 BADR 产物样例：
-
-```text
-/Users/yuxin/Documents/PubmedResearch/content/zmj0606/prompt.txt
-/Users/yuxin/Documents/PubmedResearch/content/zmj0606/review_parts_cn/prompt_section_1.txt
-/Users/yuxin/Documents/PubmedResearch/content/zmj0606/review_parts_cn/section_1.json
-/Users/yuxin/Documents/PubmedResearch/content/zmj0606/review_parts_cn/zmj0606_Review.html
-```
-
-参考对象包括 PubMed 接口、JCR 校验、下载来源、Marker 转换与清洗、大纲提示词、混合层级写作单元、片段 JSON、HTML/Word 装配。它们是参考资料，不是应用运行时依赖；也不要从 BADR 复制凭据。原始长提示词无需每次整份加载，先看格式和代码。
-
-| 文档 | 用途 |
-| --- | --- |
-| [DEVELOPMENT.md](docs/DEVELOPMENT.md) | 开发版启动与热更新 |
-| [PROJECT_STORAGE.md](docs/PROJECT_STORAGE.md) | 工作目录迁移与数据分离 |
-| [ARTIFACT_LIFECYCLE.md](docs/ARTIFACT_LIFECYCLE.md) | 内容指纹、归档、派生文件失效；PDF 摘要替代规则以本文更新为准 |
-| [MARKDOWN.md](docs/MARKDOWN.md) | Marker、worker、清洗与离线运行 |
-| [VECTORIZATION.md](docs/VECTORIZATION.md) | 分块、向量缓存与调试浏览器 |
-| [REVIEW_OUTLINES.md](docs/REVIEW_OUTLINES.md) | 大纲与两阶段写作；旧预算说明已被本文取代 |
-| [PDF_DOWNLOADS.md](docs/PDF_DOWNLOADS.md) | 下载队列、来源顺序、报告 |
-| [SEARCH_WORKBENCH.md](docs/SEARCH_WORKBENCH.md) | 检索/聊天/MeSH；含早期存储说明 |
-| [UI_DESIGN.md](docs/UI_DESIGN.md) | 视觉设计规范：配色、字体、布局、按钮、动效 |
-| [全流程复盘报告](docs/pipeline-run-20261004/REPORT.md) | 已知问题与改进建议 |
-| [清理规划](docs/cleanup-plan-20261004.md) | 已执行的清理与尚未决定的事项 |
-
-尚未完成的主要产品能力是问答真实研究问题质量评测与逐篇全面筛查、综述证据质量的进一步保障、跨平台安装/发行与 Windows 实机验证。下一次开发应依据用户的新指令选择范围，不自动启动这些全部工作。
+`main` 是主分支，新工作在分支中完成验证后合并。变更理由写入提交信息，不再新增按日期堆积的说明；已被现行文档取代的旧规划和实跑报告可从 Git 历史查阅。BADR 是历史设计参考，不是运行时依赖，也不应从中复制凭据。
