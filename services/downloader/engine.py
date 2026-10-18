@@ -1077,6 +1077,9 @@ def dispatch_rpc(action,a):
         return review_service.rpc(sys.modules[__name__],action.removeprefix('review.'),a)
     if action.startswith('storage.'):
         op=action.removeprefix('storage.')
+        if op=='bootstrap':return storage.bootstrap(ROOT)
+        if op=='select':
+            with storage.file_lock(ROOT/'config/catalog.lock'):return storage.select_workspace(ROOT,a['path'])
         if op=='initialize':storage.initialize(ROOT);return storage.status(ROOT)
         if op=='status':return storage.status(ROOT,a.get('project',''))
         if op=='register':

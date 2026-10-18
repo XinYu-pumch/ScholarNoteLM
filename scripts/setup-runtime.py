@@ -67,6 +67,8 @@ def preflight(root, fingerprint):
     for name in ['runtimes', 'models', 'cache', 'tmp', 'node_modules']:
         if (root / name).resolve() != root / name:
             raise ValueError(f'Refusing linked installation directory: {name}')
+    if int(platform.mac_ver()[0].split('.')[0] or 0) < 14:
+        raise ValueError('macOS 14 or later is required.')
     state_path = root / 'runtimes/install-state.json'
     state = json.loads(state_path.read_text()) if state_path.is_file() else None
     if state:
@@ -144,7 +146,7 @@ def install_python(root, uv):
                                   if not line.startswith('home = ')))
 
 
-def verify(root):
+def verify(root, require_models=True):
     for name in ['downloader', 'marker', 'retrieval']:
         prefix = ("import sys; from pathlib import Path; "
                   f"assert Path(sys.prefix).resolve() == (Path.cwd()/'runtimes/{name}').resolve(); "
@@ -158,11 +160,24 @@ def verify(root):
                     "assert Path(marker.models.__file__).resolve().is_relative_to(Path.cwd()/'services/marker/vendor'); "
                     "assert transformers.__version__ == '4.49.0'; print('Marker/vector imports OK')")
         run(root, root / 'runtimes' / name / 'bin/python', '-c', prefix + code)
-    for item in manifest(root):
-        if not matches(destination(root, item['path']), item):
-            raise ValueError(f'Missing or invalid asset: {item["path"]}')
+    missing = [item['path'] for item in manifest(root) if not matches(destination(root,item['path']),item)]
+    if missing and require_models:
+        raise ValueError('请从网盘取得匹配的 models 文件夹并放入安装目录。缺失或校验不符: '+', '.join(missing))
+    if missing:
+        print(f'环境安装完成；{len(missing)} 个模型文件待补齐。放入 models/ 后再次运行安装入口检查。',flush=True)
     run(root, root / 'runtimes/node/bin/node', '--version')
-    print('Environment and resource checks passed. No model API or user project was accessed.', flush=True)
+    node = root/'runtimes/node/bin/node'
+    run(root,node,'--input-type=module','-e',"import {createRequire} from 'node:module'; import fs from 'node:fs'; const r=createRequire(process.cwd()+'/services/downloader/scihub_browser.mjs'); const {chromium}=r('@playwright/test'); if(!fs.existsSync(chromium.executablePath()))throw Error('Chromium missing'); console.log('Browser runtime OK');")
+    print('Environment checks passed. No model API or user project was accessed.', flush=True)
+
+
+def installation_fingerprint(root):
+    import hashlib
+    locks = ['scripts/install/assets.json','scripts/install/marker-macos-arm64.lock',
+             'scripts/install/downloader-macos-arm64.lock','services/downloader/package-lock.json']
+    plan={'python':PYTHON,'node':NODE['sha256'],'rust':RUST,'rustup':RUSTUP['sha256'],
+          'locks':{name:digest(root/name) for name in locks}}
+    return hashlib.sha256(json.dumps(plan,sort_keys=True).encode()).hexdigest()
 
 
 def main():
@@ -172,28 +187,27 @@ def main():
     parser.add_argument('--uv', default=shutil.which('uv'), help='Path to uv (>=0.6.6)')
     parser.add_argument('--apply', action='store_true')
     parser.add_argument('--check', action='store_true', help='Read-only import and asset checks; no installation')
-    parser.add_argument('--without-dev-tools', action='store_true', help='Skip npm/Chromium/Rust; Python and Node still installed')
+    parser.add_argument('--dev-tools', action='store_true', help='Also install frontend and Rust build tools (requires Xcode CLT)')
     args = parser.parse_args()
     root = args.root.absolute()
     if root.resolve() != root:
         raise ValueError('Root must be a physical checkout path, not a symlink')
     if args.check:
         verify(root)
+        from release_manifest import check_app
+        check_app(root)
         return
-    locks = ['scripts/install/assets.json', 'scripts/install/marker-macos-arm64.lock',
-             'scripts/install/downloader-macos-arm64.lock', 'package-lock.json', 'scripts/setup-runtime.py']
-    import hashlib
-    fingerprint = hashlib.sha256(''.join(digest(root / name) for name in locks).encode()).hexdigest()
+    fingerprint = installation_fingerprint(root)
     state = preflight(root, fingerprint)
     print('Target:', root)
     print('Install: Python 3.12.9, pinned downloader/Marker dependencies, Node 20.19.0, verified model/font assets.')
-    print('Source: offline asset pack' if args.assets else 'Source: upstream URLs (may require the offline asset pack if unavailable)')
+    print('Resources: supplied asset pack' if args.assets else 'Resources: supply models/ separately; download the verified font only')
     if not args.apply:
         print('Preview only. Use --apply on this clean checkout to install.')
         return
     if not args.uv:
         raise ValueError('Install uv first: https://docs.astral.sh/uv/getting-started/installation/')
-    if not args.without_dev_tools:
+    if args.dev_tools:
         subprocess.run(['xcode-select', '-p'], check=True, stdout=subprocess.DEVNULL)
     (root / 'runtimes').mkdir(exist_ok=True)
     (root / 'tmp').mkdir(exist_ok=True)
@@ -214,13 +228,15 @@ def main():
 
         stage('python', lambda: install_python(root, args.uv))
         stage('node', lambda: install_node(root))
-        # Always recheck resource bytes, including when resuming a completed installation.
-        install(root, manifest(root), args.assets)
-        if not args.without_dev_tools:
-            npm = root / 'runtimes/node/lib/node_modules/npm/bin/npm-cli.js'
-            node = root / 'runtimes/node/bin/node'
+        # Models are supplied separately; only the small font is downloaded here.
+        items=manifest(root)
+        install(root, items if args.assets else [item for item in items if not item['path'].startswith('models/')], args.assets)
+        npm = root / 'runtimes/node/lib/node_modules/npm/bin/npm-cli.js'
+        node = root / 'runtimes/node/bin/node'
+        stage('browser-npm', lambda: run(root,node,npm,'ci','--ignore-scripts','--no-audit','--no-fund','--prefix','services/downloader'))
+        stage('chromium', lambda: run(root,node,root/'services/downloader/node_modules/playwright/cli.js','install','chromium'))
+        if args.dev_tools:
             stage('npm', lambda: run(root, node, npm, 'ci', '--no-audit', '--no-fund'))
-            stage('chromium', lambda: run(root, node, root / 'node_modules/playwright/cli.js', 'install', 'chromium'))
 
             def rust():
                 installer = root / 'cache/install/rustup-init'
@@ -229,7 +245,10 @@ def main():
                 run(root, installer, '-y', '--no-modify-path', '--profile', 'minimal', '--default-toolchain', RUST)
 
             stage('rust', rust)
-        verify(root)
+        verify(root,require_models=False)
+        from release_manifest import check_app, register_installation
+        check_app(root)
+        register_installation(root)
 
 
 if __name__ == '__main__':

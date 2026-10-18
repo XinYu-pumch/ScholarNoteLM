@@ -2,7 +2,7 @@
 
 本地优先的生物医学文献研究桌面应用：PubMed 检索 / Zotero 导入 → PDF 或摘要 → Marker 转 Markdown → 分块与 Embedding → 综述大纲、正文和文献问答。
 
-本文是使用与开发入口。按 **2026-10-18 的当前源码**核对，包版本为 `0.6.0`；版本号不代表旧打包副本已同步更新。开发约束见 [AGENTS.md](AGENTS.md)，功能细节见 [文档索引](docs/README.md)。文档与源码冲突时以源码为准。
+本文是使用与开发入口。按 **2026-10-18 的当前源码**核对，包版本为 `0.6.1`；版本号不代表旧打包副本已同步更新。开发约束见 [AGENTS.md](AGENTS.md)，功能细节见 [文档索引](docs/README.md)。文档与源码冲突时以源码为准。
 
 ## 1. 产品约定与已知边界
 
@@ -45,22 +45,23 @@
 - 取消 LLM 字符限制不等于取消 Embedding 的分块、配额、并发、重试或下载预算。各阶段仍按对应专题文档执行。
 - 引用校验确认结构与来源绑定，**不保证论断科学正确**。大纲看到的摘要未必进入某节写作材料，跨节仍可能矛盾；中文 query 的效果依赖模型。短正文、资助和声明等按既定清洗规则保留，可能占用召回名额。
 - 原文转换错误、图表拆分、缺失图注和模型误读不会由结构校验自动修复；目前不自动全篇事实审查。总结/改写的压缩程度仍需人工评价。
-- 当前主要验证 macOS Apple Silicon 开发版；Windows 尚未实机验证。扫描 PDF 可能因 OCR 关闭而无正文；新机器的完整安装/发行方案尚未验证为通用安装包。
+- 当前主要验证 macOS Apple Silicon 开发版；Windows 尚未实机验证。扫描 PDF 可能因 OCR 关闭而无正文；源码安装版支持 Apple Silicon / macOS 14+，完整签名公证和其他系统版本实机验收另行进行。
 
 ## 2. 启动与验证
 
-新用户先按 [从干净源码安装](docs/INSTALLATION.md) 准备环境与模型，无需 BADR；当前入口支持 macOS Apple Silicon。现有可用安装不需要重装，安装器会拒绝覆盖未由它管理的环境。
+普通用户按 [源码安装版指南](docs/INSTALLATION.md) 取得匹配的源码和预编译程序，双击 `安装环境.command` 准备运行环境，放入网盘下载的 `models/`，之后直接打开根目录的 `ScholarNoteLM.app`。无需系统 Python、Git 或 Xcode Command Line Tools；没有 Git 可以下载源码 ZIP。首次启动先选择研究工作目录，已有安装沿用原配置。
 
-在项目根目录执行，优先使用项目内运行时：
+开发者在项目根目录执行（需要开发工具）：
 
 ```sh
-./scripts/npm-local.sh run desktop        # Tauri 开发版，也可双击“开发启动 ScholarNoteLM.command”
-./scripts/npm-local.sh run research:build # research.rs 改动后重建浏览器桥接 CLI
-./scripts/npm-local.sh run dev            # 独立浏览器调试，127.0.0.1:1420
-./scripts/npm-local.sh run build          # TypeScript + Vite
+./scripts/npm-local.sh run desktop        # Tauri 开发版
+./scripts/npm-local.sh run research:build # Rust 研究桥接 CLI
+./scripts/npm-local.sh run dev            # 浏览器调试
+./scripts/npm-local.sh run build          # 前端构建
+runtimes/downloader/bin/python scripts/build-source-release.py # 源码安装版 .app
 ```
 
-不要同时启动独立 Vite 和 Tauri dev 争用 1420，也不要多实例编辑同一项目。前端热更新，Rust 按需重编译；已经运行的 Python worker 不热替换。旧启动器“启动 ScholarNoteLM.command”指向 `dist/macos/ScholarNoteLM.app`，该副本若存在也不会自动同步源码。只有明确需要独立包时才运行 `desktop:build`。详见 [开发说明](docs/DEVELOPMENT.md)。
+不要同时启动独立 Vite 和 Tauri dev 争用 1420，也不要多实例编辑同一项目。前端热更新，Rust 按需重编译；已经运行的 Python worker 不热替换。日常预编译程序不使用开发服务器。旧 `.command` / `.cmd` 启动器已移除，开发仍可使用上述命令。见 [开发说明](docs/DEVELOPMENT.md) 和 [发布说明](docs/RELEASING.md)。
 
 验证按改动范围选择，完整要求见 [AGENTS.md](AGENTS.md)：
 
@@ -122,3 +123,7 @@ React / TypeScript UI
 运行时、Marker 模型和下载浏览器不是普通缓存。磁盘清理先查看 [本地维护](docs/LOCAL_MAINTENANCE.md)；自动清理工具不删除当前程序、研究数据或安装环境。新产物的日志压缩、XML 共享、图片快照与稿件去重见 [项目存储](docs/PROJECT_STORAGE.md)。
 
 `main` 是主分支，新工作在分支中完成验证后合并。变更理由写入提交信息，不再新增按日期堆积的说明；已被现行文档取代的旧规划和实跑报告可从 Git 历史查阅。BADR 是历史设计参考，不是运行时依赖，也不应从中复制凭据。
+
+## 5. 许可证
+
+主项目采用 [GPL-3.0-or-later](LICENSE)。第三方代码、字体和模型分别遵循原始许可，见 [第三方说明](THIRD_PARTY_NOTICES.md)。

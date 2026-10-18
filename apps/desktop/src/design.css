@@ -1006,3 +1006,11 @@ input[type='checkbox'], input[type='radio'] { accent-color: var(--accent); }
  .model-key-input .icon-button { width:var(--target-touch); height:var(--target-touch); }
  .review-studio .review-outline-row:has(button) { min-height:var(--target-touch); }
 }
+
+.workspace-setup { width: min(100% - var(--space-8), 600px); display: grid; gap: var(--space-5); }
+.workspace-setup > img { width: var(--space-10); height: var(--space-10); }
+.workspace-setup h1 { font-size: var(--fs-title2); font-family: var(--font-display); font-weight: var(--fw-semibold); }
+.workspace-setup form { display: grid; gap: var(--space-4); }
+.workspace-setup-actions { display: flex; flex-wrap: wrap; gap: var(--space-3); }
+
+.workspace-setup p { text-align: left; max-width: none; }

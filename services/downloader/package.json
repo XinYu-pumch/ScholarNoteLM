@@ -1,0 +1,9 @@
+{
+  "name": "scholarnotelm-browser-runtime",
+  "version": "0.6.1",
+  "private": true,
+  "dependencies": {
+    "@playwright/test": "1.63.0"
+  },
+  "license": "GPL-3.0-or-later"
+}

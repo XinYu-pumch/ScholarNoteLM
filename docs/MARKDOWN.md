@@ -46,7 +46,7 @@
 
 沿用 BADR 的 Marker 1.6.0 与 Surya 0.13.1，单批次串行处理 PDF、复用模型。独立进程运行，界面继续响应；“完成当前篇后停止”在篇与篇之间停止。单篇解析失败会继续处理后续文献；模型本身加载失败则终止任务并报告原因。
 
-模型在 `models/marker/`，Python 环境在 `runtimes/marker/`，适配源码在 `services/marker/`，字体在 `services/marker/vendor/static/fonts/`，依赖安装包在 `installers/marker/`。转换禁止网络连接，不调用在线 LLM，也不在模型缺失时生成模拟结果。缓存与临时文件位于 app 内的 `cache/` 和 `tmp/`。
+模型在 `models/marker/`，Python 环境在 `runtimes/marker/`，适配源码在 `services/marker/`，字体在 `services/marker/vendor/static/fonts/`。转换禁止网络连接，不调用在线 LLM，也不在模型缺失时生成模拟结果。缓存与临时文件位于 app 内的 `cache/` 和 `tmp/`。
 
 计算设备支持自动、CPU、MPS、CUDA。当前 Mac 已验证 MPS。沿用 BADR 的 `disable_ocr=True`，扫描 PDF 可能没有足够正文，此时报告失败；当前未实现 OCR 设置或扫描件自动补救。完成 Markdown 转换不等于完成向量索引或 RAG。
 
@@ -66,7 +66,7 @@
 
 ## 运行时兼容与复现
 
-历史环境从 BADR 导入，但日常运行不依赖 BADR。新用户改用 [干净安装入口](INSTALLATION.md)：从锁文件安装依赖，读取校验过的模型资源包或上游文件。保留 Marker 1.6.0、Surya 0.13.1、Transformers 4.49.0、tokenizers 0.21.0 及仓库内的严格本地加载器；不升级现有转换协议。`setup-marker-local.py` 仅为历史导入工具，不再作为新用户安装方案。
+历史环境从 BADR 导入，但日常运行不依赖 BADR。新用户改用 [干净安装入口](INSTALLATION.md)：从锁文件安装依赖，校验用户单独下载的 `models/`，安装器另外下载字体。保留 Marker 1.6.0、Surya 0.13.1、Transformers 4.49.0、tokenizers 0.21.0 及仓库内的严格本地加载器；不升级现有转换协议。`setup-marker-local.py` 仅为历史导入工具，不再作为新用户安装方案。
 
 Mac Python 环境不能复制到 Windows 使用。Windows 需要独立安装对应平台的 PyTorch 等依赖；Windows 转换尚未实机验证。
 

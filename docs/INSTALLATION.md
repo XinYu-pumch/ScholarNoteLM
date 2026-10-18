@@ -1,74 +1,77 @@
-# 从干净源码安装
+# macOS 源码安装版
 
-当前安装入口针对 **macOS Apple Silicon**。它从公开依赖仓库安装环境，使用仓库内的 Marker 适配代码；不需要 BADR，也不复制开发者的虚拟环境。Windows、Intel Mac 和 Linux 需要各自的依赖锁定与实机验证，不能复用此环境包。
+这是“源码目录 + 预编译桌面程序 + 自动安装运行环境”的版本。普通用户不编译应用，不需要预装 Python、Node、Rust、Homebrew 或 Xcode Command Line Tools。
 
-## 保留现有安装
+## 系统要求
 
-已经能正常启动的开发目录无需运行安装脚本。新入口不会由 app 启动自动调用，不修改旧启动脚本或缓存签名。
+- Apple Silicon Mac（M 系列），macOS 14 或更新版本。Intel Mac、Windows、Linux 尚未提供本发行版本。
+- 建议至少 16 GB 内存；较低内存设备的 PDF 转换体验尚未验收。
+- 安装时建议预留 15–20 GB 空间，研究资料另计。下载缓存可在安装成功后清理，`runtimes/` 和 `models/` 不能当缓存删除。
+- 首次安装需要访问 GitHub、PyPI、Node/npm 和 Playwright 下载服务。安装子进程跟随可用的 HTTP(S) 系统代理，并尊重显式设置的代理环境变量。
+- 安装目录和研究目录都应为当前用户可写的文件夹。不需要 `sudo`，不修改系统 Python 或 shell 配置。
 
-`setup-runtime.py` 默认只预览；即使加 `--apply`，发现未由它管理的 `runtimes/`、`node_modules/` 或 Cargo 环境也会拒绝覆盖。要试装，请另建干净源码目录。不要删除现有运行环境来绕过保护。
+## 安装步骤
 
-## 新用户安装
+1. 从同一个 GitHub Release 取得源码和 `ScholarNoteLM-0.6.1-macos-arm64.zip`。源码可以直接下载 ZIP；macOS 的 `git` 命令可能要求 Command Line Tools，因此 `git clone` 不是前提。
+2. 解压源码到准备长期保留的文件夹，把程序 ZIP 中的 `ScholarNoteLM.app` 放到该源码目录根部。
+3. 双击 **安装环境.command**。脚本下载并校验引导工具，然后安装项目专用 Python 3.12.9、Marker/向量/下载依赖、Node 20.19.0、Playwright/Chromium 与字体。不会安装 Rust 或构建前端。
+4. 从发布者的网盘下载该版本匹配的 `models` 文件夹，放入源码根目录，形成 `models/marker/...`，不要多套一层 `models/models/`。
+5. 再次运行安装入口，检查模型文件完整性和程序/源码匹配情况。也可以在终端运行 `bash 安装环境.command --check`。
+6. 双击根目录中的 **ScholarNoteLM.app**，首次启动先选择研究工作目录，再创建项目、填写模型服务配置。
 
-1. 取得干净源码，以及随该源码版本提供的 `marker-1.6.0-assets.zip`。
-2. 安装 Apple Xcode Command Line Tools（`xcode-select --install`）和 [uv](https://docs.astral.sh/uv/getting-started/installation/)；验证时使用 uv 0.6.6。uv 是引导工具，之后应用使用项目内 Python。
-3. 在源码根目录执行：
+模型可以在安装环境之前或之后放入。模型尚未补齐时，安装器明确提示待补齐文件；已安装环境保留，PDF 转换在资源完整前不可用。不会自动从已失效的旧模型地址下载替代版本。
 
-```sh
-# 只预览
-uv run --no-project --python 3.12 scripts/setup-runtime.py --assets /绝对路径/marker-1.6.0-assets.zip
+当前预编译程序使用本地 ad-hoc 签名，**没有 Apple Developer ID 签名或公证**。下载后 macOS 可能阻止打开，需要按照系统“隐私与安全性”的提示批准来源。安装器不会关闭 Gatekeeper、移除隔离属性或修改系统安全设置。若需要常规无额外授权的分发体验，维护者需另行使用 Developer ID 签名、公证并验收。
 
-# 安装到这个干净源码目录
-uv run --no-project --python 3.12 scripts/setup-runtime.py --apply --assets /绝对路径/marker-1.6.0-assets.zip
+## 文件位置
 
-# 检查安装；不调用模型 API，不读取研究项目
-runtimes/downloader/bin/python scripts/setup-runtime.py --check
-
-# 构建、启动
-./scripts/npm-local.sh run build
-./scripts/npm-local.sh run research:build
-./scripts/npm-local.sh run desktop
+```text
+ScholarNoteLM/
+  ScholarNoteLM.app          # 从 Release 解压，不提交 Git
+  安装环境.command           # 安装/继续安装/检查；日常直接打开 app
+  apps/                     # 前端与 Rust 源码
+  services/                 # Python 服务、Marker、浏览器下载依赖
+  scripts/                  # 安装清单和维护脚本
+  models/marker/            # 网盘取得，不提交 Git
+  runtimes/                 # 项目专用运行环境，不提交 Git
+  config/                   # 个人设置，不提交 Git
+  data/                     # 系统状态和参考资源，不提交 Git
+  cache/                    # 下载/浏览器缓存，不提交 Git
 ```
 
-安装包括 Python 3.12.9、downloader/Marker 环境、检索环境、Node 20.19.0、npm 锁定依赖、Playwright Chromium，以及本地 Rust 1.98.1 工具链。工具链安装不修改 shell PATH；使用仓库已有的 `npm-local.sh` / `cargo-local.sh`。`--without-dev-tools` 仅用于后端环境验证，跳过 npm、Chromium、Rust，不代表桌面已可启动。
+研究工作目录由用户指定，支持中文、空格和可写的外置磁盘目录。新安装不会默认生成 `workspace/`。所选目录可有其他文件，创建项目时不会覆盖同名目录。已有安装沿用原工作目录；磁盘失联时要求重新连接，不自动创建空白替代项目。
 
-依赖来自 PyPI/npm/Rust/Node 官方分发入口，安装过程需要网络。Python 依赖锁文件包含完整版本和包哈希；Node 与 rustup 安装器也校验固定哈希。安装器为下载子进程读取系统代理，保留显式设置的代理环境变量，不改系统或 app 配置。网络限制导致下载失败时，修复连接后可在同一安装目录重复执行；已校验的资源保留。安装器不会关闭 TLS 校验，也不会偷偷改装更新版本。
+首版 `.app` 与安装目录配套使用，不应只把 `.app` 单独移到 `/Applications` 后删除源码目录。程序优先寻找旁边的源码；系统将下载程序临时转移到隔离位置时，可使用安装器登记的目录；找不到或有多个匹配安装时要求选择安装目录。安装目录和研究工作目录是两个不同概念。
 
-安装状态存于 `runtimes/install-state.json`。仅同一清单的安装可继续；依赖清单变化应使用新的干净目录，而不是覆盖正在使用的 app。完成安装不代表模型服务已经配置，LLM/Embedding 密钥由用户自行填写。
+安装登记文件位于 `~/Library/Application Support/ScholarNoteLM/installations.json`，只记录安装路径。程序包含源码校验清单，错误版本会明确报错。更新时请取得完整匹配的一组源码和程序；不要只替换 Python 源文件或只更新 app。
 
-## 模型与字体资源
+系统参考资料独立管理：JCR 由用户导入有权使用的文件，MeSH 可在设置中从官方来源下载；未提供 Sci-Hub Bloom 索引时会提示不可用并保留后续全量重试，不把开发者的 `data/reference/` 随源码复制给新用户。
 
-`scripts/install/assets.json` 列出模型/字体的精确相对路径、公开来源 URL、字节数及 SHA-256。模型版本与当前 `services/marker/vendor/marker/models.py` 一致，字体使用经哈希核对的 Go Noto v7.0 文件。Git 保留清单与代码，不存放约 2.2 GB 的模型资源。
+## 保留已有开发环境
 
-不传 `--assets` 时安装器尝试清单中的上游地址。旧 Datalab 地址在验证时返回 403，因此当前推荐随源码提供匹配资源包。下载失败明确报错，不替换为其他版本，也不在日常离线转换时尝试补下载。
+已有正常安装不需要重跑安装器。脚本拒绝覆盖不属于它管理的环境。当前用户可直接打开本次构建的根目录 `.app`，现有配置、模型、运行时与研究资料继续使用。
 
-维护者可以从已有完整安装生成资源包：
+安装状态保存在 `runtimes/install-state.json`。同一依赖清单的未完成安装可再次执行；损坏文件会报错而不会被默默忽略。依赖版本变更使用新的干净目录，不做当前环境的破坏性原地升级。
+
+## 维护者构建
+
+维护者才需要 Xcode Command Line Tools、Rust 与前端开发依赖。干净目录可额外使用 `scripts/setup-runtime.py --apply --dev-tools` 安装开发依赖。
 
 ```sh
-runtimes/downloader/bin/python scripts/install_assets.py --output dist/resources/marker-1.6.0-assets.zip
+runtimes/downloader/bin/python scripts/build-source-release.py
 ```
 
-导出器只读取清单内的模型与字体，逐文件校验后创建 ZIP，并重新读取 ZIP 验证。不会打包 BADR、Python 环境、配置、密钥、项目或缓存。安装器只接收清单中的具体文件，不直接解压 ZIP 提供的任意路径；不覆盖内容不同的现有文件。输出同名包已存在时拒绝覆盖。
+产物为根目录 `ScholarNoteLM.app`，以及 `dist/release/` 下的 `ScholarNoteLM-0.6.1-macos-arm64.zip`、`ScholarNoteLM-0.6.1-source.zip` 和各自的 SHA-256 文件。构建前生成源码清单并嵌入程序，产物只含桌面前端与 Rust 程序，不捆绑用户数据、密钥、Python 环境或模型。
 
-资源包保留模型原始卡片、字体版权说明及 SIL OFL 文本。代码、模型和字体的许可证不同，见 [资源许可说明](../scripts/install/ASSET_NOTICES.md)。多数模型卡标注 CC BY-NC-SA 4.0，inline-math 卡片的声明不完整；技术验证通过不等于已完成公开/商业分发授权审核。
+源码公开范围、检查和发布步骤见 [发布说明](RELEASING.md)。模型与字体许可见 [资源说明](../scripts/install/ASSET_NOTICES.md)。模型走网盘不改变其原始许可证要求。
 
-## 源码与发行版的边界
-
-新安装使用独立环境；检索环境以相对 `.pth` 引用 Marker 依赖，解释器链接指向一起安装的本地 Python，不再记录开发者的用户名路径。不要把旧环境整体复制来替代安装器；旧安装中的绝对路径仍保留，以免影响正在使用的 app。
-
-当前 Tauri 构建出的 `.app` 仍需要 ScholarNoteLM 目录中的 Python 服务、环境和模型。本次安装入口解决了从零准备这些资源的问题，**不会把旧 `.app` 自动升级成完整发行包**。后续制作发行版需选择整目录分发或调整 bundle 资源布局，并另行处理签名、公证、可写数据目录、升级和平台验收。
-
-JCR 由用户加载有权使用的参考文件；MeSH 可在设置中下载官方词库。不会将开发者现有 `data/reference/`、JCR 文件或系统配置复制给新用户。缺失 Sci-Hub Bloom 时不承诺首轮命中筛选可用，原下载器仍保留补救路径。它们与 Marker 环境安装分别管理。
-
-## 验证与维护
+## 验证
 
 ```sh
 runtimes/downloader/bin/python scripts/test-runtime-setup.py
-runtimes/downloader/bin/python scripts/test-runtime-conversion.py --root /绝对路径/新安装源码目录
+runtimes/downloader/bin/python scripts/test-runtime-conversion.py --root /绝对路径/干净安装目录
 ```
 
-第一项验证旧环境保护、资源哈希失败、路径隔离和离线包读取。第二项创建一次性项目和人工 PDF，通过真实独立 Marker worker 转换为原稿/清洗稿，不调用付费模型、不使用真实论文。后续工作流测试使用本机模拟模型服务，参见 [开发说明](DEVELOPMENT.md)。
+第二项在一次性研究项目中生成人工 PDF，使用真实本地 Marker 转换，不调用模型 API。完整流程测试使用本机模拟模型服务。安装实测应限制 PATH，确认未依赖全局 Python/npm/Rust；开发机上的此项验证不等于已在无 Command Line Tools 的另一台 Mac 或所有 macOS 14+ 版本完成实机验收。
 
-macOS Apple Silicon 的干净环境已验证：624 项 Python 测试（4 项跳过）、37 项 Rust 测试、前端构建、桌面进程启动，以及综述、问答、向量和完整文献流程的隔离集成测试。整目录移动后检查解释器与资源，并重新执行真实离线 PDF 转换。该结果不替代其他平台或最终签名发行包的验收。
-
-维护依赖时修改 `scripts/install/*.in`，在目标平台生成新的完整哈希锁文件，并从干净目录复验，不能直接把当前 `pip freeze` 中的所有旧包当作产品依赖。Marker 源码是仓库维护的适配版本；普通 PyPI 安装不能覆盖它。旧 `setup-marker-local.py` 只保留为历史环境导入工具，不是公开安装入口。
+本版已完成：629 项 Python 测试（4 项跳过）、Rust CLI 与桌面测试、前端/release 构建、原生窗口首次目录选择和重启、安装目录移动后的检查、45 项浏览器测试及真实离线 PDF 转换。隔离安装使用仅含 macOS 系统工具的 PATH，并设置不可用的开发工具目录；未在另一台无 CLT 的真机上验收，也尚未验证 macOS 下载隔离后的所有启动路径。

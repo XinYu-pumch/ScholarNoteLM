@@ -1605,5 +1605,14 @@
   "此模型未提供可核实的强度档位，保持服务端默认。": "No verified effort levels are available for this model. Using the server default.",
   "此供应商只允许一个配置，请编辑已有配置": "This provider allows one profile. Edit the existing profile.",
   "模型思考强度配置格式无效": "Invalid model reasoning settings.",
-  "此模型不支持所选思考强度，请重新选择": "This model does not support the selected reasoning effort. Choose another level."
+  "此模型不支持所选思考强度，请重新选择": "This model does not support the selected reasoning effort. Choose another level.",
+  "连接研究工作目录": "Reconnect your research folder",
+  "选择研究工作目录": "Choose your research folder",
+  "原工作目录暂时不可访问。请连接原磁盘后重试，或选择移动后的完整工作目录。": "Your research folder is unavailable. Reconnect its disk and retry, or select the complete folder at its new location.",
+  "选择保存论文、笔记和综述的文件夹。你可以使用本机或外置磁盘上的绝对路径。": "Choose where to save papers, notes and reviews. Use an absolute path on your Mac or an external disk.",
+  "工作目录": "Research folder",
+  "连接目录": "Reconnect folder",
+  "使用此目录": "Use this folder",
+  "已有文件不会被覆盖。之后可在设置中更换工作目录。": "Existing files will be preserved. You can change the research folder in Settings later.",
+  "原工作目录仍不可访问": "The original research folder is still unavailable"
 }

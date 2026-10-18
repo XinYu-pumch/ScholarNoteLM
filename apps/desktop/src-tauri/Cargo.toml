@@ -1,9 +1,10 @@
 [package]
 name = "scholarnotelm"
-version = "0.6.0"
+version = "0.6.1"
 description = "A thoughtful workspace for literature research"
 authors = ["ScholarNoteLM"]
 edition = "2021"
+license = "GPL-3.0-or-later"
 default-run = "scholarnotelm"
 rust-version = "1.77.2"
 

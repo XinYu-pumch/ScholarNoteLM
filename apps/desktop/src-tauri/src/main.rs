@@ -8,6 +8,7 @@ mod exit_guard;
 mod macos_exit;
 use exit_guard::ExitGuard;
 mod research;
+mod app_root;
 
 #[tauri::command]
 async fn research_rpc(
@@ -40,35 +41,7 @@ struct Workspace {
     root: PathBuf,
 }
 
-// The Python engine is required at runtime, so its entry point marks the app root.
-// (A documentation file was used before and broke startup when docs were reorganised.)
-fn is_app_root(path: &std::path::Path) -> bool {
-    path.join("services/downloader/engine.py").is_file()
-}
-
-fn workspace_root() -> Result<PathBuf, String> {
-    if let Ok(path) = std::env::var("SCHOLARNOTELM_ROOT") {
-        let root = PathBuf::from(path);
-        if is_app_root(&root) {
-            return Ok(root);
-        }
-        return Err("SCHOLARNOTELM_ROOT must point to the ScholarNoteLM folder".into());
-    }
-    let starts = [
-        std::env::current_exe()
-            .ok()
-            .and_then(|p| p.parent().map(PathBuf::from)),
-        std::env::current_dir().ok(),
-    ];
-    for start in starts.into_iter().flatten() {
-        for parent in start.ancestors() {
-            if is_app_root(parent) {
-                return Ok(parent.to_path_buf());
-            }
-        }
-    }
-    Err("Keep this preview inside the ScholarNoteLM folder, or set SCHOLARNOTELM_ROOT".into())
-}
+fn workspace_root() -> Result<PathBuf, String> { app_root::resolve() }
 
 #[tauri::command]
 fn close_guard_ready(state: tauri::State<'_, Mutex<ExitGuard>>, ready: bool) {
@@ -108,7 +81,7 @@ fn main() {
         .setup(|app| {
             #[cfg(target_os = "macos")]
             macos_exit::install(app.handle())?;
-            let root = workspace_root().map_err(std::io::Error::other)?;
+            let root = workspace_root().map_err(|message| {app_root::show_error(&message);std::io::Error::other(message)})?;
             let webview_dir = root.join("cache/webview");
             fs::create_dir_all(&webview_dir)?;
             let update_root = root.clone();

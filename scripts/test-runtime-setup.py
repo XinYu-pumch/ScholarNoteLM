@@ -32,7 +32,7 @@ class SetupTests(unittest.TestCase):
         (self.root / 'runtimes/marker').mkdir(parents=True)
         sentinel = self.root / 'runtimes/marker/keep'
         sentinel.write_bytes(b'existing environment')
-        with patch.object(setup.sys, 'platform', 'darwin'), patch.object(setup.platform, 'machine', return_value='arm64'):
+        with patch.object(setup.sys, 'platform', 'darwin'), patch.object(setup.platform, 'machine', return_value='arm64'), patch.object(setup.platform,'mac_ver',return_value=('14.0',(),'')):
             with self.assertRaisesRegex(ValueError, 'unmanaged'):
                 setup.preflight(self.root, 'lock')
         self.assertEqual(sentinel.read_bytes(), b'existing environment')
@@ -50,10 +50,16 @@ class SetupTests(unittest.TestCase):
         (self.root / 'runtimes').mkdir()
         state = self.root / 'runtimes/install-state.json'
         state.write_text(json.dumps({'schemaVersion': 1, 'fingerprint': 'lock', 'done': ['node']}))
-        with patch.object(setup.sys, 'platform', 'darwin'), patch.object(setup.platform, 'machine', return_value='arm64'):
+        with patch.object(setup.sys, 'platform', 'darwin'), patch.object(setup.platform, 'machine', return_value='arm64'), patch.object(setup.platform,'mac_ver',return_value=('14.0',(),'')):
             self.assertEqual(setup.preflight(self.root, 'lock')['done'], ['node'])
             with self.assertRaisesRegex(ValueError, 'differs'):
                 setup.preflight(self.root, 'new lock')
+
+    def test_tool_version_change_invalidates_install_plan(self):
+        with patch.object(setup,'digest',return_value='same-dependencies'):
+            before=setup.installation_fingerprint(self.root)
+            with patch.object(setup,'PYTHON','different-python'):
+                self.assertNotEqual(before,setup.installation_fingerprint(self.root))
 
     def test_corrupt_stream_never_published(self):
         path = assets.destination(self.root, self.item['path'])

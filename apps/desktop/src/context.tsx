@@ -6,6 +6,7 @@ import {flushLatestState} from './exitProtocol';
 import {canNavigate, requestNavigation} from './navigation';
 import {type Notice, type NoticeTone} from './Notification';
 import { createContext, useContext, useEffect, useRef, useState, type ReactNode } from 'react';
+import WorkspaceSetup, {type WorkspaceStartup} from './WorkspaceSetup';
 import { emptyState, type AppState, type Page, type Project, type Paper } from './data';
 import { readState, writeState } from './storage';
 import {rpc,type WorkbenchData} from './research-api';
@@ -26,6 +27,7 @@ export function useApp() { const value = useContext(Context); if (!value) throw 
 export function Provider({ children }: { children: ReactNode }) {
   const [state, setState] = useState<AppState>(structuredClone(emptyState));
   const [loaded, setLoaded] = useState(false);
+  const [workspaceStartup,setWorkspaceStartup]=useState<WorkspaceStartup>();
   const [loadError, setLoadError] = useState('');
   const [page, setPageRaw] = useState<Page>('library');
   const pageRef = useRef(page); pageRef.current = page;
@@ -51,7 +53,11 @@ export function Provider({ children }: { children: ReactNode }) {
   const project = state.projects.find(p => p.id === state.active)!;
   useEffect(() => {
     let alive = true;
-    readState().then(value => { if (alive) { configureLocale(value.uiLanguage||'zh');setState(value); setLoaded(true); } }).catch(() => { if (alive) setLoadError('无法读取本地项目数据。请检查本地服务后刷新，现有数据不会被覆盖。'); });
+    configureLocale(navigator.language.toLowerCase().startsWith('zh')?'zh':'en');
+    rpc<WorkspaceStartup>('storage.bootstrap').then(async info=>{
+      if(info.state!=='ready'){if(alive)setWorkspaceStartup(info);return null;}
+      return readState();
+    }).then(value => { if (alive && value) { configureLocale(value.uiLanguage||'zh');setState(value); setLoaded(true); } }).catch(error => { if (alive) setLoadError((error instanceof Error?error.message:String(error))+'。现有数据不会被覆盖；请检查安装环境后重试。'); });
     return () => { alive = false; };
   }, []);
   useEffect(() => {
@@ -128,6 +134,7 @@ export function Provider({ children }: { children: ReactNode }) {
     } catch(e) {setSaveFailure(true);throw e;}
     finally {flushing.current=false;}
   });
+  if (workspaceStartup) return <WorkspaceSetup status={workspaceStartup} onReady={()=>location.reload()}/>;
   if (!loaded) return <div className="boot-screen"><img src="/mark.svg" alt="" /><h2>ScholarNoteLM</h2><p>{tr(loadError)||tr("正在打开你的研究空间…")}</p>{loadError && <button className="button" onClick={() => location.reload()}>{tr("重新加载")}</button>}</div>;
   const updateProject = (fn: (p: Project) => Project) => setState(current => ({ ...current, projects: current.projects.map(p => p.id === state.active ? fn(p) : p) }));
   return <Context.Provider value={{ state, project, page, setPage, createProject, retrySave, deleteProject, settingsTab,setSettingsTab,openSettings:tab=>requestNavigation(()=>{setSettingsTab(tab);setPageRaw('settings');}),updateProject, updateState: fn=>{const next=fn(latestState.current);if(next.active===latestState.current.active){configureLocale(next.uiLanguage||'zh');setState(fn);}else requestNavigation(()=>{setState(fn);setPageRaw('library');});}, paperId, setPaperId, readerReturnPage, openPaper: paper => requestNavigation(() => { if(pageRef.current!=='reader')setReaderReturnPage(pageRef.current); setPaperId(paper.id); setPageRaw('reader'); }), notify, toast, dismissToast, saveStatus }}>{children}{closeDialog}</Context.Provider>;

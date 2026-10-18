@@ -9,7 +9,7 @@
 | [根 README](../README.md) | 当前功能、产品决定、已知边界、架构入口 |
 | [AGENTS.md](../AGENTS.md) | 开发约束与验证要求；CLAUDE.md 引用同一规范 |
 | [DEVELOPMENT.md](DEVELOPMENT.md) | 启动、运行时、RPC、隔离测试 |
-| [INSTALLATION.md](INSTALLATION.md) | 无需 BADR 的干净安装、依赖锁定、模型资源包与现有环境保护 |
+| [INSTALLATION.md](INSTALLATION.md) | macOS 源码安装版、预编译程序、网盘模型与现有环境保护 |
 | [LOCAL_MAINTENANCE.md](LOCAL_MAINTENANCE.md) | 缓存清理与不可误删的依赖、数据 |
 | [PROJECT_STORAGE.md](PROJECT_STORAGE.md) | 项目布局、迁移、删除、紧凑存储 |
 | [ARTIFACT_LIFECYCLE.md](ARTIFACT_LIFECYCLE.md) | 归档恢复、内容指纹与更新判定 |
@@ -32,3 +32,5 @@
 | [design-system/acceptance.md](design-system/acceptance.md) | 页面、状态、窗口、键盘与原生验收矩阵 |
 
 测试截图、结果 JSON 和本机项目报告不是产品规范。编辑本目录不授权修改 `workspace/` 中的研究材料。不要按旧文档恢复已删除功能，具体名单见根 README 第 1 节。
+
+公开源码与程序发布见 [RELEASING.md](RELEASING.md)，主项目与第三方许可见 [THIRD_PARTY_NOTICES.md](../THIRD_PARTY_NOTICES.md)。

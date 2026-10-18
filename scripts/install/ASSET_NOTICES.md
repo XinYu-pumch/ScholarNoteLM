@@ -1,4 +1,4 @@
-# Marker resource pack
+# Marker models and font resources
 
 This pack contains only the files listed in `assets.json`: the seven checkpoint
 directories loaded by ScholarNoteLM's Marker adapter, and its Go Noto font.
@@ -20,6 +20,6 @@ The files are unmodified and SHA-256 checked against the working baseline.
   notices. The font binary is unchanged.
 
 The old Datalab endpoints returned HTTP 403 during installation validation.
-Use the matching offline pack if an endpoint is unavailable; the installer never
+For the source-install edition, obtain the matching models directory separately; the installer never
 silently substitutes a newer model, changes TLS verification, or downloads models
 during PDF conversion. Pack integrity does not establish licensing rights.

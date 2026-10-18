@@ -72,6 +72,47 @@ def initialize(root):
     cfg['migrated']=True;cfg['cleanupPending']=False;atomic(root/'config/storage.json',cfg)
     return cfg
 
+def bootstrap(root):
+    """Inspect startup without creating a default research workspace."""
+    saved = root/'config/storage.json'
+    cfg = config(root)
+    base = Path(cfg['workspace'])
+    legacy = (root/'data/prototype/state.json').exists() or (base.is_dir() and any(base.glob('*/project.json')))
+    if not saved.exists() and not legacy:
+        return {'state':'required','workspace':''}
+    if not base.is_dir():
+        return {'state':'unavailable','workspace':str(base)}
+    return {'state':'ready','workspace':str(base)}
+
+
+def select_workspace(root, value):
+    current = bootstrap(root)
+    if current['state'] == 'ready':
+        raise ValueError('工作目录已配置，请在设置中更换位置并迁移')
+    path = Path(value).expanduser()
+    if not path.is_absolute():raise ValueError('工作目录必须是绝对路径')
+    path = path.resolve()
+    for name in ['data','config','cache','runtimes','services','apps','models','backups','dist','node_modules','.git']:
+        reserved = (root/name).resolve()
+        if path == root.resolve() or path == reserved or path.is_relative_to(reserved):
+            raise ValueError('请选择应用资源目录以外的工作目录')
+    cfg = config(root)
+    if current['state'] == 'unavailable':
+        # Reconnect an existing moved/offline workspace, never create empty replacements.
+        for pid, folder in cfg['projects'].items():
+            project = path/folder/'project.json'
+            if not project.is_file() or json.loads(project.read_text()).get('id') != pid:
+                raise ValueError('此目录缺少已登记的项目，请连接原磁盘或选择完整的原工作目录')
+    path.mkdir(parents=True,exist_ok=True)
+    probe = path/('.scholarnotelm-write-'+uuid.uuid4().hex)
+    try:
+        with probe.open('x') as stream:stream.write('')
+    finally:probe.unlink(missing_ok=True)
+    cfg.update(workspace=str(path),migrated=True,cleanupPending=False)
+    atomic(root/'config/storage.json',cfg)
+    return bootstrap(root)
+
+
 def read_state(root):
     f=root/'data/prototype/state.json'
     if not f.exists():return None

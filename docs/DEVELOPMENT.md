@@ -2,11 +2,11 @@
 
 新机器先按 [安装说明](INSTALLATION.md) 准备干净环境；已有可用开发目录继续使用原启动方式，不运行安装器覆盖它。
 
-日常修改使用根目录的 `开发启动 ScholarNoteLM.command`。这是 Tauri dev 模式：启动本地 Vite 和原生桌面窗口，前端直接读取源码、原生部分按需编译，不生成或替换发行 `.app`。窗口标题、侧栏均显示“开发版”。
+开发时运行 `./scripts/npm-local.sh run desktop`。这是 Tauri dev 模式：启动本地 Vite 和原生桌面窗口，前端直接读取源码、原生部分按需编译，不生成或替换发行 `.app`。窗口标题、侧栏均显示“开发版”。
 
 ## macOS
 
-双击 `开发启动 ScholarNoteLM.command`，保留打开的终端。首次需要编译开发依赖，后续使用增量编译。清理编译缓存后的下一次启动可能重新完整编译；这不表示模型或项目丢失。在终端按 Control+C 退出；再次双击可重新启动。若提示 1420 端口占用，已有开发版可直接继续使用；先退出其他独立 Vite 预览再启动。
+在终端运行 `./scripts/npm-local.sh run desktop`。首次需要编译开发依赖，后续使用增量编译。清理编译缓存后的下一次启动可能重新完整编译；这不表示模型或项目丢失。在终端按 Control+C 退出；再次执行命令可重新启动。若提示 1420 端口占用，已有开发版可直接继续使用；先退出其他独立 Vite 预览再启动。
 
 | 修改内容 | 生效方式 |
 | --- | --- |
@@ -17,7 +17,7 @@
 
 下载进行中修改 Python，先在任务中心暂停，并等工作进程退出，再继续任务以加载新代码。重启 Rust 桌面进程时，属于旧进程的下载任务会暂停，需要在任务中心继续。不要为了更新代码清空项目。
 
-开发版默认使用现有项目与系统配置。测试时可显式设置 `SCHOLARNOTELM_ROOT` 为 `tmp/` 下的隔离根目录，启动脚本会保留该值，Rust 与 Python 使用同一根目录。不要同时打开旧打包版和开发版编辑同一项目。原来的 `启动 ScholarNoteLM.command` 仍打开 `dist/macos/ScholarNoteLM.app`，它不会自动更新前端；文件不存在时启动器会提示，日常调试请使用开发启动入口。
+开发版默认使用现有项目与系统配置。测试时可显式设置 `SCHOLARNOTELM_ROOT` 为 `tmp/` 下的隔离根目录，启动脚本会保留该值，Rust 与 Python 使用同一根目录。不要同时打开旧打包版和开发版编辑同一项目。普通使用直接打开根目录 `ScholarNoteLM.app`；它与匹配版本的源码配套，不会随源码热更新。
 
 ## 文件位置
 
@@ -29,9 +29,9 @@
 
 ## Windows
 
-提供 `开发启动 ScholarNoteLM.cmd`。需要对应的 Windows Node（`runtimes/node/node.exe`）、Rust/Cargo 和 Python 运行时，以及 Windows 原生构建工具与 WebView2。不能直接复用 macOS 二进制。当前主要在 macOS 使用；Windows 启动入口尚未实机验证。
+Windows 尚无本发行版本。需要独立的 Node、Python、Rust 工具链和 WebView2，不能复用 macOS 二进制。旧 Windows 启动器已移除。
 
-仅需要分发一个独立版本时才运行 `desktop:build`。
+制作 macOS 源码安装版运行 `runtimes/downloader/bin/python scripts/build-source-release.py`，维护者需要 Xcode CLT；普通用户不需要。
 
 ## 自动化启动 Zotero 导入
 

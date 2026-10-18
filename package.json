@@ -1,6 +1,6 @@
 {
   "name": "scholarnotelm",
-  "version": "0.6.0",
+  "version": "0.6.1",
   "private": true,
   "type": "module",
   "scripts": {
@@ -29,5 +29,6 @@
     "@vitejs/plugin-react": "^4.4.0",
     "typescript": "~5.8.3",
     "vite": "^6.4.0"
-  }
+  },
+  "license": "GPL-3.0-or-later"
 }
