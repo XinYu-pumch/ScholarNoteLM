@@ -20,6 +20,10 @@ __pycache__/
 config/
 workspace/
 
+# Marker ships configuration code, not user credentials.
+!services/marker/vendor/marker/config/
+!services/marker/vendor/marker/config/*.py
+
 # Local reference captures and personal notes
 ref/
 未命名文件夹/

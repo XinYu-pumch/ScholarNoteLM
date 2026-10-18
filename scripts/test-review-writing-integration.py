@@ -38,8 +38,9 @@ class Handler(BaseHTTPRequestHandler):
 server=ThreadingHTTPServer(('127.0.0.1',0),Handler);threading.Thread(target=server.serve_forever,daemon=True).start()
 try:
  with tempfile.TemporaryDirectory(prefix='review-writing-e2e-',dir=ROOT/'tmp') as temp:
-  app=Path(temp);(app/'runtimes').mkdir();(app/'tmp').mkdir()
-  for runtime in ('downloader','retrieval'):(app/'runtimes'/runtime).symlink_to(ROOT/'runtimes'/runtime,target_is_directory=True)
+  app=Path(temp);(app/'tmp').mkdir()
+  # Relocatable environments also reference their sibling Python/Marker directories.
+  (app/'runtimes').symlink_to(ROOT/'runtimes',target_is_directory=True)
   (app/'services').symlink_to(ROOT/'services',target_is_directory=True);(app/'models').symlink_to(ROOT/'models',target_is_directory=True)
   pf.setup(app,ROOT,f'http://127.0.0.1:{server.server_port}/v1',['fixture','fixture-next'])
   e.ROOT,e.PROJECT=app,'test';base=storage.project_dir(app,'test')

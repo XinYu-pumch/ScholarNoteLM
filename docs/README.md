@@ -9,6 +9,7 @@
 | [根 README](../README.md) | 当前功能、产品决定、已知边界、架构入口 |
 | [AGENTS.md](../AGENTS.md) | 开发约束与验证要求；CLAUDE.md 引用同一规范 |
 | [DEVELOPMENT.md](DEVELOPMENT.md) | 启动、运行时、RPC、隔离测试 |
+| [INSTALLATION.md](INSTALLATION.md) | 无需 BADR 的干净安装、依赖锁定、模型资源包与现有环境保护 |
 | [LOCAL_MAINTENANCE.md](LOCAL_MAINTENANCE.md) | 缓存清理与不可误删的依赖、数据 |
 | [PROJECT_STORAGE.md](PROJECT_STORAGE.md) | 项目布局、迁移、删除、紧凑存储 |
 | [ARTIFACT_LIFECYCLE.md](ARTIFACT_LIFECYCLE.md) | 归档恢复、内容指纹与更新判定 |

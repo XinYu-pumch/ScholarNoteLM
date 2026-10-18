@@ -1,7 +1,8 @@
-"""Import the user's known BADR runtime/models into an independent local runtime."""
+"""Legacy BADR import utility. New installations must use setup-runtime.py instead."""
 import argparse,json,shutil,subprocess,sys
 from pathlib import Path
 root=Path(__file__).resolve().parents[1]
+print('Legacy environment import only. For a clean installation without BADR, use scripts/setup-runtime.py.', file=sys.stderr)
 a=argparse.ArgumentParser();a.add_argument('badr',type=Path);args=a.parse_args();src=args.badr.resolve()
 base=next((root/'runtimes/python').glob('*/bin/python3.12'))
 dest=root/'runtimes/marker'

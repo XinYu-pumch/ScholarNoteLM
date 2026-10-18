@@ -1,5 +1,7 @@
 # ScholarNoteLM 开发版
 
+新机器先按 [安装说明](INSTALLATION.md) 准备干净环境；已有可用开发目录继续使用原启动方式，不运行安装器覆盖它。
+
 日常修改使用根目录的 `开发启动 ScholarNoteLM.command`。这是 Tauri dev 模式：启动本地 Vite 和原生桌面窗口，前端直接读取源码、原生部分按需编译，不生成或替换发行 `.app`。窗口标题、侧栏均显示“开发版”。
 
 ## macOS

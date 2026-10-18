@@ -40,8 +40,9 @@ server=ThreadingHTTPServer(('127.0.0.1',0),Handler);threading.Thread(target=serv
 old=e.ROOT,e.PROJECT
 try:
  with tempfile.TemporaryDirectory(prefix='qa-mini-e2e-',dir=ROOT/'tmp') as folder:
-  app=Path(folder);(app/'runtimes').mkdir();(app/'tmp').mkdir()
-  for name in ('retrieval','downloader'):(app/'runtimes'/name).symlink_to(ROOT/'runtimes'/name,target_is_directory=True)
+  app=Path(folder);(app/'tmp').mkdir()
+  # Keep sibling interpreter and shared dependency paths intact in the fixture.
+  (app/'runtimes').symlink_to(ROOT/'runtimes',target_is_directory=True)
   (app/'services').symlink_to(ROOT/'services',target_is_directory=True)
   pf.setup(app,ROOT,f'http://127.0.0.1:{server.server_port}/v1',['fixture'])
   e.ROOT,e.PROJECT=app,'test';project=storage.project_dir(app,'test')

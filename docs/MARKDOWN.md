@@ -66,7 +66,7 @@
 
 ## 运行时兼容与复现
 
-本机从用户现有 BADR 环境独立复制模型和依赖，不依赖 BADR 目录继续存在。原环境的 Transformers 4.57 与这套 Surya 模型配置不兼容，已按 BADR Marker 的 poetry.lock 固定为 Transformers 4.49.0、tokenizers 0.21.0，安装包保存在 app 内。`scripts/setup-marker-local.py BADR目录` 可在当前 Mac 重新导入，保留 ScholarNoteLM 的严格本地模型加载器。
+历史环境从 BADR 导入，但日常运行不依赖 BADR。新用户改用 [干净安装入口](INSTALLATION.md)：从锁文件安装依赖，读取校验过的模型资源包或上游文件。保留 Marker 1.6.0、Surya 0.13.1、Transformers 4.49.0、tokenizers 0.21.0 及仓库内的严格本地加载器；不升级现有转换协议。`setup-marker-local.py` 仅为历史导入工具，不再作为新用户安装方案。
 
 Mac Python 环境不能复制到 Windows 使用。Windows 需要独立安装对应平台的 PyTorch 等依赖；Windows 转换尚未实机验证。
 
