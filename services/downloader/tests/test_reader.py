@@ -67,12 +67,16 @@ class ReaderTests(unittest.TestCase):
   with r.db(e) as c:t=r.get(c,t['id']);t['updated']=time.time()-60;c.execute('UPDATE threads SET data=? WHERE id=?',(json.dumps(t),t['id']))
   t=r.rpc(e,'get',{'id':t['id']});self.assertEqual(t['state'],'failed');self.assertIn('中断',t['error']);self.assertEqual(r.jobs(e),[])
  def test_worker_sends_full_source_and_only_successful_history(self):
-  self.raw('FULL_BEGIN\n'+'evidence '*20000+'\nFULL_END\nReferences retained');t=self.finish(self.start(self.new()));t=self.start(t,question='Follow-up');seen=[]
+  self.raw('FULL_BEGIN\n'+'evidence '*20000+'\nFULL_END\nReferences retained');t=self.finish(self.start(self.new()));question='Follow-up '+('长问题'*20000);t=self.start(t,question=question);seen=[]
   async def chat(profile,messages,**kw):seen.extend(messages);kw['on_text']('New answer');return 'New answer'
   import review_llm
   with patch.object(r.review_service,'profile',return_value=self.profile),patch.object(review_llm,'chat',side_effect=chat):asyncio.run(r.run(e,t['id'],t['run']))
-  self.assertIn('FULL_END',seen[1]['content']);self.assertIn('References retained',seen[1]['content']);self.assertEqual([m['content'] for m in seen[2:]],['Question','Answer','Follow-up'])
+  self.assertIn('FULL_END',seen[1]['content']);self.assertIn('References retained',seen[1]['content']);self.assertEqual([m['content'] for m in seen[2:]],['Question','Answer',question])
   final=r.rpc(e,'get',{'id':t['id']});self.assertEqual(final['state'],'done');self.assertEqual(final['messages'][-1]['text'],'New answer');self.assertNotIn('FULL_BEGIN',r.safe(e,'reader.sqlite3').read_bytes().decode(errors='ignore'))
+ def test_question_rejects_nontext_and_empty(self):
+  t=self.new()
+  for question in (None,[],42,'   '):
+   with self.subTest(question=question),self.assertRaises(ValueError):self.start(t,question=question)
  def test_cancel_before_worker_preserves_question_and_skips_model(self):
   t=self.start(self.new());r.rpc(e,'cancel',{'id':t['id']})
   import review_llm

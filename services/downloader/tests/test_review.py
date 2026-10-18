@@ -30,6 +30,15 @@ class ReviewTests(unittest.TestCase):
   bad=['','1,','1,a\n1,b','1,a\n1.2,b','1.1,a','2,a','01,a','1,a\n3,b','1,a\n2,b\n1.1,c','1,a,extra','1,"unclosed','1,"line\nbreak"','1,a\nthis is not csv','1,a\n1.1,b\n1.1.1,c\n1.2,d\n1.1.2,e']
   for text in bad:
    with self.subTest(text=text),self.assertRaises(ValueError):r.parse_csv(text)
+ def test_large_outline_import_and_save_without_truncation(self):
+  self.create()
+  rows=[{'serial':str(i),'title':'标题'*110} for i in range(1,10002)]
+  rows[0]['title']='长标题'*50000
+  text=r.to_csv(rows);self.assertGreater(len(text),2_000_000)
+  imported=self.call('import',revision=0,csv=text)
+  self.assertEqual([(x['serial'],x['title']) for x in imported['rows']],[(x['serial'],x['title']) for x in rows])
+  saved=self.call('save',revision=imported['version']['revision'],rows=imported['rows'])
+  self.assertEqual(saved['rows'],imported['rows'])
  def test_filename_validation_case_collision_and_windows(self):
   for name in ('../bad','a-b','a/b','a\\b','a b','a.','CON','nul','a'*65):
    with self.subTest(name=name),self.assertRaises(ValueError):self.call('create',name=name)

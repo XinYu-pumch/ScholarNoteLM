@@ -203,7 +203,7 @@ def start(e,a):
                 t=branch(t,index,include=False);tid=t['id']
             else:t['messages'].pop()
         else:
-            question=review_service.bounded(a.get('question'),50000,'问题')
+            question=review_service.unbounded(a.get('question'),'问题')
             if not question:raise ValueError('问题不能为空')
             if t['messages'] and t['messages'][-1]['state']!='done':raise ValueError('上一轮尚未成功，请先重试或新建对话')
         run=uuid.uuid4().hex

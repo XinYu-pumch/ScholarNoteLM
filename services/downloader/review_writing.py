@@ -11,6 +11,7 @@ import storage,review_service as outline,vector_chunks as chunks,review_retrieva
 from review_llm import chat,object_json,Cancelled
 from review_materials import Guard,InputsChanged
 
+# Budget fields remain only for exact legacy signature replay; never gate requests.
 DEFAULTS={'concurrency':3,'topK':7,'language':'中文','requirements':'','profileId':'','model':'','contextChars':90000,'limitContext':False}
 ACTIVE={'queued','running','stopping'}
 SYSTEM=review_bundle.SYSTEM
@@ -22,9 +23,6 @@ def config(path,data=None):
             if key in data:cfg[key]=data[key]
     for k in ('concurrency','topK'):
         if type(cfg[k]) is not int or cfg[k]<1:raise ValueError(f'{k} 必须为正整数')
-    if type(cfg['limitContext']) is not bool:raise ValueError('请求预算开关必须为布尔值')
-    for k,lo,hi in [('contextChars',12000,500000)]:
-        if type(cfg[k]) is not int or not lo<=cfg[k]<=hi:raise ValueError(f'{k} 必须在 {lo}–{hi} 之间')
     for k,limit in [('requirements',15000),('language',30),('profileId',200),('model',500)]:cfg[k]=outline.bounded(cfg[k],limit,k)
     manifest=outline.read(path/'review.json',{})
     if 'contentLanguage' in manifest:
@@ -160,13 +158,11 @@ def load_bundle(path,plan):
     return review_bundle.validate(json.loads(raw))
 
 def prepare_unit(e,path,snapshot,unit,evidence):
-    cfg=snapshot['config'];folder=path/'review_parts'
+    folder=path/'review_parts'
     bundle=review_bundle.make(snapshot,unit,evidence)
     review_bundle.validate(bundle)
     bundle=review_bundle.externalize(bundle,folder,storage.project_dir(e.ROOT,e.PROJECT),e.atomic)
     messages=review_bundle.messages(bundle,folder,{})
-    if cfg.get('limitContext',False) and sum(len(m['content']) for m in messages)>cfg['contextChars']:
-        raise ValueError('联合写作单元超过请求字符预算；请提高或关闭预算，材料未截断，也未拆分子标题')
     filename=f'prompt_section_{unit["serial"]}.json';text=review_bundle.dumps(bundle)+'\n'
     e.atomic(folder/filename,text)
     # TXT is a derived preview. Only JSON and its hashed resources drive requests.
@@ -471,9 +467,6 @@ async def run(e,name,token,retriever_factory=None):
                         if delivered!=original or (image_file or {}).get('sha256')!=sha:raise ValueError('图表与冻结检索记录不一致，请重新准备')
                     request_profile=llm_provider.with_session(p,'writing',e.PROJECT,name,snapshot.get('sessionRound',snapshot['sourceSignature']),unit['id'])
                     messages=review_bundle.messages(bundle,path/'review_parts',p)
-                    text_content=messages[-1]['content'];text_content=text_content[0]['text'] if isinstance(text_content,list) else text_content
-                    if cfg.get('limitContext',False) and len(messages[0]['content'])+len(text_content)>cfg['contextChars']:
-                        raise ValueError('联合写作单元超过请求字符预算；请提高或关闭预算')
                     stem=unit['id']+'-0'
                     compact_io.write_text(e,runpath/(stem+'.prompt.json'),json.dumps(messages,ensure_ascii=False,indent=2))
                     await verify_materials()

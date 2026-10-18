@@ -345,13 +345,14 @@ class WritingTests(unittest.TestCase):
   self.assertNotIn('Body for 1.1.1',w.assemble(e,'Test')[0])
   self.assertEqual(w.rpc(e,'Test','section',{'nodeId':u['leaves'][0]['id']}).get('sections',[]),[])
   self.assertTrue((self.path/'sections'/f'{u["id"]}.json').exists())
- def test_default_budget_is_disabled_without_invalidating_existing_signatures(self):
+ def test_retired_budget_is_ignored_without_invalidating_existing_signatures(self):
   cfg=w.config(self.path);self.assertFalse(cfg['limitContext'])
   u=w.tree_units(self.detail['rows'])[-1];snap={'config':cfg,'topic':'Review'};u['promptSignature']='test'
   messages=[{'role':'system','content':'system'},{'role':'user','content':'x'*510000}]
   with patch.object(w.review_bundle,'messages',return_value=messages):
    self.assertIsNotNone(w.prepare_unit(e,self.path,snap,u,{}))
-   with self.assertRaisesRegex(ValueError,'预算'):w.prepare_unit(e,self.path,{**snap,'config':{**cfg,'limitContext':True}},u,{})
+   legacy=w.config(self.path,{'limitContext':True,'contextChars':1})
+   self.assertIsNotNone(w.prepare_unit(e,self.path,{**snap,'config':legacy},u,{}))
   old={k:v for k,v in cfg.items() if k!='limitContext'}
   self.assertEqual(w.unit_signature(u,cfg,'Review','s','p','m'),w.unit_signature(u,old,'Review','s','p','m'))
  def test_progress_distinguishes_failed_pending_and_running(self):

@@ -67,6 +67,8 @@ try:
   rpc('import',revision=0,csv='Serial,Title\n1,免疫机制\n1.1,菌群调节\n1.1.1,短链脂肪酸\n1.1.2,调节性T细胞\n1.2,屏障功能\n2,研究方向\n')
   v.rpc(e,'settings.save',{'baseUrl':f'http://127.0.0.1:{server.server_port}/v1','model':'fixture-embedding','apiKey':'isolated-test-secret','autoIndex':False,'rpm':600,'tpm':120000})
   v.rpc(e,'test',{})
+  # Retired budgets in saved configurations must gate neither preparation nor sending.
+  e.write_json(base/'review/ReviewTest/writing-settings.json',{'limitContext':True,'contextChars':1})
   tick=time.monotonic();d=rpc('writing.prepare');d=wait()
   assert d['job']['state']=='done',d['job']
   assert d['prepared']==d['total']==3,d

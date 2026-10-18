@@ -1704,8 +1704,8 @@ fn chat_stream(
     emit: &mut dyn FnMut(Value) -> R<()>,
 ) -> R<Value> {
     valid_id(p)?;
-    if message.trim().is_empty() || message.chars().count() > 15000 {
-        return Err("请输入 15000 字符以内的研究需求".into());
+    if message.trim().is_empty() {
+        return Err("请输入研究需求".into());
     }
     let owned_id = if chat_id.is_empty() {
         format!("legacy-{p}")
@@ -1730,7 +1730,7 @@ fn chat_stream(
     let system="你是 ScholarNoteLM 的 PubMed 检索设计助手。默认用中文与用户讨论研究范围并设计检索式；若用户明确要求本轮使用其他语言则遵循，不改变后续默认语言。不访问 PubMed、不试检索、不探索或猜测命中数，不声称已执行。根据需要澄清研究问题，给出一条宽范围基础检索及有价值的补充检索。同概念内 OR，必要概念间 AND，括号正确；自由词用 [tiab]，规范 MeSH 名称用 [MeSH Terms]。不要擅自添加日期或 JCR，它们由每条检索式单独配置。MeSH 名称将在本地索引核验，未确认的术语不要声称已核验。每条完整检索式放在单独的 ```pubmed 代码块内，并在其紧邻上方写 ### 检索式标题。代码块里只写检索式，解释放在代码块外。正常输出可读的 Markdown，不要用 JSON 包装回答。";
     let system=if language=="en" { "You are ScholarNoteLM's PubMed search design assistant. Discuss scope and explain searches in English, unless the user explicitly asks for another language in this turn. Do not visit PubMed, run test searches, guess result counts, or claim execution. Clarify the research question when needed. Provide a broad baseline search and useful complementary searches. Use OR within concepts, AND between required concepts, and correct parentheses. Use [tiab] for free text and [MeSH Terms] for canonical MeSH names. Keep English biomedical terms and PubMed syntax regardless of reply language. Do not add dates or JCR filters; these are configured separately per query. MeSH names are checked against a local index: never claim unconfirmed names are verified. Put each complete query in a separate ```pubmed code block with a ### descriptive title immediately above. Only query syntax inside the block; explanations outside. Return readable Markdown, not JSON." } else { system };
     let mut messages = vec![json!({"role":"system","content":system})];
-    for m in history.iter().skip(history.len().saturating_sub(12)) {
+    for m in &history {
         if !s(m, "text").trim().is_empty() {
             messages.push(json!({"role":m["role"],"content":m["text"]}));
         }
@@ -2640,7 +2640,7 @@ mod tests {
         fs::remove_dir_all(root).unwrap();
     }
     #[test]
-    fn search_stream_sends_the_workspace_model_to_provider() {
+    fn search_stream_sends_workspace_model_long_input_and_full_history() {
         use std::net::TcpListener;
         let root=temp();let listener=TcpListener::bind("127.0.0.1:0").unwrap();
         let address=listener.local_addr().unwrap();
@@ -2657,9 +2657,15 @@ mod tests {
         });
         dispatch(&root,json!({"action":"profile.save","args":{"profile":{"id":"provider","name":"Fixture","baseUrl":format!("http://{address}/v1"),"models":["default-model","workspace-model"],"model":"default-model","temperature":null,"timeout":10}}})).unwrap();
         let thread=dispatch(&root,json!({"action":"chat.new","args":{"project":"test"}})).unwrap();
-        let result=stream_dispatch(&root,json!({"action":"chat","args":{"project":"test","chatId":thread["id"],"streamId":"fixture-stream","message":"test","profileId":"provider","model":"workspace-model"}}),|_|Ok(())).unwrap();
+        let history:Vec<Value>=(0..20).map(|i|json!({"role":if i%2==0 {"user"} else {"assistant"},"text":format!("history-{i}")})).collect();
+        db_project(&root,"test").unwrap().execute("UPDATE chat_threads SET data=? WHERE id=?",params![serde_json::to_string(&history).unwrap(),thread["id"].as_str().unwrap()]).unwrap();
+        let message="研究需求".repeat(5000);
+        let result=stream_dispatch(&root,json!({"action":"chat","args":{"project":"test","chatId":thread["id"],"streamId":"fixture-stream","message":message,"profileId":"provider","model":"workspace-model"}}),|_|Ok(())).unwrap();
         let request=server.join().unwrap();assert_eq!(request["model"],"workspace-model");
-        assert_eq!(result[1]["text"],"fixture response");assert_eq!(result[1]["result"]["model"],"workspace-model");
+        assert_eq!(request["messages"].as_array().unwrap().len(),22);
+        for (i,item) in history.iter().enumerate() {assert_eq!(request["messages"][i+1]["content"],item["text"]);}
+        assert_eq!(request["messages"][21]["content"],message);
+        assert_eq!(result[21]["text"],"fixture response");assert_eq!(result[21]["result"]["model"],"workspace-model");
         assert_eq!(profile(&db(&root).unwrap(),&json!({})).unwrap()["model"],"default-model");
         fs::remove_dir_all(root).unwrap();
     }

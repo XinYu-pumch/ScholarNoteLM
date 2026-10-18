@@ -52,7 +52,8 @@ try:
    c.execute('CREATE TABLE settings(key TEXT PRIMARY KEY,value TEXT)');c.executemany('INSERT INTO settings VALUES(?,?)',[('profiles',json.dumps([profile])),('activeProfile',json.dumps('p'))])
   qa.rpc(e,'settings.save',{'plannerProfile':'p','plannerModel':'fixture','answerProfile':'p','answerModel':'fixture','minRounds':2,'maxRounds':3,'topK':2})
   vectors.rpc(e,'settings.save',{'baseUrl':profile['baseUrl'],'model':'embed','autoIndex':False});vectors.rpc(e,'test',{})
-  thread=qa.rpc(e,'new',{'contentLanguage':TEST_LANGUAGE} if TEST_LANGUAGE else {});job=qa.rpc(e,'start',{'threadId':thread['id'],'question':'What does the evidence show?','pmids':['123','124']})
+  long_question='What does the evidence show? '+('研究背景。'*4000)
+  thread=qa.rpc(e,'new',{'contentLanguage':TEST_LANGUAGE} if TEST_LANGUAGE else {});job=qa.rpc(e,'start',{'threadId':thread['id'],'question':long_question,'pmids':['123','124']})
   until=time.monotonic()+50
   while time.monotonic()<until:
    state=qa.job(e,job['id'])
@@ -65,13 +66,14 @@ try:
   assert {r['pmid'] for r in detail['evidence']}=={'123','124'}
   assert '[E1]' not in state['answer'] and '(PMID:' in state['answer']
   models=[r for r in requests if 'messages' in r]
+  assert json.loads(models[0]['messages'][-1]['content'])['question']==long_question
   assert len([r for r in models if '选择为解答 question' in r['messages'][0]['content']])==0
   assert len([r for r in models if ASSESS_MARK in r['messages'][0]['content']])==2
   assert not any({'max_tokens','max_completion_tokens','max_output_tokens'}&set(r) for r in models)
   run_path=qa.runpath(e,job['id']);archives=list(run_path.glob('*.gz'));assert archives
   log_storage={'originalBytes':sum(len(gzip.decompress(f.read_bytes())) for f in archives),'storedBytes':sum(f.stat().st_size for f in archives)}
   assert log_storage['storedBytes']<log_storage['originalBytes']
-  assert not (run_path/'input.json').exists() and qa.read(run_path/'input.json')['question']=='What does the evidence show?'
+  assert not (run_path/'input.json').exists() and qa.read(run_path/'input.json')['question']==long_question
   assert all(json.loads(gzip.decompress(f.read_bytes()))['messages'] in [r['messages'] for r in models] for f in run_path.glob('*.prompt.json.gz'))
   bundle=json.loads((qa.runpath(e,job['id'])/'answer-bundle.json').read_text());assert len(bundle['evidencePool'])==2
   assert qa.rpc(e,'evidence',{'runId':job['id'],'evidenceId':'E1'})['metadata']['pmid']=='123'

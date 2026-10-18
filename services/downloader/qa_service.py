@@ -228,7 +228,7 @@ def thread_revision(e,tid,t=None):
 
 def start(e,a):
     cfg=config(e);planner,answer=models(e,cfg)
-    text=reviews.bounded(a.get('question',''),15000,'问题')
+    text=reviews.unbounded(a.get('question',''),'问题')
     if not text:raise ValueError('请输入问题')
     tid=ident(a.get('threadId'));t=read(threadpath(e,tid))
     if not t or t.get('deleted'):raise ValueError('对话不存在')

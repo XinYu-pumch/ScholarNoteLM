@@ -7,6 +7,7 @@ sys.path.insert(0,str(ROOT/'services/downloader'))
 import engine as e,review_service as r,storage
 import provider_fixture as pf
 requests=[]
+large_outline='1,'+('完整标题'*500001)+'\n'
 class Handler(BaseHTTPRequestHandler):
  def log_message(self,*args):pass
  def do_POST(self):
@@ -18,6 +19,7 @@ class Handler(BaseHTTPRequestHandler):
    send({'choices':[{'delta':{'reasoning_content':'正在构思'}}]})
    time.sleep(.4)
    text='Serial,Title\n1,引言\n1.1,"背景,机制"\n1.1.1,现有证据的局限\n2,未来方向\n' if value['model']!='invalid' else 'Serial,Title\n1.1,缺失父标题\n'
+   if value['model']=='large':text=large_outline
    for part in (text[:12],text[12:]):send({'choices':[{'delta':{'content':part}}]})
    if value['model']!='truncated':
     send({'choices':[{'delta':{},'finish_reason':'stop'}]});self.wfile.write(b'data: [DONE]\n\n');self.wfile.flush()
@@ -26,7 +28,7 @@ server=ThreadingHTTPServer(('127.0.0.1',0),Handler);threading.Thread(target=serv
 try:
  with tempfile.TemporaryDirectory(prefix='review-integration-',dir=ROOT/'tmp') as temp:
   app=Path(temp);(app/'runtimes').mkdir();(app/'runtimes/downloader').symlink_to(ROOT/'runtimes/downloader',target_is_directory=True);(app/'services').symlink_to(ROOT/'services',target_is_directory=True);(app/'tmp').mkdir()
-  pf.setup(app,ROOT,f'http://127.0.0.1:{server.server_port}/v1',['outline', 'slow', 'invalid', 'truncated'])
+  pf.setup(app,ROOT,f'http://127.0.0.1:{server.server_port}/v1',['outline', 'slow', 'invalid', 'truncated', 'large'])
   e.ROOT,e.PROJECT=app,'test';base=storage.project_dir(app,'test');e.atomic(base/'pubmed/current.xml','<PubmedArticleSet><PubmedArticle><MedlineCitation><PMID>123</PMID><Article><ArticleTitle>Fixture study</ArticleTitle><Abstract><AbstractText>All of the fixture abstract.</AbstractText></Abstract></Article></MedlineCitation></PubmedArticle></PubmedArticleSet>')
   cfg=app/'data/research/research.sqlite3';cfg.parent.mkdir(parents=True)
   def model(name):
@@ -64,6 +66,11 @@ try:
    assert d['version']['state']=='failed' and expected in d['version']['error'],d
    assert (Path(d['path'])/'outline.csv').read_text()==original;assert d['response']
   assert (vp/'generated.csv').read_text()==original
+  model('large');rpc('start',revision=d['version']['revision'],topic='大纲长度测试');d=wait('current')
+  assert d['version']['state']=='done',d['version']
+  assert d['rows'][0]['title']==large_outline[2:].strip()
+  assert (vp/'response.txt').read_text()==large_outline
+  assert d['version']['promptVersion']==r.OUTLINE_PROMPT_VERSION
   pf.verify()
   print(json.dumps({'success':True,'requests':len(requests),'checks':['real Rust RPC and independent worker','all abstracts + topic + requirements sent','reasoning activity recognized','complete hierarchy CSV','immutable generated baseline and restore','cancel during first response wait','invalid CSV does not publish','interrupted stream does not publish','prompt.txt export without secrets','current outline retained after cancellation and failed regeneration']},ensure_ascii=False))
 finally:server.shutdown();server.server_close()

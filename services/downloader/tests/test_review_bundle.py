@@ -132,12 +132,15 @@ class SharedRunTests(unittest.TestCase):
   self.assertEqual(self.status()['prepared'],4)
   package=preview.with_suffix('.json');package.write_text(package.read_text()+' ')
   self.assertEqual(self.status()['prepared'],3)
- def test_optional_budget_does_not_split_siblings(self):
+ def test_retired_budget_preserves_large_shared_pool_and_siblings(self):
   unit=w.tree_units(self.detail['rows'])[0];unit['promptSignature']='test';cfg={**w.config(self.path),'limitContext':True,'contextChars':12000}
   record={'id':'large','text':'x'*15000,'metadata':{'pmid':'12345678','sourceKind':'fulltext'}}
   evidence={n['id']:{'query':n['title'],'chunks':[record]} for n in unit['leaves']}
-  with self.assertRaisesRegex(ValueError,'未拆分'):w.prepare_unit(e,self.path,{'topic':'Review','config':cfg},unit,evidence)
-  self.assertFalse(list((self.path/'review_parts').glob('prompt_section_*.json')))
+  prepared=w.prepare_unit(e,self.path,{'topic':'Review','config':cfg},unit,evidence)
+  self.assertEqual(len(prepared['plans']),1)
+  bundle=w.load_bundle(self.path,prepared['plans'][0])
+  self.assertEqual(bundle['evidencePool'][0]['text'],record['text'])
+  self.assertEqual(len(bundle['unit']['nodes']),len(unit['nodes']))
  def test_package_changed_during_generation_is_not_published(self):
   record={'id':'one','text':'Evidence','metadata':{'pmid':'12345678','title':'Study','sourceKind':'pubmed_abstract','sectionPath':[]}}
   class Retriever:
