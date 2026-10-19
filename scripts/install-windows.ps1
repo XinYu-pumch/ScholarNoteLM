@@ -1,4 +1,4 @@
-param([switch]$Check, [switch]$DevTools)
+param([switch]$Check, [switch]$DevTools, [switch]$CpuOnly, [switch]$CudaOnly)
 $ErrorActionPreference = 'Stop'
 $root = Split-Path -Parent $PSScriptRoot
 Set-Location -LiteralPath $root
@@ -47,6 +47,11 @@ try {
     $boot = Join-Path $root 'cache\bootstrap'
     $uv = Join-Path $boot 'uv\uv.exe'
     $python = Join-Path $root 'runtimes\downloader\Scripts\python.exe'
+    if ($CudaOnly) {
+        if (!(Test-Path -LiteralPath $python)) { throw 'Install the base environment first.' }
+        & $python -X utf8 (Join-Path $root 'scripts\setup-cuda-windows.py') --uv $uv
+        exit $LASTEXITCODE
+    }
     if ($Check) {
         if (!(Test-Path -LiteralPath $python)) { throw 'Environment missing. Run setup without -Check.' }
         Ensure-WebView
@@ -75,6 +80,7 @@ try {
     Ensure-WebView
     $setupArgs = @('-X','utf8',(Join-Path $root 'scripts\setup-runtime-windows.py'),'--uv',$uv,'--apply')
     if ($DevTools) { $setupArgs += '--dev-tools' }
+    if ($CpuOnly) { $setupArgs += '--cpu-only' }
     & $bootstrapPython @setupArgs
     if ($LASTEXITCODE -ne 0) { throw 'Runtime installation/check failed. Downloaded files are retained.' }
     Write-Host 'Setup complete. Put the matching models and ScholarNoteLM.exe here, then open the app.'

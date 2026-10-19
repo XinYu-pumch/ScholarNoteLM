@@ -1,0 +1,15 @@
+{
+  "torch": "2.9.1",
+  "profiles": {
+    "cu126": {
+      "url": "https://download-r2.pytorch.org/whl/cu126/torch-2.9.1%2Bcu126-cp312-cp312-win_amd64.whl",
+      "sha256": "f2f1c68c7957ed8b6b56fc450482eb3fa53947fb74838b03834a1760451cf60f",
+      "minimumWindowsDriver": "560.76"
+    },
+    "cu128": {
+      "url": "https://download-r2.pytorch.org/whl/cu128/torch-2.9.1%2Bcu128-cp312-cp312-win_amd64.whl",
+      "sha256": "3a01f0b64c10a82d444d9fd06b3e8c567b1158b76b2764b8f51bfd8f535064b0",
+      "minimumWindowsDriver": "570.65"
+    }
+  }
+}

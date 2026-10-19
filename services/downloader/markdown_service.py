@@ -2,6 +2,7 @@
 import hashlib,json,os,subprocess,time,uuid
 from pathlib import Path
 import corpus_files,storage,markdown_cleaning,conversion_config as conversion
+import compute_devices
 
 DEFAULTS={'device':'auto','badrCleanup':True,'cleaningMode':'references-v1','removeLines':[],'pdftextWorkers':'auto'}
 MODELS={'layout':'layout/2025_02_18','texify':'texify/2025_02_18','recognition':'text_recognition/2025_02_18','table_rec':'table_recognition/2025_02_18','detection':'text_detection/2025_02_28','inline_detection':'inline_math_detection/2025_02_24','ocr_error':'ocr_error_detection/2025_02_18'}
@@ -20,7 +21,7 @@ def readiness(e):
         if not (p/'config.json').is_file() or not any(p.glob('*.safetensors')):missing.append(name)
     if not (e.ROOT/'services/marker/vendor/static/fonts/GoNotoCurrent-Regular.ttf').is_file():missing.append('本地字体')
     marker={'ready':runtime(e.ROOT).is_file() and not missing,'runtime':str(runtime(e.ROOT)),'models':str(e.ROOT/'models/marker'),'missing':missing,'label':'Marker 1.6.0','backend':'本地 · 关闭 OCR'}
-    return {**marker,'config':config(e)}
+    return {**marker,'config':config(e),'compute':compute_devices.cached(e.ROOT)}
 
 def job_path(e):return corpus_files.base(e)/'metadata/markdown-job.json'
 def read_job(e):
@@ -75,6 +76,10 @@ def status_locked(e):
     return {**readiness(e),'job':read_job(e),'items':items,'files':sync,'downloadStatus':artifact_state.download_status(e,items),'abstractCount':sum(i['abstractFallback'] for i in items),'sourceReadyCount':sum(i['sourceReady'] for i in items),'pdfCount':sum(i['pdf'] for i in items),'markdownCount':sum(i['ready'] for i in items),'latestCount':sum(i['markdownState']=='latest' and not i['needsConversion'] for i in items)}
 
 def rpc(e,action,a):
+    if action=='devices':
+        result=compute_devices.detect(e.ROOT,a.get('device','auto'))
+        e.write_json(e.ROOT/'cache/compute-device.json',result)
+        return result
     if action=='settings':return readiness(e)
     if action=='settings.save':
         ensure_idle(e)

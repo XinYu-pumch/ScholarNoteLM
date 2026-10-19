@@ -1614,5 +1614,14 @@
   "连接目录": "Reconnect folder",
   "使用此目录": "Use this folder",
   "已有文件不会被覆盖。之后可在设置中更换工作目录。": "Existing files will be preserved. You can change the research folder in Settings later.",
-  "原工作目录仍不可访问": "The original research folder is still unavailable"
+  "原工作目录仍不可访问": "The original research folder is still unavailable",
+  "自动检测：{p0}": "Automatic selection: {p0}",
+  "正在检测计算设备…": "Checking compute devices…",
+  "已手动选择设备，转换时验证可用性": "Manual device selected; availability is checked before conversion",
+  "尚未安装 CUDA 加速组件": "CUDA acceleration component is not installed",
+  "CUDA 不可用，请检查 NVIDIA 驱动和显卡": "CUDA is unavailable; check the NVIDIA driver and GPU",
+  "Apple MPS 不可用": "Apple MPS is unavailable",
+  "已检测到 NVIDIA 显卡，请通过环境安装程序安装 CUDA 加速组件": "NVIDIA GPU detected; install the CUDA acceleration component with ScholarNoteLM Setup",
+  "实际计算设备：{p0}": "Actual compute device: {p0}",
+  "加速异常已自动重试，详情见转换报告": "Accelerator failure retried automatically; see the conversion report"
 }

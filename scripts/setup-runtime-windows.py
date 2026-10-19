@@ -145,7 +145,13 @@ def install_node(root):
 def repair_python_home(root):
     """Windows venv launchers need an absolute home; rebase owned environments after a move."""
     home = root/'runtimes/python'/PLAN['python']
-    for name in ('downloader','marker','retrieval'):
+    names=['downloader','marker','retrieval']
+    pointer=root/'runtimes/cuda-state.json'
+    if pointer.is_file():
+        name=json.loads(pointer.read_text(encoding='utf-8')).get('directory','')
+        folder=(root/'runtimes'/name).resolve()
+        if name.startswith('marker-cu') and folder.parent==(root/'runtimes').resolve():names.append(name)
+    for name in names:
         config = root/'runtimes'/name/'pyvenv.cfg'
         if not config.is_file():
             continue
@@ -203,6 +209,7 @@ def main():
     parser.add_argument('--apply',action='store_true')
     parser.add_argument('--check',action='store_true')
     parser.add_argument('--dev-tools',action='store_true')
+    parser.add_argument('--cpu-only',action='store_true',help='Skip optional CUDA installation')
     args = parser.parse_args()
     root = args.root.absolute()
     if root.resolve() != root:
@@ -242,6 +249,11 @@ def main():
         verify(root,require_models=False)
         from release_manifest import register_installation
         register_installation(root)
+    if not args.cpu_only:
+        # CUDA owns a separate lock/state. Failure leaves the verified CPU runtime usable.
+        result=subprocess.run([sys.executable,str(root/'scripts/setup-cuda-windows.py'),'--root',str(root),'--uv',str(args.uv)],
+                              cwd=root,env=environment(root))
+        if result.returncode:print('Optional CUDA installation failed. CPU is ready; retry CUDA setup later.',flush=True)
 
 
 if __name__ == '__main__':

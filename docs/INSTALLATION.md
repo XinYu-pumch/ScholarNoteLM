@@ -25,6 +25,14 @@
 
 ## Windows x64
 
+当前 CUDA 预发布版本为 `v0.6.3-windows.1`，请从该 Release 下载配套源码 ZIP 和 Windows 程序 ZIP，或指定标签克隆：
+
+```powershell
+git clone --branch v0.6.3-windows.1 https://github.com/XinYu-pumch/ScholarNoteLM.git
+```
+
+这是 Windows 预发布版本。现有 Mac `v0.6.2` 程序继续搭配其同版本源码；不要与本标签源码混用。Mac MPS 回归和新版 Mac 预编译程序另行发布。
+
 目标为 Windows 10/11 x64（Intel/AMD），当前在 Windows 11 上验收；Windows ARM64 不属于此发布目标。沿用“匹配源码 + 平台程序 + models”的布局，Windows 与 macOS 共用仓库和模型资源，运行时须分别安装。
 
 1. 克隆对应 Release 的 tag，或解压同次发布的源码 ZIP。安装目录须可写，建议使用较短的路径，如 `D:\ScholarNoteLM`，避免系统受保护目录。
@@ -33,7 +41,25 @@
 4. 双击 `ScholarNoteLM-Setup.exe`，点击“安装 / 继续”。也可双击源码中的 `安装环境.cmd`。无需提前安装 Python；引导程序下载并校验引导工具，再创建项目专用 Python 3.12.9、Node 20.19.0、Chromium 和固定版本依赖。
 5. 点击“检查环境”，成功后双击 `ScholarNoteLM.exe`。首次使用选择研究工作目录，再创建项目。
 
-普通用户无需勾选“开发工具”。安装器检测 Microsoft Edge WebView2；缺失时运行经 Microsoft 签名验证的官方安装程序。首次安装需要网络，可继承 `HTTPS_PROXY`；下载失败后可重试，成功完成的安装阶段保留。模型不由安装器重新下载。Windows 版本使用 PyTorch CPU，无需 NVIDIA 显卡或 CUDA。
+普通用户无需勾选“开发工具”。安装器检测 Microsoft Edge WebView2；缺失时运行经 Microsoft 签名验证的官方安装程序。首次安装需要网络，可继承 `HTTPS_PROXY`；下载失败后可重试，成功完成的安装阶段保留。模型不由安装器重新下载。没有 NVIDIA 显卡也能使用 CPU。
+
+### 可选 NVIDIA CUDA 加速
+
+安装引导默认勾选“自动安装 NVIDIA CUDA 加速”，先安装原有 CPU 环境，再根据显卡和驱动选择固定版本的 CUDA PyTorch，额外下载约 2–3 GB。不需要安装系统 CUDA Toolkit、cuDNN 或 Rust。取消勾选则仅安装 CPU；命令行对应 `-CpuOnly`。
+
+已安装匹配 CPU 环境的用户可以单独添加 CUDA：
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File scripts/install-windows.ps1 -CudaOnly
+```
+
+PyTorch 保持 2.9.1：普通适用显卡优先 cu126；计算能力 10.0 及以上（包括 RTX 50 系）选择 cu128。自动安装采用保守驱动门槛：cu126 为 Windows 驱动 560.76+，cu128 为 570.65+，新显卡还需要支持该型号的驱动。门槛来自对应 Toolkit 发布时的驱动版本，不表示更旧驱动一定不能运行；最终以 GPU 运算检查和模型转换为准。部分老显卡未包含在 wheel 中，即使有 NVIDIA 驱动也可能无法加速。不自动安装或升级显卡驱动。
+
+CUDA 环境位于 `runtimes/marker-cu<版本>-<校验标识>/`，自身保存 GPU 版 torch，其余固定依赖共享 `runtimes/marker`，模型共用 `models/`。验证成功后才更新 `runtimes/cuda-state.json`；失败保留 CPU 和原有可用 CUDA 指针。不要单独移动或删除这些依赖目录。移动整个安装目录后，运行普通“安装 / 继续”修复虚拟环境路径。
+
+每次打开新 App 会后台检查设备，不下载组件或加载模型；开始转换前再次验证。检测结果显示在全文转换设置中。自动模式下 GPU 不可用则使用 CPU；手动指定不可用设备会明确报错。仅本地 Marker 模型推理受益，远程 API、下载和数据库不会获得 CUDA 加速。显存不足/设备故障的恢复规则见 [转换说明](MARKDOWN.md)。
+
+此功能需要包含 CUDA 改动的匹配源码和预编译程序；旧 Release 与先前构建的 CPU 独立安装包不会自动更新。当前实测 Windows RTX 4070 Ti SUPER + 驱动 591.74 + cu126；cu128/RTX 50 系与本次 Mac MPS 回归仍需相应机器验证。
 
 安装引导是独立 WinForms EXE，使用 Windows 自带的 .NET Framework；主程序通过 Tauri/WebView2 显示界面。两者均未做 Authenticode 签名，系统可能显示未知发布者提示；正式公开分发前可另行签名，不通过关闭系统安全功能解决提示。
 
