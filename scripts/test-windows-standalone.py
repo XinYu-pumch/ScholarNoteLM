@@ -11,6 +11,8 @@ import subprocess
 import sys
 import tempfile
 import unittest
+from unittest.mock import patch
+import zipfile
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0,str(ROOT/'scripts/standalone'))
@@ -21,6 +23,43 @@ spec.loader.exec_module(builder)
 
 
 class PackageBoundaries(unittest.TestCase):
+    def test_cleanup_only_removes_owned_stage(self):
+        with tempfile.TemporaryDirectory() as folder:
+            output=Path(folder)
+            stage=output/'stage-0.6.5-01234567';stage.mkdir()
+            (stage/'build-info.json').write_text('{}')
+            neighbour=output/'stage-0.6.5-89abcdef';neighbour.mkdir()
+            (neighbour/'keep').write_text('keep')
+            with self.assertRaises(ValueError):builder.cleanup_stage(output,output)
+            with self.assertRaises(ValueError):builder.cleanup_stage(neighbour,output)
+            builder.cleanup_stage(stage,output)
+            self.assertFalse(stage.exists())
+            self.assertTrue((neighbour/'keep').is_file())
+
+    def test_failed_archive_preserves_published_distribution(self):
+        with tempfile.TemporaryDirectory() as folder:
+            output=Path(folder);stage=output/'stage';stage.mkdir()
+            installer=stage/'ScholarNoteLM-0.6.5-windows-x64-standalone-setup.exe'
+            installer.write_bytes(b'new')
+            (stage/'INSTALL-README.txt').write_text('fixture')
+            final=output/'ScholarNoteLM-0.6.5-windows-x64-standalone-cuda.zip'
+            final.write_bytes(b'existing verified build')
+            with patch.object(zipfile.ZipFile,'testzip',return_value='broken.bin'):
+                with self.assertRaises(ValueError):builder.publish_distribution(stage,output,installer,[installer],True)
+            self.assertEqual(final.read_bytes(),b'existing verified build')
+
+    def test_distribution_contains_only_explicit_payloads(self):
+        with tempfile.TemporaryDirectory() as folder:
+            output=Path(folder);stage=output/'stage';stage.mkdir()
+            installer=stage/'ScholarNoteLM-0.6.5-windows-x64-standalone-setup.exe'
+            data=stage/(installer.stem+'-1.bin')
+            for path in (installer,data,stage/'INSTALL-README.txt',stage/'private-fixture.txt'):
+                path.write_bytes(b'fixture')
+            final=builder.publish_distribution(stage,output,installer,[installer,data],True)
+            with zipfile.ZipFile(final) as archive:
+                self.assertEqual(set(archive.namelist()),{installer.name,data.name,installer.name+'.sha256','INSTALL-README.txt'})
+            self.assertEqual(final.with_suffix('.zip.sha256').read_text().split()[0],builder.sha(final))
+
     def test_manifest_cannot_escape_or_alias(self):
         with tempfile.TemporaryDirectory() as folder:
             for value in ('../config/keys', '/tmp/file', 'C:/secret', 'app\\config', 'app/../config', 'app//file', './file'):

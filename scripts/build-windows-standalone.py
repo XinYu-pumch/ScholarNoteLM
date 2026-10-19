@@ -263,7 +263,7 @@ WebView2 distribution: https://learn.microsoft.com/microsoft-edge/webview2/conce
     write_json(stage/'standalone-manifest.json',metadata)
     # An explicit installer file list prevents smoke-test output or private files
     # ever being picked up by a recursive wildcard on a reused staging folder.
-    files_list = output/(stage.name+'-files.iss')
+    files_list = stage/'installer-files.iss'
     lines = []
     for name in [*records,'standalone-manifest.json']:
         path = Path(name)
@@ -271,18 +271,60 @@ WebView2 distribution: https://learn.microsoft.com/microsoft-edge/webview2/conce
         dest = ('{app}\\'+str(path.parent)) if path.parent!=Path('.') else '{app}'
         lines.append(f'Source: "{source}"; DestDir: "{dest}"; Flags: ignoreversion')
     files_list.write_text('\n'.join(lines)+'\n',encoding='utf-8-sig')
-    write_json(output/'last-build.json',{'stage':str(stage),'filesList':str(files_list),
+    write_json(stage/'build-info.json',{'stage':str(stage),'filesList':str(files_list),
                'payloadBytes':sum(v['bytes'] for v in records.values()),'fileCount':len(records)})
     print(f'Staged {len(records)} files, {sum(v["bytes"] for v in records.values())/1024**3:.2f} GiB: {stage}',flush=True)
     if args.stage_only:
         return
     compile_installer(stage,files_list,args,version,cuda)
+    if not args.keep_build:
+        cleanup_stage(stage,output)
+
+
+def cleanup_stage(stage,output):
+    """Delete only this successful build's owned intermediate directory."""
+    reject_links(stage)
+    stage=stage.resolve();output=output.resolve()
+    if stage.parent!=output or not re.fullmatch(r'stage-[0-9]+\.[0-9]+\.[0-9]+-[0-9a-f]{8}',stage.name):
+        raise ValueError('Refusing to clean a path outside an owned staging directory.')
+    if not (stage/'build-info.json').is_file():
+        raise ValueError('Refusing to clean staging without build ownership metadata.')
+    for directory,folders,files in os.walk(stage,followlinks=False):
+        for name in folders+files:
+            reject_links(Path(directory)/name)
+    shutil.rmtree(stage)
+
+
+def publish_distribution(stage,output,installer,payloads,cuda):
+    """Validate a complete private build before replacing public artifacts."""
+    checksums=installer.with_suffix('.exe.sha256')
+    checksums.write_text(''.join(sha(path)+'  '+path.name+'\n' for path in payloads),encoding='utf-8')
+    artifact=installer
+    if cuda:
+        artifact=installer.parent/(installer.name.removesuffix('-setup.exe')+'-cuda.zip')
+        with zipfile.ZipFile(artifact,'w',compression=zipfile.ZIP_STORED,allowZip64=True) as archive:
+            for path in [*payloads,checksums,stage/'INSTALL-README.txt']:
+                archive.write(path,path.name)
+        with zipfile.ZipFile(artifact) as archive:
+            damaged=archive.testzip()
+        if damaged:
+            raise ValueError('Distribution ZIP integrity check failed: '+damaged)
+        checksums=artifact.with_suffix('.zip.sha256')
+        checksums.write_text(sha(artifact)+'  '+artifact.name+'\n',encoding='utf-8')
+    # Build outputs remain private until compilation and archive validation pass.
+    # Each file replacement is atomic on this filesystem; verify the sidecar when downloading.
+    final=output/artifact.name
+    os.replace(artifact,final)
+    os.replace(checksums,output/checksums.name)
+    print('Complete offline distribution:',final,flush=True)
+    return final
 
 
 def compile_installer(stage,files_list,args,version,cuda):
-    output = ROOT/'dist/standalone'
+    output = stage/'installer-output'
+    output.mkdir()
     webview = args.webview_installer.absolute()
-    log = output/'installer-build.log'
+    log = stage/'installer-build.log'
     command = [str(args.iscc), '/Qp', '/DAppVersion='+version, '/DOutputDir='+str(output),
                '/DPayloadDir='+str(stage), '/DFilesList='+str(files_list),
                '/DIconFile='+str(ROOT/'apps/desktop/src-tauri/icons/icon.ico'),
@@ -301,21 +343,9 @@ def compile_installer(stage,files_list,args,version,cuda):
         payloads += sorted(output.glob(installer.stem+'-*.bin'))
         if len(payloads)<2:
             raise ValueError('CUDA installer is missing its offline data file.')
-    checksums = ''.join(sha(path)+'  '+path.name+'\n' for path in payloads)
-    installer.with_suffix('.exe.sha256').write_text(checksums,encoding='utf-8')
-    shutil.copyfile(stage/'standalone-manifest.json',output/'standalone-manifest.json')
-    if cuda:
-        # Already-compressed payload: store in a single downloadable ZIP without
-        # a second expensive compression pass. Zip64 supports data above 4 GiB.
-        archive=output/f'ScholarNoteLM-{version}-windows-x64-standalone-cuda.zip'
-        with zipfile.ZipFile(archive,'w',compression=zipfile.ZIP_STORED,allowZip64=True) as z:
-            for path in [*payloads,installer.with_suffix('.exe.sha256')]:
-                z.write(path,path.name)
-            z.write(stage/'INSTALL-README.txt','INSTALL-README.txt')
-        archive.with_suffix('.zip.sha256').write_text(sha(archive)+'  '+archive.name+'\n',encoding='utf-8')
-        print('Complete CUDA offline distribution:',archive,flush=True)
     print(json.dumps({'installer':str(installer),'payloadBytes':sum(p.stat().st_size for p in payloads),
                       'files':[p.name for p in payloads]},indent=2),flush=True)
+    publish_distribution(stage,stage.parent,installer,payloads,cuda)
 
 
 def main():
@@ -324,6 +354,7 @@ def main():
     parser.add_argument('--webview-installer',type=Path,default=ROOT/'cache/standalone-tools/MicrosoftEdgeWebView2RuntimeInstallerX64.exe')
     parser.add_argument('--vc-crt',type=Path,required=True)
     parser.add_argument('--stage-only',action='store_true')
+    parser.add_argument('--keep-build',action='store_true',help='Retain this build staging directory and compiler log after success')
     parser.add_argument('--include-cuda',action='store_true',help='Bundle the installed managed CUDA overlay alongside the CPU fallback')
     build(parser.parse_args())
 
