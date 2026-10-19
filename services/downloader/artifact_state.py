@@ -1,4 +1,6 @@
 """Content fingerprints and per-article lifecycle, independent of file timestamps."""
+from file_identity import change_ns
+import managed_sqlite
 import hashlib,json,sqlite3
 import corpus_files as files
 
@@ -11,9 +13,9 @@ def epoch(e,pmid):return membership(e).get('epochs',{}).get(pmid,0)
 def file_hash(e,path):
     if not path.is_file():return None
     if path.is_symlink():raise ValueError('文献文件不能是符号链接')
-    stat=path.stat();signature=f'{stat.st_size}:{stat.st_mtime_ns}:{stat.st_ctime_ns}'
+    stat=path.stat();signature=f'{stat.st_size}:{stat.st_mtime_ns}:{change_ns(path,stat)}'
     cache=files.folder(e,'metadata')/'file-fingerprints.sqlite3'
-    c=sqlite3.connect(cache,timeout=15)
+    c=managed_sqlite.connect(cache,timeout=15)
     try:
         c.execute('CREATE TABLE IF NOT EXISTS files(path TEXT PRIMARY KEY,signature TEXT,sha TEXT)')
         key=str(path.relative_to(files.base(e)));old=c.execute('SELECT signature,sha FROM files WHERE path=?',(key,)).fetchone()
@@ -21,7 +23,7 @@ def file_hash(e,path):
         if path.suffix=='.pdf':sha=e.validate_pdf(path)['sha256']
         else:sha=hashlib.sha256(path.read_bytes()).hexdigest()
         after=path.stat()
-        if signature!=f'{after.st_size}:{after.st_mtime_ns}:{after.st_ctime_ns}':raise ValueError('文件正在变化，请稍后重试')
+        if signature!=f'{after.st_size}:{after.st_mtime_ns}:{change_ns(path,after)}':raise ValueError('文件正在变化，请稍后重试')
         c.execute('INSERT OR REPLACE INTO files VALUES(?,?,?)',(key,signature,sha));c.commit();return sha
     finally:c.close()
 

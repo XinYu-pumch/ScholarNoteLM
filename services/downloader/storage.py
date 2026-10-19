@@ -1,4 +1,5 @@
 """System resources stay in the installation; project data lives in a chosen workspace."""
+import managed_sqlite
 from pathlib import Path
 from contextlib import contextmanager
 import snapshot_files
@@ -52,9 +53,8 @@ def file_lock(path, shared=False):
     f=path.open('a+b')
     try:
         if os.name=='nt':
-            import msvcrt
-            f.seek(0);f.write(b'0');f.flush();f.seek(0)
-            msvcrt.locking(f.fileno(),msvcrt.LK_NBRLCK if shared else msvcrt.LK_NBLCK,1)
+            from windows_lock import lock
+            lock(f,shared)
         else:
             import fcntl
             fcntl.flock(f.fileno(),(fcntl.LOCK_SH if shared else fcntl.LOCK_EX)|fcntl.LOCK_NB)
@@ -205,7 +205,7 @@ def move_workspace(root,value):
     for pid in cfg['projects']:
         db=project_dir(root,pid)/'metadata/downloads.sqlite3'
         if db.exists():
-            with sqlite3.connect(db) as c:
+            with managed_sqlite.connect(db) as c:
                 if c.execute("SELECT 1 FROM batches WHERE state IN ('running','queued')").fetchone():raise ValueError('请先暂停下载，再更换工作目录')
     target.mkdir(parents=True,exist_ok=True)
     for name in cfg['projects'].values():
@@ -236,7 +236,7 @@ def choose_folder():
         if r.returncode:return {'path':''}
         return {'path':r.stdout.strip().rstrip('/') or '/'}
     if os.name=='nt':
-        script='Add-Type -AssemblyName System.Windows.Forms; $d=New-Object System.Windows.Forms.FolderBrowserDialog; $d.Description="ScholarNoteLM workspace"; if($d.ShowDialog() -eq "OK"){[Console]::Write($d.SelectedPath)}'
-        r=subprocess.run(['powershell','-NoProfile','-STA','-Command',script],capture_output=True,text=True,creationflags=subprocess.CREATE_NO_WINDOW)
+        script='[Console]::OutputEncoding = New-Object System.Text.UTF8Encoding($false); Add-Type -AssemblyName System.Windows.Forms; $d=New-Object System.Windows.Forms.FolderBrowserDialog; $d.Description="ScholarNoteLM workspace"; if($d.ShowDialog() -eq "OK"){[Console]::Write($d.SelectedPath)}'
+        r=subprocess.run(['powershell','-NoProfile','-STA','-Command',script],capture_output=True,text=True,encoding='utf-8',creationflags=subprocess.CREATE_NO_WINDOW)
         return {'path':r.stdout.strip()}
     raise ValueError('请在输入框中填写文件夹的绝对路径')

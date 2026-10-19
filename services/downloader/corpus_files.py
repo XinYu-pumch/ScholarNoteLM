@@ -147,7 +147,7 @@ def reconcile_locked(e):
             previous=json.loads(old[0]['data']) if old else {};checked=e.validate_pdf(base(e)/path)
             # A replacement in the backup folder must not inherit the old PDF's origin.
             previous=previous if previous.get('sha256')==checked['sha256'] else {}
-            info={**previous,**checked,'pmid':p,'path':str(path),'archived':False,'restored':time.time()}
+            info={**previous,**checked,'pmid':p,'path':path.as_posix(),'archived':False,'restored':time.time()}
             info.setdefault('source','冗余目录恢复')
             e.execute('INSERT OR REPLACE INTO assets VALUES(?,?,?)',(e.PROJECT,p,json.dumps(info,ensure_ascii=False)))
     result={'restored':restored,'archived':archived,'redundant':len(list(folder(e,'pdf/redundant').glob('*.pdf'))),'errors':errors,'deletedDerived':len(deleted),'archivedMarkdown':archived_markdown,'restoredMarkdown':restored_markdown}

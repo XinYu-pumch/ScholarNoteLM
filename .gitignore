@@ -36,3 +36,7 @@ docs/*-20[0-9][0-9][0-9][0-9][0-9][0-9]/
 
 # Generated precompiled app; publish its ZIP through GitHub Releases.
 /ScholarNoteLM.app/
+/ScholarNoteLM.exe
+/ScholarNoteLM-Setup.exe
+/source-manifest.json
+/third-party/

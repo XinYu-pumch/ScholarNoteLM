@@ -3,6 +3,7 @@
 One coordinator owns a pipeline; each stage still uses its existing worker.
 Opening/closing a view never drives the next stage.
 """
+import managed_sqlite
 import json,os,shutil,sqlite3,subprocess,sys,time,uuid
 from pathlib import Path
 import corpus_files as files,storage
@@ -86,7 +87,7 @@ def inventory(e,scope='index',redundant=False):
     counts['chunks']=0
     db=base/'vectors/chunks.sqlite3'
     if db.is_file():
-        with sqlite3.connect(db.as_uri()+'?mode=ro',uri=True) as c:
+        with managed_sqlite.connect(db.as_uri()+'?mode=ro',uri=True) as c:
             if c.execute("SELECT 1 FROM sqlite_master WHERE name='chunks'").fetchone():counts['chunks']=c.execute('SELECT COUNT(*) FROM chunks').fetchone()[0]
     return {'project':e.PROJECT,'scope':scope,'includeRedundant':redundant,'counts':counts}
 

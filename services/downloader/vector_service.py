@@ -1,4 +1,5 @@
 """Local evidence store, explicit embedding API, resumable per-document indexing."""
+import managed_sqlite
 import concurrent.futures,json,math,os,re,sqlite3,struct,subprocess,sys,time,uuid
 from pathlib import Path
 from contextlib import contextmanager
@@ -34,7 +35,7 @@ def cache_profile(e,cfg):
     """
     aliases=profile_aliases(cfg);db=files.base(e)/'vectors/chunks.sqlite3'
     if db.is_file():
-        with sqlite3.connect(db.as_uri()+'?mode=ro',uri=True) as c:
+        with managed_sqlite.connect(db.as_uri()+'?mode=ro',uri=True) as c:
             if c.execute("SELECT 1 FROM sqlite_master WHERE type='table' AND name='profiles'").fetchone():
                 for pid in aliases:
                     if c.execute('SELECT 1 FROM profiles WHERE id=?',(pid,)).fetchone():return pid

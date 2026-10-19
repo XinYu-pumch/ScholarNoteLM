@@ -10,6 +10,7 @@ import corpus_files as files
 import storage
 import artifact_state
 import conversion_config as conversion
+import compute_devices
 
 class ModelLoadError(RuntimeError):pass
 
@@ -19,7 +20,7 @@ def published(text):
 def run(project,job_id):
     e.PROJECT=project;base=files.base(e);job=m.read_job(e)
     if not job or job['id']!=job_id:raise RuntimeError('转换任务已被替换')
-    report=Path(job['logPath']);cfg=job['config'];models=None
+    report=Path(job['logPath']);cfg=job['config'];models=None;inference=None
     def cancelled():return (base/'metadata'/('markdown-stop-'+job_id)).exists() or bool(job.get('owner') and not e.process_alive(job['owner']))
     def save():
         snapshot=dict(job)
@@ -33,6 +34,22 @@ def run(project,job_id):
         with storage.file_lock(ROOT/'data/locks/conversion-models.lock'), storage.file_lock(ROOT/'config/storage.lock',shared=True):
             os.environ.update(HF_HUB_OFFLINE='1',TRANSFORMERS_OFFLINE='1',HF_HOME=str(ROOT/'cache/huggingface'),TORCH_HOME=str(ROOT/'cache/torch'),XDG_CACHE_HOME=str(ROOT/'cache'),SURYA_CACHE_DIR=str(ROOT/'models/marker'),PYTORCH_ENABLE_MPS_FALLBACK='1',TOKENIZERS_PARALLELISM='false',TQDM_DISABLE='1')
             if cfg['device']!='auto':os.environ['TORCH_DEVICE']=cfg['device']
+            else:os.environ.pop('TORCH_DEVICE',None)
+            # macOS keeps its existing in-process MPS model path and precision.
+            # Windows CUDA lives in a separate process so a failed context cannot
+            # contaminate CPU recovery or the durable job's ownership/locks.
+            if job['mode']=='convert':
+                selection=compute_devices.detect(ROOT,cfg['device'])
+                if cfg['device'] not in ('auto','cpu') and selection['device']!=cfg['device']:
+                    raise RuntimeError('所选加速设备不可用：'+selection.get('reason',''))
+                job['compute']=selection;job['device']=selection['device'];save()
+                os.environ['TORCH_DEVICE']=selection['device']
+                if selection['device']=='cuda' and os.name=='nt':
+                    from inference_client import InferenceClient
+                    def compute_changed():
+                        job['compute']=inference.selection;job['device']=inference.selection['device']
+                        job['acceleratorFallbacks']=inference.fallbacks;save()
+                    inference=InferenceClient(ROOT,selection,automatic=cfg['device']=='auto',on_change=compute_changed)
             # Enforce offline conversion even if a library tries a fallback download.
             original_connect=socket.socket.connect
             def offline(sock,address):
@@ -75,7 +92,11 @@ def run(project,job_id):
                             raise ValueError('现有 Markdown 包含手动编辑或无法确认原始版本；请使用明确覆盖操作，旧版本将保留在历史目录')
                     reuse_raw=raw_text is not None
                     if raw_text is None:
-                        if models is None:
+                        if inference is not None:
+                            out=inference.convert(stage/f'{p}.pdf',stage,requested,cancelled)
+                            job['compute']=inference.selection;job['device']=inference.selection['device']
+                            job['acceleratorFallbacks']=inference.fallbacks;save()
+                        elif models is None:
                             try:
                                 from marker.models import create_model_dict
                                 from marker.config.parser import ConfigParser
@@ -84,16 +105,19 @@ def run(project,job_id):
                             except Exception as ex:raise ModelLoadError(str(ex)) from ex
                             import torch
                             job['device']=os.environ.get('TORCH_DEVICE') or ('cuda' if torch.cuda.is_available() else 'mps' if torch.backends.mps.is_available() else 'cpu');save()
-                        parser=ConfigParser({'output_dir':str(stage),'output_format':'markdown','disable_ocr':True,'pdftext_workers':requested,'disable_tqdm':True,'use_llm':False})
-                        converter=parser.get_converter_cls()(config=parser.generate_config_dict(),artifact_dict=models,processor_list=parser.get_processors(),renderer=parser.get_renderer(),llm_service=None)
-                        rendered=converter(str(stage/f'{p}.pdf'));out=Path(parser.get_output_folder(str(stage/f'{p}.pdf')))
-                        save_output(rendered,str(out),p)
+                        if inference is None:
+                            parser=ConfigParser({'output_dir':str(stage),'output_format':'markdown','disable_ocr':True,'pdftext_workers':requested,'disable_tqdm':True,'use_llm':False})
+                            converter=parser.get_converter_cls()(config=parser.generate_config_dict(),artifact_dict=models,processor_list=parser.get_processors(),renderer=parser.get_renderer(),llm_service=None)
+                            rendered=converter(str(stage/f'{p}.pdf'));out=Path(parser.get_output_folder(str(stage/f'{p}.pdf')))
+                            save_output(rendered,str(out),p)
+                            del rendered,converter
                         raw_text=(out/f'{p}.md').read_bytes().decode('utf-8')
                         # Keep images; all Markdown variants use the same live asset location.
                         for img in out.iterdir():
                             if img.suffix.lower() in ('.png','.jpg','.jpeg','.webp'):
                                 raw_text=raw_text.replace(']('+img.name+')','](../assets/'+p+'/'+img.name+')')
-                        del rendered,converter
+                        worker_info['computeDevice']=job.get('device','cpu')
+                        if inference is not None:worker_info['computePrecision']=inference.selection['precision']
                     if len(raw_text.strip())<40:raise ValueError('未提取到足够正文；Marker 当前关闭 OCR，扫描件需另行 OCR')
                     cleaned,removed=m.clean(raw_text,cfg)
                     with files.lock(e):
@@ -140,6 +164,7 @@ def run(project,job_id):
     except Exception as ex:
         job.update(state='failed',error=str(ex));traceback.print_exc()
     finally:
+        if inference is not None:inference.close()
         job.update(current='',finished=time.time());save()
         if job['state']=='done' and job.get('indexAfter',False):
             try:

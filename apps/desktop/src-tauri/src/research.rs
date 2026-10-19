@@ -564,7 +564,7 @@ fn ncbi(root: &Path, c: &Connection, endpoint: &str, mut fields: Vec<(String,Str
         check_query_cancel(cancel)?;
         match lock.try_lock_exclusive() {
             Ok(()) => break,
-            Err(e) if e.kind()==std::io::ErrorKind::WouldBlock => query_wait(Duration::from_millis(50),cancel)?,
+            Err(e) if e.kind()==std::io::ErrorKind::WouldBlock || e.raw_os_error()==fs2::lock_contended_error().raw_os_error() => query_wait(Duration::from_millis(50),cancel)?,
             Err(e) => return Err(err(e)),
         }
     }
@@ -2687,7 +2687,7 @@ mod tests {
         assert_eq!(setting(&c,"activeProfile",Value::Null).unwrap(),"provider-a");
         dispatch(&root,json!({"action":"profile.delete","args":{"id":"provider-a"}})).unwrap();
         assert_eq!(setting(&c,"activeProfile",Value::Null).unwrap(),"");
-        fs::remove_dir_all(root).unwrap();
+        drop(c);fs::remove_dir_all(root).unwrap();
     }
     #[test]
     fn search_stream_sends_workspace_model_long_input_and_full_history() {
@@ -2832,7 +2832,7 @@ mod tests {
         // Corrupt shared objects cannot silently become historical evidence.
         let object=project_file(&moved,"test",s(&run,"xmlPath")).unwrap();write_file(&object,b"corrupt").unwrap();
         assert!(pubmed_storage::save(&moved,"test",xml.as_bytes()).is_err());
-        fs::remove_dir_all(moved).unwrap();
+        drop(c);fs::remove_dir_all(moved).unwrap();
     }
     #[test]
     fn union_archive_draft_and_snapshot() {
@@ -3078,7 +3078,7 @@ mod tests {
             assert!(run_query(&root,&mut c,p,&id,None,true).unwrap_err().contains("候选列表不完整"));
             assert_eq!(workspace(&root,&c,p).unwrap()["queries"][0]["activeRun"],previous);
         }
-        fs::remove_dir_all(root).unwrap();
+        drop(c);fs::remove_dir_all(root).unwrap();
     }
 
     #[test]
@@ -3096,7 +3096,7 @@ mod tests {
         assert!(collect_ids(&root,&c,term,&f,0,None).unwrap_err().contains("分区检索计数不一致"));
         f["end"]=f["start"].clone();fixture(json!([search_fixture(10000,1,9999)]));
         assert!(collect_ids(&root,&c,term,&f,0,None).unwrap_err().contains("单日命中超过 9999"));
-        fs::remove_dir_all(root).unwrap();
+        drop(c);fs::remove_dir_all(root).unwrap();
     }
 
     #[test]
@@ -3131,7 +3131,7 @@ mod tests {
         let limited=run_query(&root,&mut c,p,&id,None,false).unwrap();
         assert_eq!(limited["queries"][0]["run"]["candidateLimitReached"],true);
         assert_eq!(limited["queries"][0]["run"]["exhausted"],false);
-        fs::remove_dir_all(root).unwrap();
+        drop(c);fs::remove_dir_all(root).unwrap();
     }
 
 }

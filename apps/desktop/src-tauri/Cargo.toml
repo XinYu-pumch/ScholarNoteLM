@@ -1,6 +1,6 @@
 [package]
 name = "scholarnotelm"
-version = "0.6.2"
+version = "0.6.3"
 description = "A thoughtful workspace for literature research"
 authors = ["ScholarNoteLM"]
 edition = "2021"

@@ -8,6 +8,19 @@
 
 在终端运行 `./scripts/npm-local.sh run desktop`。首次需要编译开发依赖，后续使用增量编译。清理编译缓存后的下一次启动可能重新完整编译；这不表示模型或项目丢失。在终端按 Control+C 退出；再次执行命令可重新启动。若提示 1420 端口占用，已有开发版可直接继续使用；先退出其他独立 Vite 预览再启动。
 
+## Windows
+
+先按安装说明准备开发工具。在 PowerShell 中用 `scripts\npm-local.cmd run desktop` 启动开发版，用 `scripts\cargo-local.cmd` 调用项目内 Rust，用 `runtimes\downloader\Scripts\python.exe` 运行 Python。Mac 保留 `.sh` 和 `bin/python` 入口。源码共用，平台依赖锁与安装脚本独立；不要长期维护两个仓库或两条平台主分支。
+
+```powershell
+$env:PYTHONUTF8='1'
+runtimes\downloader\Scripts\python.exe -m unittest discover -s services/downloader/tests
+scripts\cargo-local.cmd test --manifest-path apps/desktop/src-tauri/Cargo.toml --bin research-cli
+scripts\npm-local.cmd run build
+```
+
+部分安全测试创建符号链接，在 Windows 上需启用开发者模式或在管理员测试终端运行；这不是普通用户运行程序的要求。集成脚本使用目录联接连接运行时，所有研究材料仍在独立临时目录。跨语言共享文件锁使用 `LockFileEx`，SQLite 的上下文管理器显式关闭连接，内容缓存使用 Windows 文件变更时间；macOS 保留 POSIX 机制。
+
 | 修改内容 | 生效方式 |
 | --- | --- |
 | React / TypeScript / CSS | 保存后 Vite 自动更新界面，一般保留当前页面 |

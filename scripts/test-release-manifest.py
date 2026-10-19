@@ -38,6 +38,15 @@ class PairingTests(unittest.TestCase):
     def test_app_without_manifest_is_not_accepted(self):
         with tempfile.TemporaryDirectory() as folder:
             root=Path(folder);(root/'ScholarNoteLM.app').mkdir()
-            with self.assertRaises(ValueError):check_app(root)
+            with self.assertRaises(ValueError):check_app(root,platform='darwin')
+    def test_windows_exe_requires_matching_source_manifest(self):
+        with tempfile.TemporaryDirectory() as folder:
+            root=Path(folder);(root/'ScholarNoteLM.exe').write_bytes(b'fixture')
+            with self.assertRaises(ValueError):check_app(root,platform='win32')
+            (root/'source.py').write_bytes(b'matching')
+            (root/'source-manifest.json').write_text(json.dumps({'files':{'source.py':sha(root/'source.py')}}))
+            check_app(root,platform='win32')
+            (root/'source.py').write_bytes(b'changed')
+            with self.assertRaises(ValueError):check_app(root,platform='win32')
 
 if __name__=='__main__':unittest.main()

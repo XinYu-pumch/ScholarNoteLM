@@ -4,6 +4,7 @@ Every hit validates dependency file identities, including SQLite WAL and image
 assets. No TTL can make changed material appear current. Payloads contain neither
 credentials nor vectors; a racing write is never published as a valid snapshot.
 """
+from file_identity import change_ns
 import hashlib,json,os
 from pathlib import Path
 import storage
@@ -15,7 +16,7 @@ def identity(path):
         s=path.stat()
         if path.is_dir():return [str(path),'directory']
         if str(path).endswith('-wal') and not s.st_size:return [str(path),None]
-        return [str(path),s.st_dev,s.st_ino,s.st_size,s.st_mtime_ns,s.st_ctime_ns]
+        return [str(path),s.st_dev,s.st_ino,s.st_size,s.st_mtime_ns,change_ns(path,s)]
     except FileNotFoundError:return [str(path),None]
 
 def dependencies(e):

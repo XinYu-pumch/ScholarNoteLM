@@ -1,6 +1,7 @@
 """Real QA worker and shared API retriever against isolated local SSE/embedding fixtures."""
 import gzip,json,os,sqlite3,sys,tempfile,threading,time
 from pathlib import Path
+import test_paths
 from http.server import BaseHTTPRequestHandler,ThreadingHTTPServer
 ROOT=Path(__file__).resolve().parents[1];sys.path.insert(0,str(ROOT/'services/downloader'))
 import engine as e,storage,qa_service as qa,vector_chunks as chunks,vector_service as vectors
@@ -9,6 +10,7 @@ PLAN_MARK='Interpret question' if TEST_LANGUAGE=='en' else '将用户问题拆�
 ASSESS_MARK='Assess whether' if TEST_LANGUAGE=='en' else '逐要点说明支持'
 DIRECT_MARK='Respond to ordinary' if TEST_LANGUAGE=='en' else 'route=chat'
 import provider_fixture as pf
+import managed_sqlite
 requests=[];stream_started=threading.Event()
 class Handler(BaseHTTPRequestHandler):
  def log_message(self,*args):pass
@@ -42,14 +44,14 @@ try:
  with tempfile.TemporaryDirectory(prefix='qa-mini-e2e-',dir=ROOT/'tmp') as folder:
   app=Path(folder);(app/'tmp').mkdir()
   # Keep sibling interpreter and shared dependency paths intact in the fixture.
-  (app/'runtimes').symlink_to(ROOT/'runtimes',target_is_directory=True)
-  (app/'services').symlink_to(ROOT/'services',target_is_directory=True)
+  test_paths.link_directory(app/'runtimes',ROOT/'runtimes')
+  test_paths.link_directory(app/'services',ROOT/'services')
   pf.setup(app,ROOT,f'http://127.0.0.1:{server.server_port}/v1',['fixture'])
   e.ROOT,e.PROJECT=app,'test';project=storage.project_dir(app,'test')
   e.atomic(project/'pubmed/current.xml','<PubmedArticleSet>'+''.join(f'<PubmedArticle><MedlineCitation><PMID>{pmid}</PMID><Article><ArticleTitle>Study {pmid}</ArticleTitle><Abstract><AbstractText>Experiments in mice measured immune changes. This evidence does not establish human efficacy. Conditions and limitations require attention.</AbstractText></Abstract></Article></MedlineCitation></PubmedArticle>' for pmid in ['123','124','999'])+'</PubmedArticleSet>')
   db=app/'data/research/research.sqlite3';db.parent.mkdir(parents=True)
   profile=pf.profile({'id':'p','name':'Fixture','baseUrl':f'http://127.0.0.1:{server.server_port}/v1','model':'fixture','models':['fixture'],'apiKey':'','timeout':15,'temperature':None,'visionModels':[]})
-  with sqlite3.connect(db) as c:
+  with managed_sqlite.connect(db) as c:
    c.execute('CREATE TABLE settings(key TEXT PRIMARY KEY,value TEXT)');c.executemany('INSERT INTO settings VALUES(?,?)',[('profiles',json.dumps([profile])),('activeProfile',json.dumps('p'))])
   qa.rpc(e,'settings.save',{'plannerProfile':'p','plannerModel':'fixture','answerProfile':'p','answerModel':'fixture','minRounds':2,'maxRounds':3,'topK':2})
   vectors.rpc(e,'settings.save',{'baseUrl':profile['baseUrl'],'model':'embed','autoIndex':False});vectors.rpc(e,'test',{})
@@ -122,6 +124,7 @@ try:
   assert hello_state['state']=='done',hello_state.get('error')
   assert hello_state['answer'].startswith('你好') and hello_state['round']==0
   assert len(requests[before:])==2 and not any('input' in r for r in requests[before:])
+  test_paths.wait_for_worker(hello_state.get('pid'))
   if pf.ENABLED:assert len(set(pf.sessions()))==2,'Independent QA thread shares session'
   pf.verify()
   print(json.dumps({'passed':True,'auditStorage':log_storage,'rounds':state['round'],'modelCalls':len(models),'checks':['real independent worker','shared retriever and embedding API','selected scope','minimum rounds','material deduplication','structured answer and table','PMID binding','source RPC','export','no output token cap','real follow-up rewrite with historical citation binding','greeting in empty project without retrieval','cancel active HTTP within 2 seconds','source mutation while streaming blocks publication']},ensure_ascii=False))

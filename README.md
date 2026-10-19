@@ -2,7 +2,11 @@
 
 本地优先的生物医学文献研究桌面应用：PubMed 检索 / Zotero 导入 → PDF 或摘要 → Marker 转 Markdown → 分块与 Embedding → 综述大纲、正文和文献问答。
 
-本文是使用与开发入口。按 **2026-10-19 的当前源码**核对，包版本为 `0.6.2`；版本号不代表旧打包副本已同步更新。开发约束见 [AGENTS.md](AGENTS.md)，功能细节见 [文档索引](docs/README.md)。文档与源码冲突时以源码为准。
+支持 macOS Apple Silicon 与 Windows x64 的源码配套安装。Windows 用户将同版本发布包中的 `ScholarNoteLM.exe`、`ScholarNoteLM-Setup.exe` 和 `source-manifest.json` 放入源码根目录，再放入网盘提供的 `models/`，双击安装引导；日常直接打开主程序。具体步骤见 [安装说明](docs/INSTALLATION.md)。Mac 保留 MPS 加速；Windows 可选安装 NVIDIA CUDA 加速，默认自动检测设备，保留 CPU 回退。普通使用不需要 Rust、C++ 编译器或 CUDA Toolkit。
+
+另有可选的 [Windows 完整离线安装包构建流程](docs/WINDOWS_STANDALONE.md)：将环境和模型一起打包为供网盘分发的安装 EXE。该流程新增独立入口，保留现有源码安装版和主程序；大型产物与个人数据不提交 Git。
+
+本文是使用与开发入口。按 **2026-10-19 的当前源码**核对，包版本为 `0.6.3`；版本号不代表旧打包副本已同步更新。开发约束见 [AGENTS.md](AGENTS.md)，功能细节见 [文档索引](docs/README.md)。文档与源码冲突时以源码为准。
 
 ## 1. 产品约定与已知边界
 
@@ -46,7 +50,7 @@
 - 取消 LLM 字符限制不等于取消 Embedding 的分块、配额、并发、重试或下载预算。各阶段仍按对应专题文档执行。
 - 引用校验确认结构与来源绑定，**不保证论断科学正确**。大纲看到的摘要未必进入某节写作材料，跨节仍可能矛盾；中文 query 的效果依赖模型。短正文、资助和声明等按既定清洗规则保留，可能占用召回名额。
 - 原文转换错误、图表拆分、缺失图注和模型误读不会由结构校验自动修复；目前不自动全篇事实审查。总结/改写的压缩程度仍需人工评价。
-- 当前主要验证 macOS Apple Silicon 开发版；Windows 尚未实机验证。扫描 PDF 可能因 OCR 关闭而无正文；源码安装版支持 Apple Silicon / macOS 14+，完整签名公证和其他系统版本实机验收另行进行。
+- 原有 Mac 开发以 Apple Silicon 为主；Windows CPU 与 CUDA 12.6 已在本机完成隔离 PDF 转换验证，本次改动仍需在 Mac 上回归 MPS。扫描 PDF 可能因 OCR 关闭而无正文；源码安装版支持 Apple Silicon / macOS 14+，完整签名公证和其他系统版本实机验收另行进行。
 
 ## 2. 启动与验证
 

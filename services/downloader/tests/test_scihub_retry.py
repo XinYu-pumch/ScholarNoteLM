@@ -63,7 +63,7 @@ class RetryTests(unittest.IsolatedAsyncioTestCase):
         self.tmp.cleanup()
 
     def batch(self, papers=None):
-        e.save_settings({'mirrors': ['https://entry.test']})
+        e.save_settings({'mirrors': ['https://entry.test'], 'zoteroAddress': ''})
         with patch.object(e, 'launch'):
             result = e.create({'project': 'p', 'papers': papers or [{'pmid': '123', 'doi': '10.1/example'}]})
         records=papers or [{'pmid':'123','doi':'10.1/example'}]
@@ -287,12 +287,12 @@ class RetryTests(unittest.IsolatedAsyncioTestCase):
         async def handler(url,**kwargs):
             calls.append(url);await asyncio.sleep(.003)
             return response(url,text='captcha') if len(calls)==1 else response(url,content=pdf())
-        with self.browser(handler),patch.object(s,'FIRST_DELAY',(.08,.08)),patch.object(s,'RETRY_BUDGET',.03):
+        with self.browser(handler),patch.object(s,'FIRST_DELAY',(.5,.5)),patch.object(s,'RETRY_BUDGET',.2):
             await e.run_batch(b)
         state=e.progress(b['id'],'123')
         self.assertEqual(e.one('SELECT state FROM items')['state'],'success')
         self.assertGreater(state['retryWaitSeconds'],.05)
-        self.assertLess(state['retryNetworkSeconds'],.03)
+        self.assertLess(state['retryNetworkSeconds'],.2)
 
     def test_only_repeated_distinct_transport_failures_cool_entire_mirror(self):
         health=s.MirrorHealth(clock=lambda:1000,jitter=lambda *args:60)
@@ -407,7 +407,7 @@ asyncio.run(main())
 """
         child=await asyncio.create_subprocess_exec(sys.executable,'-u','-c',code,str(Path(s.__file__).parent),directory,stdout=asyncio.subprocess.PIPE)
         try:
-            self.assertEqual(await asyncio.wait_for(child.stdout.readline(),2),b'acquired\n')
+            self.assertEqual((await asyncio.wait_for(child.stdout.readline(),2)).strip(),b'acquired')
             lock=s.MirrorHealth(lock_dir=directory).lock('entry','https://same.test')
             with self.assertRaises(TimeoutError):await asyncio.wait_for(lock.acquire(),.08)
             child.terminate();await child.wait()

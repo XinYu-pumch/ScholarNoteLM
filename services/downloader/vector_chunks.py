@@ -1,4 +1,5 @@
 """Paragraph splitting with balanced period boundaries and inspectable evidence records."""
+import managed_sqlite
 import hashlib,json,re,sqlite3
 import xml.etree.ElementTree as ET
 import pubmed_xml,evidence_resources as resources
@@ -24,7 +25,7 @@ def base(e):return files.folder(e,'vectors')
 def known_pmids(e):
     path=files.base(e)/'vectors/chunks.sqlite3'
     if not path.exists():return set()
-    with sqlite3.connect(path) as c:return {r[0] for r in c.execute('SELECT DISTINCT pmid FROM documents')}
+    with managed_sqlite.connect(path) as c:return {r[0] for r in c.execute('SELECT DISTINCT pmid FROM documents')}
 
 def purge_documents(e,pmids):
     if not pmids:return
@@ -50,7 +51,7 @@ def purge_documents(e,pmids):
         (files.base(e)/'vectors/chunks'/f'{p}.jsonl.gz').unlink(missing_ok=True)
 
 def connect(e):
-    c=sqlite3.connect(base(e)/'chunks.sqlite3',timeout=15);c.row_factory=sqlite3.Row
+    c=managed_sqlite.connect(base(e)/'chunks.sqlite3',timeout=15);c.row_factory=sqlite3.Row
     c.executescript('''PRAGMA journal_mode=WAL;
     CREATE TABLE IF NOT EXISTS documents(version TEXT PRIMARY KEY,pmid TEXT,text TEXT,meta TEXT);
     CREATE TABLE IF NOT EXISTS current_documents(pmid TEXT PRIMARY KEY,version TEXT,active INTEGER,meta TEXT);
@@ -144,7 +145,7 @@ def xml_articles(e):
 def provenance(e,pmid):
     path=files.base(e)/'metadata/research.sqlite3'
     if not path.is_file():return {}
-    with sqlite3.connect(path) as c:
+    with managed_sqlite.connect(path) as c:
         try:
             rows=c.execute('SELECT q.id,q.name,q.active_run FROM queries q JOIN members m ON m.run_id=q.active_run WHERE q.enabled=1 AND q.archived=0 AND m.pmid=?',(pmid,)).fetchall()
             return {'querySources':[{'id':r[0],'name':r[1],'run':r[2]} for r in rows]}
@@ -153,7 +154,7 @@ def provenance(e,pmid):
 def jcr_index(e):
     path=e.ROOT/'data/research/research.sqlite3'
     if not path.is_file():return {},{},[],{}
-    with sqlite3.connect(path) as c:
+    with managed_sqlite.connect(path) as c:
         row=c.execute("SELECT value FROM settings WHERE key='jcr'").fetchone()
     info=json.loads(row[0]) if row else {};version=info.get('version','')
     if not re.fullmatch('[a-f0-9]{64}',version):return {},{},[],{}
@@ -251,7 +252,7 @@ def inspect_documents(e,profile=''):
     from contextlib import closing, nullcontext
     if cleared(e):return []
     path=files.base(e)/'vectors/chunks.sqlite3'
-    connection=sqlite3.connect(path.as_uri()+'?mode=ro',uri=True) if path.is_file() else None
+    connection=managed_sqlite.connect(path.as_uri()+'?mode=ro',uri=True) if path.is_file() else None
     if connection:connection.row_factory=sqlite3.Row
     result=[]
     with closing(connection) if connection else nullcontext():
