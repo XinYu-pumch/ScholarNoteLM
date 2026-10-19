@@ -3,6 +3,7 @@
 No OCR or model calls. A missing DOI is not a mismatch. Results describe evidence,
 not a guarantee of scientific identity. Unknown files are kept outside pdf/.
 """
+from file_identity import change_ns
 import asyncio
 import hashlib
 import html
@@ -19,7 +20,7 @@ POLICY = 'scihub-identity-v1'
 
 def fingerprint(path):
     stat = Path(path).stat()
-    return [stat.st_dev, stat.st_ino, stat.st_size, stat.st_mtime_ns, stat.st_ctime_ns]
+    return [stat.st_dev, stat.st_ino, stat.st_size, stat.st_mtime_ns, change_ns(path,stat)]
 
 def norm(text):
     text = html.unescape(text or '').casefold().replace('æ', 'ae').replace('œ', 'oe')

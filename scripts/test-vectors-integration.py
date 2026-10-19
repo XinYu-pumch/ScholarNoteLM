@@ -2,6 +2,7 @@
 import hashlib,json,os,sys,tempfile,threading,time,subprocess
 from http.server import BaseHTTPRequestHandler,ThreadingHTTPServer
 from pathlib import Path
+import test_paths
 from xml.sax.saxutils import escape
 ROOT=Path(__file__).resolve().parents[1]
 sys.path.insert(0,str(ROOT/'services/downloader'))
@@ -21,7 +22,7 @@ class Handler(BaseHTTPRequestHandler):
 server=ThreadingHTTPServer(('127.0.0.1',0),Handler);threading.Thread(target=server.serve_forever,daemon=True).start()
 with tempfile.TemporaryDirectory(prefix='vector-integration-',dir=ROOT/'tmp') as temp:
  e.ROOT=Path(temp);e.PROJECT='test';(e.ROOT/'tmp').mkdir()
- for name in ('services','runtimes'):(e.ROOT/name).symlink_to(ROOT/name,target_is_directory=True)
+ for name in ('services','runtimes'):test_paths.link_directory(e.ROOT/name,ROOT/name)
  def xml(values):
   text='<PubmedArticleSet>'+''.join('<PubmedArticle><MedlineCitation><PMID>'+p+'</PMID><Article><ArticleTitle>Study '+p+'</ArticleTitle><Abstract><AbstractText>'+escape(body)+'</AbstractText></Abstract></Article></MedlineCitation></PubmedArticle>' for p,body in values.items())+'</PubmedArticleSet>'
   e.atomic(f.base(e)/'pubmed/current.xml',text)
@@ -35,7 +36,7 @@ with tempfile.TemporaryDirectory(prefix='vector-integration-',dir=ROOT/'tmp') as
   raise AssertionError('worker timeout')
  def search(query,method):
   # Run the production RPC in its own process and runtime, as the app does.
-  result=subprocess.run([str(ROOT/'runtimes/marker/bin/python'),str(ROOT/'services/downloader/engine.py')],input=json.dumps({'action':'vector.search','args':{'project':'test','query':query,'method':method}}),text=True,capture_output=True,env={**os.environ,'SCHOLARNOTELM_ROOT':str(e.ROOT)})
+  result=subprocess.run([str(test_paths.python(ROOT,'marker')),str(ROOT/'services/downloader/engine.py')],input=json.dumps({'action':'vector.search','args':{'project':'test','query':query,'method':method}}),text=True,capture_output=True,env={**os.environ,'SCHOLARNOTELM_ROOT':str(e.ROOT)})
   data=json.loads(result.stdout);assert data['ok'],data
   return data['data']['results']
  cfg={'baseUrl':f'http://127.0.0.1:{server.server_port}/v1','apiKey':'isolated-secret-do-not-export','model':'fixture','autoIndex':False,'adaptive':True,'batchSize':1,'concurrency':2}

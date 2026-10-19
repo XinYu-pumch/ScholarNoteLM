@@ -96,10 +96,18 @@ class BrowserPool:
         finally:self.pending.pop(key,None)
 
     def _kill_browser(self):
-        if self.browser_pid and os.name!='nt':
-            try:os.killpg(self.browser_pid,signal.SIGKILL)
+        if not self.browser_pid:return
+        pid,self.browser_pid=self.browser_pid,None
+        if os.name=='nt':
+            # Chromium may survive a crashed Node sidecar; its PID is reported
+            # by the owned BrowserServer, never discovered by process name.
+            try:
+                subprocess.run(['taskkill','/PID',str(pid),'/T','/F'],stdout=subprocess.DEVNULL,
+                               stderr=subprocess.DEVNULL,creationflags=subprocess.CREATE_NO_WINDOW,timeout=2)
+            except (OSError,subprocess.TimeoutExpired):pass
+        else:
+            try:os.killpg(pid,signal.SIGKILL)
             except ProcessLookupError:pass
-            self.browser_pid=None
 
     async def close_session(self, key):
         if not self.process or self.closed:return

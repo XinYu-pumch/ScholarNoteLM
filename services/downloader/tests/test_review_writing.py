@@ -465,7 +465,7 @@ class WritingTests(unittest.TestCase):
   # Missing one material package must block every write, including a selected group.
   (self.path/'review_parts'/'prompt_section_1.1.json').unlink()
   with self.assertRaisesRegex(ValueError,'全部章节'):w.rpc(e,'Test','start',{'unitIds':[w.tree_units(rows)[-1]['id']]})
-  runtime=e.ROOT/'runtimes/retrieval/bin/python';runtime.parent.mkdir(parents=True);runtime.touch()
+  runtime=w.runtime(e,{});runtime.parent.mkdir(parents=True);runtime.touch()
   with patch.object(w.retrieval,'ready',return_value=True),self.assertRaisesRegex(ValueError,'不能混用'):
    w.rpc(e,'Test','prepare.resume',{})
  def test_preparation_zero_hits_is_not_ready(self):

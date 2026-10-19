@@ -5,6 +5,7 @@ come from a localhost server. Marker reuses a prepared raw text (no inference).
 import hashlib,json,os,subprocess,sys,tempfile,threading,time
 from http.server import BaseHTTPRequestHandler,ThreadingHTTPServer
 from pathlib import Path
+import test_paths
 ROOT=Path(__file__).resolve().parents[1];sys.path[:0]=[str(ROOT/'services/downloader'),str(ROOT/'services/downloader/tests')]
 import engine as e,corpus_files as f,markdown_service as m,vector_service as v
 from test_scihub_retry import pdf
@@ -18,17 +19,18 @@ class Handler(BaseHTTPRequestHandler):
 server=ThreadingHTTPServer(('127.0.0.1',0),Handler);threading.Thread(target=server.serve_forever,daemon=True).start()
 with tempfile.TemporaryDirectory(prefix='library-integration-',dir=ROOT/'tmp') as temp:
  e.ROOT=Path(temp);e.PROJECT='test';(e.ROOT/'tmp').mkdir()
- for name in ('services','runtimes','models'):(e.ROOT/name).symlink_to(ROOT/name,target_is_directory=True)
+ for name in ('services','runtimes','models'):test_paths.link_directory(e.ROOT/name,ROOT/name)
  env={**os.environ,'SCHOLARNOTELM_ROOT':str(e.ROOT)}
  def rpc(action,**args):
-  result=subprocess.run([str(ROOT/'cache/tauri-target/debug/research-cli')],input=json.dumps({'action':action,'args':{'project':'test',**args}}),text=True,capture_output=True,env=env,timeout=90)
+  result=subprocess.run([str(test_paths.cli(ROOT))],input=json.dumps({'action':action,'args':{'project':'test',**args}}),text=True,capture_output=True,env=env,timeout=90)
   value=json.loads(result.stdout);assert value.get('ok'),value
   return value['data']
  def wait(action='library.status',timeout=90):
   deadline=time.monotonic()+timeout
   while time.monotonic()<deadline:
    job=rpc(action)['job']
-   if job and job['state'] not in ('queued','running','stopping'):return job
+   if job and job['state'] not in ('queued','running','stopping'):
+    test_paths.wait_for_worker(job.get('pid'));return job
    time.sleep(.2)
   raise AssertionError('Timed out: '+str(job))
  base=f.base(e)

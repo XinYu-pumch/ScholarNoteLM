@@ -3,7 +3,7 @@
 ## 发布内容
 
 - GitHub 仓库：源码、文档、依赖锁文件、安装清单、测试及维护者指定随附的 `services/reference/jcr/default-2025.xlsx`；保留第三方许可文件。
-- GitHub Releases：与该源码版本一致的预编译 `.app` ZIP 和 SHA-256；也可以附上同次准备的源码 ZIP。
+- GitHub Releases：与该源码版本一致的 macOS `.app` ZIP、Windows x64 EXE ZIP 和各自 SHA-256；同时附上匹配的源码 ZIP。两个平台在同一仓库、同一 tag 下发布，不要求每次同时发布所有平台。
 - 网盘：该版本的 `models/`，保留原始模型卡和许可说明。发布说明给出下载地址和版本；仓库的 `scripts/install/assets.json` 校验文件字节。
 - 不上传本机 `config/`、`data/`、`workspace/`、运行时、缓存、日志、研究输出、资源备份 ZIP 或 `.git` 目录本身。
 
@@ -20,6 +20,8 @@
 项目没有设置 GitHub 上传目标时，仅准备本地文件，不自动创建公开仓库、推送、上传网盘或发布 Release。
 
 ## 签名与平台
+
+Windows 在 Windows x64 上运行 `runtimes\downloader\Scripts\python.exe scripts/build-windows-release.py`；ZIP 含主程序、环境安装引导、源码清单和许可证。当前产物未做 Authenticode 签名，发布前应在干净 Windows 机器验收环境安装、WebView2 缺失安装、目录迁移、中文路径及离线转换。Windows 10 最低目标还需对应真机验收。macOS 的发布流程继续独立执行；Windows 验收不能替代 Mac 回归。
 
 当前构建脚本提供 macOS arm64 的 ad-hoc 签名，尚无 Developer ID 签名和公证。它不等于 Apple 认可的开发者签名。正式签名后需重新生成程序 ZIP 与校验值；不要在签名之后再修改包内容。
 

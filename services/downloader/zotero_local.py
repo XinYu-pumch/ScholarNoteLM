@@ -3,6 +3,8 @@
 Blocking file operations run only in zotero_worker, never in the download loop.
 The supervisor imposes wall-clock deadlines even during PDF parsing/file I/O.
 """
+from file_identity import change_ns
+import managed_sqlite
 import asyncio
 import ipaddress
 import json
@@ -125,7 +127,7 @@ def fingerprint(path):
         return None
     if not stat.S_ISREG(s.st_mode):
         raise ValueError('不是普通文件')
-    return [s.st_dev, s.st_ino, s.st_size, s.st_mtime_ns, s.st_ctime_ns]
+    return [s.st_dev, s.st_ino, s.st_size, s.st_mtime_ns, change_ns(path,s)]
 
 
 def rank(candidates, previous=None):
@@ -250,7 +252,7 @@ def copy_checked(candidate, target, validate):
     flags = os.O_RDONLY | getattr(os, 'O_NOFOLLOW', 0) | getattr(os, 'O_NONBLOCK', 0)
     with os.fdopen(os.open(source, flags), 'rb') as incoming, target.open('xb') as outgoing:
         s = os.fstat(incoming.fileno())
-        signature = [s.st_dev, s.st_ino, s.st_size, s.st_mtime_ns, s.st_ctime_ns]
+        signature = [s.st_dev, s.st_ino, s.st_size, s.st_mtime_ns, change_ns(source,s,incoming.fileno())]
         if signature != candidate['stat'] or not stat.S_ISREG(s.st_mode):
             raise ValueError('源文件已改变')
         size = 0
@@ -274,8 +276,8 @@ def cache_fingerprint(e, path, sha):
     import sqlite3
     import corpus_files
     s = path.stat()
-    signature = f'{s.st_size}:{s.st_mtime_ns}:{s.st_ctime_ns}'
-    with sqlite3.connect(corpus_files.base(e)/'metadata/file-fingerprints.sqlite3', timeout=.2) as db:
+    signature = f'{s.st_size}:{s.st_mtime_ns}:{change_ns(path,s)}'
+    with managed_sqlite.connect(corpus_files.base(e)/'metadata/file-fingerprints.sqlite3', timeout=.2) as db:
         db.execute('CREATE TABLE IF NOT EXISTS files(path TEXT PRIMARY KEY,signature TEXT,sha TEXT)')
         db.execute('INSERT OR REPLACE INTO files VALUES(?,?,?)',
                    (str(path.relative_to(corpus_files.base(e))), signature, sha))

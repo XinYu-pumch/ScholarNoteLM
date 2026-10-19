@@ -1,11 +1,13 @@
 """Real desktop RPC, worker and offline models; isolated papers and local LLM fixture."""
 import gzip,json,os,sqlite3,subprocess,sys,tempfile,threading,time
 from pathlib import Path
+import test_paths
 from http.server import ThreadingHTTPServer,BaseHTTPRequestHandler
 ROOT=Path(__file__).resolve().parents[1];sys.path.insert(0,str(ROOT/'services/downloader'))
 import engine as e,storage,review_service as r,vector_service as v,retrieval_settings as rs
 TEST_LANGUAGE=os.environ.get('TEST_CONTENT_LANGUAGE')
 import provider_fixture as pf
+import managed_sqlite
 requests=[];bad_unit=None;slow=False;started=threading.Event();concurrent=0;peak=0;mutex=threading.Lock()
 class Handler(BaseHTTPRequestHandler):
  def log_message(self,*args):pass
@@ -40,28 +42,33 @@ try:
  with tempfile.TemporaryDirectory(prefix='review-writing-e2e-',dir=ROOT/'tmp') as temp:
   app=Path(temp);(app/'tmp').mkdir()
   # Relocatable environments also reference their sibling Python/Marker directories.
-  (app/'runtimes').symlink_to(ROOT/'runtimes',target_is_directory=True)
-  (app/'services').symlink_to(ROOT/'services',target_is_directory=True);(app/'models').symlink_to(ROOT/'models',target_is_directory=True)
+  test_paths.link_directory(app/'runtimes',ROOT/'runtimes')
+  test_paths.link_directory(app/'services',ROOT/'services');test_paths.link_directory(app/'models',ROOT/'models')
   pf.setup(app,ROOT,f'http://127.0.0.1:{server.server_port}/v1',['fixture','fixture-next'])
   e.ROOT,e.PROJECT=app,'test';base=storage.project_dir(app,'test')
   text='The gut microbiota regulates mucosal immune responses through short chain fatty acids, intestinal barrier function and regulatory T cells. These mechanisms are supported by experimental evidence, but effects depend on host context.'
   articles=''.join(f'<PubmedArticle><MedlineCitation><PMID>{123+i}</PMID><Article><ArticleTitle>Microbiota study {i}</ArticleTitle><Abstract><AbstractText>{text} Variant {i}.</AbstractText></Abstract></Article></MedlineCitation></PubmedArticle>' for i in range(9))
   e.atomic(base/'pubmed/current.xml','<PubmedArticleSet>'+articles+'</PubmedArticleSet>')
   cfg=app/'data/research/research.sqlite3';cfg.parent.mkdir(parents=True)
-  with sqlite3.connect(cfg) as c:
+  with managed_sqlite.connect(cfg) as c:
    c.execute('CREATE TABLE settings(key TEXT PRIMARY KEY,value TEXT)')
    c.executemany('INSERT INTO settings VALUES(?,?)',[('profiles',json.dumps([pf.profile({'id':'fixture','model':'fixture','baseUrl':f'http://127.0.0.1:{server.server_port}/v1','apiKey':'isolated-test-secret','sendTemperature':False,'timeout':10})])),('activeProfile',json.dumps('fixture'))])
   def rpc(op,**args):
-   process=subprocess.run([str(ROOT/'cache/tauri-target/debug/research-cli')],input=json.dumps({'action':'review.'+op,'args':{'project':'test','name':'ReviewTest',**args}}),text=True,capture_output=True,env={**os.environ,'SCHOLARNOTELM_ROOT':str(app)},timeout=30)
+   process=subprocess.run([str(test_paths.cli(ROOT))],input=json.dumps({'action':'review.'+op,'args':{'project':'test','name':'ReviewTest',**args}}),text=True,capture_output=True,env={**os.environ,'SCHOLARNOTELM_ROOT':str(app)},timeout=30)
    value=json.loads(process.stdout)
    if not value['ok']:raise AssertionError(value.get('error'))
    return value['data']
   def wait():
    end=time.monotonic()+180;last=''
    while time.monotonic()<end:
-    d=rpc('writing.status');phase=d['job'].get('phase','')
+    try:d=rpc('writing.status')
+    except AssertionError as error:
+     if '文献或索引正在更新' not in str(error):raise
+     time.sleep(.2);continue
+    phase=d['job'].get('phase','')
     if phase!=last:print(phase,flush=True);last=phase
-    if d['job']['state'] not in ('queued','running','stopping'):return d
+    if d['job']['state'] not in ('queued','running','stopping'):
+     test_paths.wait_for_worker(d['job'].get('pid'));return d
     time.sleep(.2)
    raise AssertionError('worker timeout')
   rpc('create',**({'contentLanguage':TEST_LANGUAGE} if TEST_LANGUAGE else {}),topic='肠道菌群综述')
@@ -136,7 +143,7 @@ try:
   (path/'review_parts'/f'section_{target["serial"]}.json').unlink()
   retained={p:p.read_bytes() for p in sections if p.stem!=target['id']}
   next_base=f'http://127.0.0.1:{server.server_port}/'+('v1' if pf.ENABLED else 'v2')
-  with sqlite3.connect(cfg) as c:
+  with managed_sqlite.connect(cfg) as c:
    c.execute('UPDATE settings SET value=? WHERE key=?',(json.dumps([pf.profile({'id':'next-provider','model':'fixture-next','baseUrl':next_base,'apiKey':'isolated-test-secret','timeout':10})]),'profiles'))
    c.execute('UPDATE settings SET value=? WHERE key=?',(json.dumps('next-provider'),'activeProfile'))
   d=rpc('writing.status');assert d['completed']==2 and d['latest']==0,d

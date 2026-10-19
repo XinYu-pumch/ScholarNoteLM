@@ -60,7 +60,9 @@ class Rules(unittest.TestCase):
         for value in ['https://zotero.org', '127.0.0.1.evil.test', 'http://127.0.0.1@evil.test', 'http://192.168.1.1', 'http://localhost/api/users/0', 'http://localhost/?secret=x']:
             with self.assertRaises(ValueError, msg=value):z.api_address(value)
     def test_file_url_decodes_once_and_rejects_remote(self):
-        self.assertEqual(str(z.file_path('file:///tmp/%E4%B8%AD%20%E6%96%87%25%2520.pdf')), '/tmp/中 文%%20.pdf')
+        prefix='file:///C:/tmp/' if os.name=='nt' else 'file:///tmp/'
+        expected=Path('C:/tmp/中 文%%20.pdf') if os.name=='nt' else Path('/tmp/中 文%%20.pdf')
+        self.assertEqual(z.file_path(prefix+'%E4%B8%AD%20%E6%96%87%25%2520.pdf'),expected)
         for v in ['https://host/a.pdf', 'file://otherhost/a.pdf', 'file:relative.pdf']:
             with self.assertRaises(ValueError):z.file_path(v)
     def test_rank_priority_bytes_random_only_ties_and_persisted_choice(self):

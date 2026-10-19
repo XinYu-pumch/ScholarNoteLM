@@ -1,4 +1,5 @@
 """Per-paper reading conversations. Full raw text is pinned once, never RAG-truncated."""
+import managed_sqlite
 import content_language as lang
 import copy,asyncio,base64,gzip,hashlib,json,os,re,sqlite3,subprocess,sys,time,uuid
 from contextlib import contextmanager,nullcontext
@@ -16,7 +17,7 @@ def ident(value):
 @contextmanager
 def db(e):
     root(e).mkdir(parents=True,exist_ok=True)
-    c=sqlite3.connect(safe(e,'reader.sqlite3'),timeout=15)
+    c=managed_sqlite.connect(safe(e,'reader.sqlite3'),timeout=15)
     c.row_factory=sqlite3.Row
     try:
         c.execute('CREATE TABLE IF NOT EXISTS threads(id TEXT PRIMARY KEY,pmid TEXT,updated REAL,data TEXT)')

@@ -108,7 +108,10 @@ class BrowserTests(unittest.IsolatedAsyncioTestCase):
     async def test_chromium_crash_is_reported(self):
         await self.request('/inline.pdf')
         task=asyncio.create_task(self.request('/slow.pdf'));await asyncio.sleep(.15)
-        os.kill(self.pool.browser_pid,signal.SIGKILL)
+        if os.name=='nt':
+            import subprocess
+            subprocess.run(['taskkill','/PID',str(self.pool.browser_pid),'/F'],stdout=subprocess.DEVNULL,stderr=subprocess.DEVNULL,creationflags=subprocess.CREATE_NO_WINDOW,check=True)
+        else:os.kill(self.pool.browser_pid,signal.SIGKILL)
         with self.assertRaises(transport.BrowserError):await task
     async def test_worker_abrupt_exit_closes_browser_and_temporary_profile(self):
         code="""import asyncio,json,sys

@@ -82,6 +82,7 @@ fn main() {
             #[cfg(target_os = "macos")]
             macos_exit::install(app.handle())?;
             let root = workspace_root().map_err(|message| {app_root::show_error(&message);std::io::Error::other(message)})?;
+            app_root::check_runtime(&root).map_err(|message| {app_root::show_error(&message);std::io::Error::other(message)})?;
             let webview_dir = root.join("cache/webview");
             fs::create_dir_all(&webview_dir)?;
             let update_root = root.clone();

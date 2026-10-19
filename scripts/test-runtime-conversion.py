@@ -6,6 +6,8 @@ from pathlib import Path
 import subprocess
 import tempfile
 import time
+import test_paths
+import sys
 
 
 def main():
@@ -13,12 +15,14 @@ def main():
     parser.add_argument('--root', type=Path, required=True, help='Newly provisioned source checkout')
     args = parser.parse_args()
     root = args.root.resolve()
+    sys.path.insert(0,str(root/'services/downloader'))
+    from engine import process_alive
     with tempfile.TemporaryDirectory(prefix='runtime-conversion-', dir=root / 'tmp') as temporary:
         fixture = Path(temporary)
         for name in ['services', 'runtimes', 'models']:
-            (fixture / name).symlink_to(root / name, target_is_directory=True)
-        env = {**os.environ, 'SCHOLARNOTELM_ROOT': str(fixture), 'PYTHONDONTWRITEBYTECODE': '1'}
-        python = root / 'runtimes/downloader/bin/python'
+            test_paths.link_directory(fixture/name,root/name)
+        env = {**os.environ, 'SCHOLARNOTELM_ROOT': str(fixture), 'PYTHONDONTWRITEBYTECODE': '1', 'PYTHONUTF8':'1'}
+        python = test_paths.python(root)
         # This fixture has no copied settings or bibliography and no external URLs.
         prepare = r'''
 import os,sys
@@ -42,7 +46,7 @@ writer.write(base/'pdf/999000001.pdf')
         def rpc(action, **kwargs):
             response = subprocess.run([str(python), str(root / 'services/downloader/engine.py')],
                                       input=json.dumps({'action': action, 'args': {'project': 'test', **kwargs}}),
-                                      text=True, capture_output=True, env=env, timeout=30)
+                                      text=True, encoding='utf-8', capture_output=True, env=env, timeout=30)
             value = json.loads(response.stdout)
             if not value.get('ok'):
                 raise AssertionError(value)
@@ -50,7 +54,7 @@ writer.write(base/'pdf/999000001.pdf')
 
         assert rpc('markdown.settings')['ready']
         rpc('markdown.start', indexAfter=False)
-        deadline = time.monotonic() + 300
+        deadline = time.monotonic() + 600
         job = None
         try:
             while time.monotonic() < deadline:
@@ -70,6 +74,12 @@ writer.write(base/'pdf/999000001.pdf')
                     os.kill(job['pid'], signal.SIGTERM)
                 except ProcessLookupError:
                     pass
+            if job and job.get('pid'):
+                end=time.monotonic()+30
+                while process_alive(job['pid']) and time.monotonic()<end:
+                    time.sleep(.1)
+                if process_alive(job['pid']):
+                    raise AssertionError('Conversion worker did not exit after publishing its result')
 
 
 if __name__ == '__main__':

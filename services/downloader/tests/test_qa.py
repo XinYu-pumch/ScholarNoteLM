@@ -15,15 +15,15 @@ class QATests(unittest.TestCase):
  def test_removed_fulltext_setting_is_ignored(self):
   self.assertNotIn('fulltextEnabled',q.config(e,{'fulltextEnabled':True}))
  def test_legacy_provider_and_explicit_models_share_parameters(self):
-  import sqlite3,review_service
+  import managed_sqlite,review_service
   path=e.ROOT/'data/research/research.sqlite3';path.parent.mkdir(parents=True)
   provider={'id':'p','model':'pro','baseUrl':'http://localhost:9000/v1','apiKey':'test-only','temperature':.7,'timeout':120}
-  with sqlite3.connect(path) as c:
+  with managed_sqlite.connect(path) as c:
    c.execute('CREATE TABLE settings(key TEXT,value TEXT)');c.executemany('INSERT INTO settings VALUES(?,?)',[('profiles',json.dumps([provider])),('activeProfile','"p"')])
   a,b=q.models(e,q.config(e));self.assertEqual(a,b);self.assertEqual(a['model'],'pro')
   with self.assertRaises(ValueError):review_service.profile(e,'p','flash')
   provider['models']=['flash','pro']
-  with sqlite3.connect(path) as c:c.execute('UPDATE settings SET value=? WHERE key=?',(json.dumps([provider]),'profiles'))
+  with managed_sqlite.connect(path) as c:c.execute('UPDATE settings SET value=? WHERE key=?',(json.dumps([provider]),'profiles'))
   a,b=q.models(e,q.config(e,{'plannerProfile':'p','plannerModel':'flash'}));self.assertEqual(a['model'],'flash');self.assertEqual(b['model'],'pro');self.assertEqual(a['temperature'],b['temperature']);self.assertEqual(a['apiKey'],b['apiKey'])
  def test_scope_and_tool_boundaries(self):
   def record(i,p):return {'id':str(i),'text':'Exact marker evidence '+str(i),'metadata':{'pmid':p,'title':'Title','sourceKind':'fulltext','sectionPath':['Results'],'previousChunkId':str(i-1) if i else None,'nextChunkId':str(i+1)}}

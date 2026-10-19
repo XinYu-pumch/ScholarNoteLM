@@ -1,4 +1,5 @@
 """Project-local review workspaces and outlines. No model requests from read/edit RPCs."""
+import managed_sqlite
 import compact_io
 import llm_provider
 import content_language as lang
@@ -65,7 +66,9 @@ def lock(e):
 def parse_csv(text):
     if not isinstance(text,str):raise ValueError('CSV 内容格式无效')
     # Python's CSV default field cap must not replace the retired title limit.
-    csv.field_size_limit(sys.maxsize)
+    # _csv accepts a C long (32-bit on Windows even with 64-bit Python).
+    import ctypes
+    csv.field_size_limit(min(sys.maxsize,(1 << (ctypes.sizeof(ctypes.c_long)*8-1))-1))
     text=text.lstrip('\ufeff').strip()
     fence=re.fullmatch(r'```(?:csv)?\s*\n(.*?)\n```',text,re.S|re.I)
     if fence:text=fence[1]
@@ -111,7 +114,7 @@ def full_prompt(user,system=None):
 def profile(e,pid=None,model=None):
     path=e.ROOT/'data/research/research.sqlite3'
     if not path.exists():raise ValueError('请先在设置中配置并启用 LLM')
-    c=sqlite3.connect(path)
+    c=managed_sqlite.connect(path)
     try:
         values={k:json.loads(v) for k,v in c.execute("SELECT key,value FROM settings WHERE key IN ('profiles','activeProfile')")}
     finally:c.close()

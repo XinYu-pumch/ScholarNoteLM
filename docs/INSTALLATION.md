@@ -23,11 +23,39 @@
 
 当前预编译程序使用本地 ad-hoc 签名，**没有 Apple Developer ID 签名或公证**。下载后 macOS 可能阻止打开，需要按照系统“隐私与安全性”的提示批准来源。安装器不会关闭 Gatekeeper、移除隔离属性或修改系统安全设置。若需要常规无额外授权的分发体验，维护者需另行使用 Developer ID 签名、公证并验收。
 
+## Windows x64
+
+目标为 Windows 10/11 x64（Intel/AMD），当前在 Windows 11 上验收；Windows ARM64 不属于此发布目标。沿用“匹配源码 + 平台程序 + models”的布局，Windows 与 macOS 共用仓库和模型资源，运行时须分别安装。
+
+1. 克隆对应 Release 的 tag，或解压同次发布的源码 ZIP。安装目录须可写，建议使用较短的路径，如 `D:\ScholarNoteLM`，避免系统受保护目录。
+2. 将 `ScholarNoteLM-<版本>-windows-x64.zip` 的内容解压到源码根目录，保留主程序、安装引导、`source-manifest.json` 和第三方许可目录。
+3. 把网盘提供的模型放入 `models/marker/`，不要重复嵌套 `models/models/`。
+4. 双击 `ScholarNoteLM-Setup.exe`，点击“安装 / 继续”。也可双击源码中的 `安装环境.cmd`。无需提前安装 Python；引导程序下载并校验引导工具，再创建项目专用 Python 3.12.9、Node 20.19.0、Chromium 和固定版本依赖。
+5. 点击“检查环境”，成功后双击 `ScholarNoteLM.exe`。首次使用选择研究工作目录，再创建项目。
+
+普通用户无需勾选“开发工具”。安装器检测 Microsoft Edge WebView2；缺失时运行经 Microsoft 签名验证的官方安装程序。首次安装需要网络，可继承 `HTTPS_PROXY`；下载失败后可重试，成功完成的安装阶段保留。模型不由安装器重新下载。Windows 版本使用 PyTorch CPU，无需 NVIDIA 显卡或 CUDA。
+
+安装引导是独立 WinForms EXE，使用 Windows 自带的 .NET Framework；主程序通过 Tauri/WebView2 显示界面。两者均未做 Authenticode 签名，系统可能显示未知发布者提示；正式公开分发前可另行签名，不通过关闭系统安全功能解决提示。
+
+安装登记位于 `%LOCALAPPDATA%\ScholarNoteLM\installations.json`。不要只移动 EXE 或删除源码。移动整个安装目录后，先重新运行“安装 / 继续”，修复 Python 虚拟环境中的目录路径，再检查环境；研究工作目录按原有重连流程处理。Windows 与 macOS 的 `runtimes/` 不能互相复制。
+
+命令行检查：
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File scripts/install-windows.ps1 -Check
+```
+
+此命令只为当前脚本进程设置执行策略，不修改系统的永久策略。
+
 ## 文件位置
 
 ```text
 ScholarNoteLM/
   ScholarNoteLM.app          # 从 Release 解压，不提交 Git
+  ScholarNoteLM.exe          # Windows 主程序，与 .app 按平台二选一
+  ScholarNoteLM-Setup.exe    # Windows 环境安装引导
+  source-manifest.json       # Windows 程序对应的源码清单
+  安装环境.cmd               # Windows 源码安装入口
   安装环境.command           # 安装/继续安装/检查；日常直接打开 app
   apps/                     # 前端与 Rust 源码
   services/                 # Python 服务、Marker、浏览器下载依赖
@@ -54,6 +82,14 @@ ScholarNoteLM/
 安装状态保存在 `runtimes/install-state.json`。同一依赖清单的未完成安装可再次执行；损坏文件会报错而不会被默默忽略。依赖版本变更使用新的干净目录，不做当前环境的破坏性原地升级。
 
 ## 维护者构建
+
+Windows 维护者先安装 Microsoft Visual Studio Build Tools 的“使用 C++ 的桌面开发”（MSVC x64 与 Windows SDK），再在安装引导中勾选“开发工具”，或运行 `scripts/install-windows.ps1 -DevTools`。此选项安装项目内 Rust 1.98.1 和前端依赖，不自动安装系统级 C++ 编译工具。
+
+```powershell
+runtimes\downloader\Scripts\python.exe scripts/build-windows-release.py
+```
+
+产物位于根目录的两个 EXE，以及 `dist/release/` 内的 Windows ZIP、匹配源码 ZIP 和 SHA-256 文件。源码必须与嵌入 EXE 的清单一致；修改源码后重新构建，不手动绕过校验。
 
 维护者才需要 Xcode Command Line Tools、Rust 与前端开发依赖。干净目录可额外使用 `scripts/setup-runtime.py --apply --dev-tools` 安装开发依赖。
 

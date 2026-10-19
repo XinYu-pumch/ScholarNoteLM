@@ -78,7 +78,6 @@ class EntryLock:
         try:
             self.path.parent.mkdir(parents=True,exist_ok=True)
             self.file=self.path.open('a+b')
-            if self.file.tell()==0:self.file.write(b'0');self.file.flush()
             while True:
                 try:
                     if os.name=='nt':

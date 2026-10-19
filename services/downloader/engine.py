@@ -1,5 +1,6 @@
 """Durable, project-local PDF download service. JSON RPC on stdin; --worker for jobs."""
 from __future__ import annotations
+import managed_sqlite
 import compact_io
 import asyncio, base64, hashlib, json, os, random, re, sqlite3, struct, subprocess, sys, time, uuid, zipfile
 from collections import Counter
@@ -36,7 +37,7 @@ BUILTIN_BLOOM = 'data/reference/download/scihub.bloom'
 
 def db(system=False):
     path=ROOT/'data/research/downloads.sqlite3' if system else storage.project_dir(ROOT,PROJECT)/'metadata/downloads.sqlite3'; path.parent.mkdir(parents=True,exist_ok=True)
-    c=sqlite3.connect(path,timeout=DB_TIMEOUT.get()); c.row_factory=sqlite3.Row
+    c=managed_sqlite.connect(path,timeout=DB_TIMEOUT.get()); c.row_factory=sqlite3.Row
     c.executescript('''PRAGMA journal_mode=WAL;
     CREATE TABLE IF NOT EXISTS settings(key TEXT PRIMARY KEY,data TEXT NOT NULL);
     CREATE TABLE IF NOT EXISTS batches(id TEXT PRIMARY KEY,project TEXT NOT NULL,created REAL NOT NULL,state TEXT NOT NULL,control TEXT NOT NULL DEFAULT '',snapshot TEXT NOT NULL,config TEXT NOT NULL,owner INTEGER NOT NULL DEFAULT 0,elapsed REAL NOT NULL DEFAULT 0,error TEXT NOT NULL DEFAULT '');

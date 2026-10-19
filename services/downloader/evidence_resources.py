@@ -1,4 +1,5 @@
 """Whole tables/images with purely positional links to ordinary text chunks."""
+from file_identity import change_ns
 import base64,hashlib,json
 import snapshot_files
 import threading
@@ -90,7 +91,7 @@ def fingerprint(project,pmid,text):
     images=[]
     for src in image_references(text):
         p=image_source(project,pmid,src)
-        images.append([src,file_digest(str(p),(p.stat().st_size,p.stat().st_mtime_ns,p.stat().st_ctime_ns)) if p else None])
+        images.append([src,file_digest(str(p),(p.stat().st_size,p.stat().st_mtime_ns,change_ns(p))) if p else None])
     return digest([VERSION,NEIGHBORS,images])
 
 def extract(project,pmid,version,text,segments,save):

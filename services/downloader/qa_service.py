@@ -3,6 +3,7 @@
 Evidence and requests are immutable run snapshots; credentials never enter run files.
 The worker is the sole writer of its job. Cancellation uses a separate marker.
 """
+import managed_sqlite
 import llm_provider
 import compact_io
 import content_language as lang
@@ -150,7 +151,7 @@ def corpus(e,pmids=None,load_vectors=True):
     if pmids is not None:docs=[d for d in docs if d['pmid'] in pmids]
     records=[];cached={};db=files.base(e)/'vectors/chunks.sqlite3'
     if db.is_file() and not chunks.cleared(e):
-        with sqlite3.connect(db.as_uri()+'?mode=ro',uri=True) as c:
+        with managed_sqlite.connect(db.as_uri()+'?mode=ro',uri=True) as c:
             c.row_factory=sqlite3.Row
             for d in docs:
                 row=c.execute('SELECT version FROM current_documents WHERE pmid=? AND active=1',(d['pmid'],)).fetchone()

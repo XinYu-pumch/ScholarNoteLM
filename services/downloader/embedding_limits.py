@@ -1,4 +1,5 @@
 """Cross-process embedding RPM/estimated-TPM reservations, with shared cooldowns."""
+import managed_sqlite
 import asyncio,email.utils,sqlite3,time,uuid
 from contextlib import contextmanager
 import retrieval_settings as settings
@@ -28,7 +29,7 @@ class Limiter:
                 c.execute('ALTER TABLE requests ADD COLUMN pending_until REAL NOT NULL DEFAULT 0')
     @contextmanager
     def db(self):
-        c=sqlite3.connect(self.path,timeout=10)
+        c=managed_sqlite.connect(self.path,timeout=10)
         try:
             with c:yield c
         finally:c.close()

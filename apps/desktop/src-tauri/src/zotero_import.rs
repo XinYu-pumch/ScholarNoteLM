@@ -273,7 +273,7 @@ mod tests {
         begin_attempt(&mut j);assert_eq!(j["attempts"].as_array().unwrap().len(),1);
     }
     fn setup()->PathBuf{
-        let root=std::env::temp_dir().join(format!("scholar-zotero-{}-{}",std::thread::current().name().unwrap_or("test"),uid()));
+        let root=std::env::temp_dir().join(format!("scholar-zotero-{}-{}",std::thread::current().name().unwrap_or("test").replace("::","-"),uid()));
         db_project(&root,"test").unwrap();root
     }
     #[test]
@@ -322,7 +322,7 @@ mod tests {
         let batch=dispatch(&root,json!({"action":"query.filters.apply","args":{"project":"test","dates":{"start":"2026-01-01","end":"2026-02-01"}}})).unwrap();
         assert_eq!(batch["queries"][0]["filters"]["start"],"");
         let exclusions=read(&project_dir(&root,"test").unwrap().join("metadata/abstract-exclusions.json")).unwrap();assert_eq!(exclusions,json!([]));
-        fs::remove_dir_all(root).unwrap();
+        drop(c);fs::remove_dir_all(root).unwrap();
     }
     #[test]
     fn incomplete_fetch_is_failure_not_unmatched(){
@@ -350,7 +350,7 @@ mod tests {
         fixture(&root);execute(&root,"test",&mut j).unwrap();save(&root,"test",&j).unwrap();
         let w=workspace(&root,&c,"test").unwrap();assert_eq!(w["queries"].as_array().unwrap().len(),1);
         assert_eq!(w["queries"][0]["id"],"pending");assert_eq!(w["queries"][0]["xmlExists"],true);assert_eq!(w["corpus"]["included"],1);
-        fs::remove_dir_all(root).unwrap();
+        drop(c);fs::remove_dir_all(root).unwrap();
     }
     #[test]
     fn source_ownership_blocks_both_directions_but_allows_reads_and_other_projects(){
@@ -367,7 +367,7 @@ mod tests {
         assert!(dispatch(&root,json!({"action":"query.create","args":{"project":"other"}})).is_ok());
         j["state"]=json!("cancelled");save(&root,"test",&j).unwrap();
         assert!(dispatch(&root,json!({"action":"query.create","args":{"project":"test"}})).is_ok());
-        fs::remove_dir_all(root).unwrap();
+        drop(c);fs::remove_dir_all(root).unwrap();
     }
     #[test]
     fn orphaned_job_recovers_without_leaving_sources_locked(){
@@ -376,7 +376,7 @@ mod tests {
         let lock=source_operation(&root,"test").unwrap();
         let w=workspace(&root,&c,"test").unwrap();assert_eq!(w["sourceBusy"],false);
         assert_eq!(w["queries"][0]["zoteroJob"]["state"],"interrupted");assert_eq!(w["corpus"]["included"],0);
-        drop(lock);fs::remove_dir_all(root).unwrap();
+        drop(lock);drop(c);fs::remove_dir_all(root).unwrap();
     }
 
 }

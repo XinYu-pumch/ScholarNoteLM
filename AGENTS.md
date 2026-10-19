@@ -9,7 +9,7 @@
 1. **不泄露密钥**：`config/embedding.json` 和 `data/research/research.sqlite3` 中有明文 API Key。不要打印、记录或提交它们；提交前用 `git status` 确认没有加入 `config/`、`data/`、`workspace/`。
 2. **不动用户数据**：`workspace/` 是用户的真实研究项目（PDF、综述、问答记录）。未经明确要求，不要修改或删除其中的文件，也不要对它调用真实模型或批量下载。测试使用 `tmp/` 下的隔离根目录（环境变量 `SCHOLARNOTELM_ROOT`）。
 3. **UI 测试脚本先看再跑**：`scripts/*.mjs` 中有的会自建 `tmp/` 隔离根目录，有的直接连接 1420 端口的开发服务器，会读写该服务器当前根目录的数据。连接开发服务器的脚本，应先让开发服务器以隔离的 `SCHOLARNOTELM_ROOT` 启动。部分脚本依赖已删除的原型状态或本机项目快照，已经过时。
-4. **使用项目内运行时**：`./scripts/npm-local.sh`、`./scripts/cargo-local.sh`、`runtimes/downloader/bin/python`。不要用系统 Python 或全局 npm。
+4. **使用项目内运行时**：macOS 用 `./scripts/npm-local.sh`、`./scripts/cargo-local.sh`、`runtimes/downloader/bin/python`；Windows 用 `scripts\npm-local.cmd`、`scripts\cargo-local.cmd`、`runtimes\downloader\Scripts\python.exe`。不要用系统 Python 或全局 npm。
 5. **不恢复已删除功能**：重排、BM25 / MedCPT、PaddleOCR、清洗策略开关、单篇精读、Chroma、演示项目都是有意删除的，理由见 README。
 6. **缓存签名要稳定**：分块、Embedding 输入、提示词协议的改动必须同步更新对应签名；反过来，不要随意改动签名的键列表（例如 `sendTemperature` 已停用但仍保留在签名里），否则已完成的综述和问答会全部被判为过期。
 7. **视觉改动只改样式**：遵循 [docs/UI_DESIGN.md](docs/UI_DESIGN.md)，颜色、字号、圆角、阴影、时长只用 `apps/desktop/src/tokens.css` 中的 token，通用组件样式放在 `design.css`。不改变交互。不要给包含 `position: fixed` 子元素的容器加 `backdrop-filter` 或常驻 `transform`。

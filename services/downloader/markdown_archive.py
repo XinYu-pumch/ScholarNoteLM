@@ -35,7 +35,7 @@ def archive(e,p,previous_epoch):
         source=safe(root,name)
         candidates=source.rglob('*') if source.is_dir() else [source]
         for candidate in candidates:
-            relative=str(candidate.relative_to(root));safe(root,relative)
+            relative=candidate.relative_to(root).as_posix();safe(root,relative)
             if candidate.is_file():entries[relative]=sha(candidate.read_bytes())
     if not entries:return False
     identity={k:v for k,v in entries.items() if k!=f'metadata/markdown/{p}.json'}
