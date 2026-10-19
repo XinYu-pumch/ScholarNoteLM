@@ -4,6 +4,8 @@
 
 支持 macOS Apple Silicon 与 Windows x64 的源码配套安装。Windows 用户将同版本发布包中的 `ScholarNoteLM.exe`、`ScholarNoteLM-Setup.exe` 和 `source-manifest.json` 放入源码根目录，再放入网盘提供的 `models/`，双击安装引导；日常直接打开主程序。具体步骤见 [安装说明](docs/INSTALLATION.md)。Windows 首版使用 CPU 转换，无需 CUDA；普通使用不需要 Rust 或 C++ 编译器。
 
+另有可选的 [Windows 完整离线安装包构建流程](docs/WINDOWS_STANDALONE.md)：将环境和模型一起打包为供网盘分发的安装 EXE。该流程新增独立入口，保留现有源码安装版和主程序；大型产物与个人数据不提交 Git。
+
 本文是使用与开发入口。按 **2026-10-19 的当前源码**核对，包版本为 `0.6.2`；版本号不代表旧打包副本已同步更新。开发约束见 [AGENTS.md](AGENTS.md)，功能细节见 [文档索引](docs/README.md)。文档与源码冲突时以源码为准。
 
 ## 1. 产品约定与已知边界
