@@ -56,7 +56,7 @@ Mac 用户也可使用 [完整独立 App](docs/MACOS_STANDALONE.md)：包内包�
 
 ## 2. 启动与验证
 
-普通用户按 [源码安装版指南](docs/INSTALLATION.md) 取得匹配的源码和预编译程序，双击 `install-environment.command` 准备运行环境，放入网盘下载的 `models/`，之后直接打开根目录的 `ScholarNoteLM.app`。无需系统 Python、Git 或 Xcode Command Line Tools；没有 Git 可以下载源码 ZIP。首次启动先选择研究工作目录，已有安装沿用原配置。
+普通用户按 [源码安装版指南](docs/INSTALLATION.md) 取得匹配的源码和预编译程序，双击 `install-environment.command` 准备运行环境，放入网盘下载的 `models/`，之后直接打开根目录的 `ScholarNoteLM.app`。无需系统 Python、Git 或 Xcode Command Line Tools；没有 Git 可以下载源码 ZIP。首次启动先选择研究工作目录，已有安装沿用原配置。源码版和独立版都会在启动时识别工作目录中的有效旧项目，补齐本机登记；无需重新创建项目或生成文献、索引和综述。
 
 开发者在项目根目录执行（需要开发工具）：
 

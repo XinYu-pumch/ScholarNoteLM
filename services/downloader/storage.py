@@ -65,12 +65,77 @@ def file_lock(path, shared=False):
 
 def initialize(root):
     cfg=config(root)
-    if cfg.get('migrated'):return cfg
-    # The pre-workspace layout (data/projects) has been migrated everywhere; refuse rather than ignore it.
-    if (root/'data/projects').exists():raise ValueError('检测到旧版项目目录 data/projects，当前版本不再支持自动迁移')
-    Path(cfg['workspace']).mkdir(parents=True,exist_ok=True)
-    cfg['migrated']=True;cfg['cleanupPending']=False;atomic(root/'config/storage.json',cfg)
-    return cfg
+    if not cfg.get('migrated'):
+        # The pre-workspace layout is not a portable workspace.
+        if (root/'data/projects').exists():raise ValueError('检测到旧版项目目录 data/projects，当前版本不再支持自动迁移')
+        Path(cfg['workspace']).mkdir(parents=True,exist_ok=True)
+        cfg['migrated']=True;cfg['cleanupPending']=False;atomic(root/'config/storage.json',cfg)
+    warnings=discover_projects(root, cfg)
+    return {**config(root),'discoveryWarnings':warnings}
+
+
+def discover_projects(root, cfg):
+    """Repair installation-local catalogs, never rewrite discovered research files.
+
+    RPC caller holds catalog.lock. Publish the folder map before the state list;
+    an interrupted update is safe to repeat at the next initialization.
+    """
+    base=Path(cfg['workspace'])
+    if not base.is_dir() or base.is_symlink():raise ValueError('工作目录不可访问或为符号链接，请重新连接')
+    state_file=root/'data/prototype/state.json'
+    state=json.loads(state_file.read_text()) if state_file.exists() else None
+    if state is not None and (not isinstance(state,dict) or state.get('version')!=1 or not isinstance(state.get('projects'),list)
+            or any(not isinstance(p,dict) or not isinstance(p.get('id'),str) for p in state['projects'])):
+        raise ValueError('保存的项目列表格式不兼容，不会覆盖')
+    warnings=[];candidates={};folders={}
+    for directory in sorted(base.iterdir(),key=lambda p:p.name):
+        if directory.name.startswith('.') or not directory.is_dir():continue
+        descriptor=directory/'project.json'
+        if not descriptor.exists() and not descriptor.is_symlink():continue
+        try:
+            folder_name(directory.name)
+            if directory.is_symlink() or descriptor.is_symlink():raise ValueError('不支持符号链接')
+            project=json.loads(descriptor.read_text(encoding='utf-8'))
+            if not isinstance(project,dict):raise ValueError('项目描述必须为对象')
+            pid=project.get('id')
+            if not isinstance(pid,str) or not re.fullmatch('[A-Za-z0-9_-]{1,100}',pid):raise ValueError('项目标识无效')
+            if pid in cfg.get('deletedProjects',{}):continue
+            if project.get('version',1)!=1:raise ValueError('项目格式版本不兼容')
+            # These are required by the UI; never fill missing research fields and
+            # let an automatic UI save overwrite an incomplete descriptor.
+            for key,kind in [('name',str),('description',str),('color',str),('papers',list),('messages',list),('sections',list),('tasks',list),('notes',dict)]:
+                if not isinstance(project.get(key),kind):raise ValueError('项目字段无效：'+key)
+            if 'archivedPapers' in project and not isinstance(project['archivedPapers'],list):raise ValueError('项目字段无效：archivedPapers')
+            candidates.setdefault(pid,[]).append(directory.name)
+            folders.setdefault(directory.name.casefold(),[]).append(directory.name)
+        except (ValueError,OSError) as exc:
+            # Do not expose file contents (e.g. JSON decoder document text).
+            reason=str(exc) if isinstance(exc,ValueError) and not isinstance(exc,json.JSONDecodeError) else '项目描述无法读取或 JSON 无效'
+            warnings.append(f'{directory.name}：{reason}')
+    mapping=dict(cfg['projects']);accepted=[]
+    for pid,names in candidates.items():
+        registered=mapping.get(pid)
+        if registered:
+            if registered in names:accepted.append(pid)
+            for name in names:
+                if name!=registered:warnings.append(f'{name}：项目 ID 已登记到 {registered}，未导入副本')
+            continue
+        if len(names)!=1:
+            warnings.append('、'.join(names)+'：项目 ID 重复，未自动导入');continue
+        name=names[0]
+        if len(folders[name.casefold()])!=1 or name.casefold() in {v.casefold() for v in mapping.values()}:
+            warnings.append(f'{name}：文件夹名称冲突，未自动导入');continue
+        mapping[pid]=name;accepted.append(pid)
+    if mapping!=cfg['projects']:
+        atomic(root/'config/storage.json',{**cfg,'projects':mapping})
+    if state is None and not accepted:return warnings
+    updated={**(state or {'version':1,'active':'','theme':'light','projects':[]})}
+    ids=[p['id'] for p in updated['projects'] if p['id'] not in cfg.get('deletedProjects',{})]
+    ids=list(dict.fromkeys(ids+accepted))
+    updated['projects']=[{'id':pid} for pid in ids]
+    if updated.get('active') not in ids:updated['active']=ids[0] if ids else ''
+    if updated!=state:atomic(state_file,updated)
+    return warnings
 
 def bootstrap(root):
     """Inspect startup without creating a default research workspace."""

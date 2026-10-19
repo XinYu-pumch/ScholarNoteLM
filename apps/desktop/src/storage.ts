@@ -2,11 +2,14 @@ import { emptyState, type AppState } from './data';
 import {rpc} from './research-api';
 
 let loading:Promise<AppState>|undefined;
+let workspaceWarnings:string[]=[];
+export function getWorkspaceWarnings():string[] { return workspaceWarnings; }
 export function readState(): Promise<AppState> {
   return loading ??= loadState().catch(e=>{loading=undefined;throw e;});
 }
 async function loadState(): Promise<AppState> {
-  await rpc('storage.initialize');
+  const initialized=await rpc<{warnings?:string[]}>('storage.initialize');
+  workspaceWarnings=initialized.warnings??[];
   // A fresh install starts without projects; the app shows the create-project screen.
   const saved=await rpc<AppState|null>('storage.state.read');
   const initial=navigator.language.toLowerCase().startsWith('zh')?'zh':'en';

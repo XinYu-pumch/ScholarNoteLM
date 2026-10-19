@@ -16,12 +16,18 @@ try{
  let defaultExists=true;try{await access(path.join(testRoot,'workspace'));}catch{defaultExists=false;}expect(defaultExists).toBe(false);
  await page.getByLabel('工作目录',{exact:true}).fill('relative');await page.getByRole('button',{name:'使用此目录'}).click();await expect(page.getByRole('alert')).toContainText('绝对路径');
  const folder=path.join(testRoot,'研究 文件夹');await mkdir(folder);await writeFile(path.join(folder,'keep.txt'),'keep');
+ const project={id:'old-project',name:'既有研究',description:'Retained',color:'#123456',papers:[],messages:[],sections:[],tasks:[],notes:{}};
+ await mkdir(path.join(folder,'Old'));await writeFile(path.join(folder,'Old/project.json'),JSON.stringify(project));
  await page.getByLabel('工作目录',{exact:true}).fill(folder);
- await page.screenshot({path:path.join(root,'tmp/source-release/onboarding.png')});
+ await page.screenshot({path:path.join(testRoot,'onboarding.png')});
  await page.getByRole('button',{name:'使用此目录'}).click();await expect(page.getByRole('heading',{name:'选择研究工作目录'})).toHaveCount(0);
- await expect(page.getByRole('button',{name:'创建新项目',exact:true}).first()).toBeVisible();
- await page.reload();await expect(page.getByRole('button',{name:'创建新项目',exact:true}).first()).toBeVisible();
+ await expect(page.locator('.project-switcher')).toContainText('既有研究');
+ // Simulate a formerly connected install that did not discover all projects.
+ await mkdir(path.join(folder,'Another'));await writeFile(path.join(folder,'Another/project.json'),JSON.stringify({...project,id:'another',name:'另一个旧项目'}));
+ await page.reload();await expect(page.locator('.project-switcher')).toContainText('既有研究');
+ await page.locator('.project-switcher').click();await expect(page.getByRole('button',{name:'另一个旧项目',exact:true})).toBeVisible();
  expect(await readFile(path.join(folder,'keep.txt'),'utf8')).toBe('keep');
  const cfg=JSON.parse(await readFile(path.join(testRoot,'config/storage.json'),'utf8'));expect(cfg.workspace).toBe(folder);
- expect(errors).toEqual([]);console.log('First launch, invalid path, Unicode/space path, preservation and restart checks passed.');
+ expect(Object.keys(cfg.projects).sort()).toEqual(['another','old-project']);
+ expect(errors).toEqual([]);console.log('First launch, invalid path, existing projects, Unicode/space path, preservation and restart discovery checks passed.');
 }finally{await browser.close();vite.kill('SIGTERM');await new Promise(resolve=>vite.once('exit',resolve));await rm(testRoot,{recursive:true,force:true});}

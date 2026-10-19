@@ -8,7 +8,7 @@ import {type Notice, type NoticeTone} from './Notification';
 import { createContext, useContext, useEffect, useRef, useState, type ReactNode } from 'react';
 import WorkspaceSetup, {type WorkspaceStartup} from './WorkspaceSetup';
 import { emptyState, type AppState, type Page, type Project, type Paper } from './data';
-import { readState, writeState } from './storage';
+import { readState, writeState, getWorkspaceWarnings } from './storage';
 import {rpc,type WorkbenchData} from './research-api';
 
 type Context = {
@@ -57,7 +57,7 @@ export function Provider({ children }: { children: ReactNode }) {
     rpc<WorkspaceStartup>('storage.bootstrap').then(async info=>{
       if(info.state!=='ready'){if(alive)setWorkspaceStartup(info);return null;}
       return readState();
-    }).then(value => { if (alive && value) { configureLocale(value.uiLanguage||'zh');setState(value); setLoaded(true); } }).catch(error => { if (alive) setLoadError((error instanceof Error?error.message:String(error))+'。现有数据不会被覆盖；请检查安装环境后重试。'); });
+    }).then(value => { if (alive && value) { configureLocale(value.uiLanguage||'zh');setState(value); setLoaded(true); const warnings=getWorkspaceWarnings();if(warnings.length)notify('部分项目未能自动导入：\n'+warnings.join('\n'),{tone:'warning'}); } }).catch(error => { if (alive) setLoadError((error instanceof Error?error.message:String(error))+'。现有数据不会被覆盖；请检查安装环境后重试。'); });
     return () => { alive = false; };
   }, []);
   useEffect(() => {

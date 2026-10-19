@@ -1081,7 +1081,10 @@ def dispatch_rpc(action,a):
         if op=='bootstrap':return storage.bootstrap(ROOT)
         if op=='select':
             with storage.file_lock(ROOT/'config/catalog.lock'):return storage.select_workspace(ROOT,a['path'])
-        if op=='initialize':storage.initialize(ROOT);return storage.status(ROOT)
+        if op=='initialize':
+            with storage.file_lock(ROOT/'config/catalog.lock'):
+                cfg=storage.initialize(ROOT)
+                return {**storage.status(ROOT),'warnings':cfg['discoveryWarnings']}
         if op=='status':return storage.status(ROOT,a.get('project',''))
         if op=='register':
             with storage.file_lock(ROOT/'config/catalog.lock'):return storage.register(ROOT,a)
