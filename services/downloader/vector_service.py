@@ -14,7 +14,7 @@ def endpoint(cfg):return cfg['baseUrl'].rstrip('/') if cfg['baseUrl'].rstrip('/'
 def config(e):
     import project_embedding
     return project_embedding.config(e)
-def public(cfg):return {**{k:v for k,v in cfg.items() if k!='apiKey'},'hasKey':bool(cfg.get('apiKey'))}
+def public(cfg):return {**{k:v for k,v in cfg.items() if k!='apiKey' and not k.startswith('_')},'hasKey':bool(cfg.get('apiKey'))}
 def legacy_profile(cfg):
     identity=[cfg['baseUrl'],cfg['model'],cfg.get('modelRevision',''),chunks.TEMPLATE]
     if providers.protocol(cfg):identity.append(providers.protocol(cfg))
@@ -43,10 +43,28 @@ def cache_profile(e,cfg):
 
 def settings(e):
     cfg=config(e)
-    import retrieval_settings,embedding_profiles
+    import retrieval_settings,embedding_profiles,project_embedding
     data=embedding_profiles.store(e)
     return {'profiles':[{**public({**DEFAULTS,**p}),'verified':retrieval_settings.verified(e.ROOT,{**DEFAULTS,**p})} for p in data['profiles']],
-            'projectModel':public(cfg),'presets':providers.presets(),'activeProfile':data['activeProfile'],'apiVerified':retrieval_settings.verified(e.ROOT,cfg),'config':public(cfg),'configured':bool(cfg['baseUrl'] and cfg['model']),'runtimeReady':(e.ROOT/('runtimes/marker/Scripts/python.exe' if os.name=='nt' else 'runtimes/marker/bin/python')).is_file(),'splitter':{'version':chunks.SPLITTER,'maxChars':8192,'minChars':1,'method':'period-balanced'}}
+            'projectModel':public(cfg),'connection':project_embedding.connection(cfg),'storedIndex':stored_index(e,cfg),
+            'presets':providers.presets(),'activeProfile':data['activeProfile'],'apiVerified':retrieval_settings.verified(e.ROOT,cfg),'config':public(cfg),'configured':bool(cfg['baseUrl'] and cfg['model']),'runtimeReady':(e.ROOT/('runtimes/marker/Scripts/python.exe' if os.name=='nt' else 'runtimes/marker/bin/python')).is_file(),'splitter':{'version':chunks.SPLITTER,'maxChars':8192,'minChars':1,'method':'period-balanced'}}
+
+def stored_index(e,cfg):
+    """Local inventory, distinct from current-model/material readiness."""
+    result={'documents':0,'vectors':0,'models':[]}
+    if not getattr(e,'PROJECT',None):return result
+    path=files.base(e)/'vectors/chunks.sqlite3'
+    if not path.is_file():return result
+    with managed_sqlite.connect(path.as_uri()+'?mode=ro',uri=True) as c:
+        tables={r[0] for r in c.execute("SELECT name FROM sqlite_master WHERE type='table'")}
+        if not {'profiles','indexed','embeddings'}<=tables:return result
+        result['documents']=c.execute('SELECT COUNT(DISTINCT pmid) FROM indexed').fetchone()[0]
+        result['vectors']=c.execute('SELECT COUNT(*) FROM embeddings').fetchone()[0]
+        for pid,raw in c.execute('SELECT id,config FROM profiles'):
+            saved=json.loads(raw);count=c.execute('SELECT COUNT(*) FROM indexed WHERE profile=?',(pid,)).fetchone()[0]
+            if count:result['models'].append({'model':saved.get('model',''),'baseUrl':saved.get('baseUrl',''),
+                    'documents':count,'current':pid in profile_aliases(cfg)})
+    return result
 def validated(e,a):
     import embedding_profiles
     cfg=embedding_profiles.form(e,a)
@@ -73,6 +91,8 @@ def validated(e,a):
 
 def embed(texts,cfg,*,attempts=3,check=lambda:None,root=None,reservation=None,reserved_tokens=None,on_response=None,purpose="document"):
     import httpx
+    import project_embedding
+    project_embedding.require_connection(cfg)
     if not cfg['baseUrl'] or not cfg['model']:raise ValueError('请先在设置 → Embedding 模型中配置 Embedding 服务')
     import embedding_limits as limits
     if root is None:
@@ -153,10 +173,15 @@ def start(e,a):
         if receipt and receipt.exists():return json.loads(receipt.read_text())
         cfg=config(e)
         if not cfg['baseUrl']:raise ValueError('请先配置 Embedding 服务；文本块浏览无需配置')
+        import project_embedding
+        project_embedding.require_connection(cfg)
         if a.get('tokenBudget','auto') not in ('auto','conservative','verified'):raise ValueError('无效的 token 预算模式')
         mode=a.get('mode','incremental')
         if mode not in ('incremental','rebuild','recompute'):raise ValueError('索引更新模式无效')
         if mode!='incremental' and a.get('confirm')!=e.PROJECT:raise ValueError('请确认索引重建范围')
+        # Projects created before their first provider was configured must also
+        # carry their model identity when moved into a fresh installation.
+        project_embedding.bind(e,cfg,only_if_unbound=True)
         (files.base(e)/'metadata/index-cleared.json').unlink(missing_ok=True)
         chunks.sync(e);docs=chunks.documents(e,cache_profile(e,cfg));pmids=a.get('pmids')
         if pmids is not None:
@@ -221,6 +246,8 @@ def run(e,job_id):
     job.update(state='running',pid=os.getpid());save()
     try:
         with storage.file_lock(files.base(e)/'metadata/vector-worker.lock'),index_lock(e),storage.file_lock(e.ROOT/'config/storage.lock',shared=True):
+            import project_embedding
+            project_embedding.require_connection(cfg)
             if pid not in profile_aliases(cfg):raise ValueError('Embedding 配置已改变，请重新启动索引')
             if job.get('mode') in ('rebuild','recompute'):
                 with chunks.connect(e) as c:
@@ -319,9 +346,13 @@ def run(e,job_id):
 def search(e,a):
     query=str(a.get('query','')).strip()
     if not query or len(query)>4000:raise ValueError('请输入 1–4000 字符的检索问题')
-    cfg=config(e);pid=cache_profile(e,cfg);chunks.sync(e);docs=chunks.documents(e,pid)
-    selected=a.get('pmid');kind=a.get('sourceKind','all');method=a.get('method','semantic')
+    cfg=config(e);method=a.get('method','semantic')
     if method not in ('semantic','keyword'):raise ValueError('检索模式无效')
+    if method=='semantic':
+        import project_embedding
+        project_embedding.require_connection(cfg)
+    pid=cache_profile(e,cfg);chunks.sync(e);docs=chunks.documents(e,pid)
+    selected=a.get('pmid');kind=a.get('sourceKind','all')
     docs=[d for d in docs if (not selected or d['pmid']==selected) and (kind=='all' or d['sourceKind']==kind) and (method=='keyword' or d['indexed'])]
     if not docs:return {'results':[],'note':'所选范围没有可检索文本；语义检索需要先建立当前模型的索引'}
     records={}
@@ -418,6 +449,8 @@ def rpc(e,action,a):
         return search(e,a)
     if action=='auto':
         cfg=config(e)
+        import project_embedding
+        if project_embedding.connection(cfg)['state']!='ready':return {'state':'not_configured'}
         if not cfg['autoIndex'] or not cfg['baseUrl']:return {'state':'not_configured' if not cfg['baseUrl'] else 'disabled'}
         return {'state':'started',**start(e,a)}
     if action=='folder':return e.open_local(chunks.base(e))

@@ -92,7 +92,7 @@ def restore(e,p):
             if not isinstance(info,dict):continue
             if info.get('pdfSha256')!=pdf_sha or info.get('rawSha256')!=entries[f'markdown/raw/{p}.md']:continue
             cfg=markdown_service.config(e)
-            if not conversion_config.matches(e.ROOT,info,cfg) or info.get('cleaningSignature')!=markdown_service.signature(cfg):continue
+            if not conversion_config.matches(e.ROOT,info,cfg) or not markdown_service.signature_matches(info,cfg):continue
             for name in entries:
                 if name!=meta_name:e.atomic(safe(root,name),safe(folder,name).read_bytes())
             info['rebuildEpoch']=artifact_state.epoch(e,p)

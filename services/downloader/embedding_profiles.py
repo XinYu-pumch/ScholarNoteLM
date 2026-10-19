@@ -35,7 +35,7 @@ def write(e,data):
 def save(e,args):
     import vector_service as v
     with storage.file_lock(e.ROOT/'config/embedding-settings.lock'):
-        data=store(e);cfg=v.validated(e,args);pid=cfg.get('id') or uuid.uuid4().hex
+        data=store(e);first=not data['activeProfile'];cfg=v.validated(e,args);pid=cfg.get('id') or uuid.uuid4().hex
         name=args.get('name',cfg.get('name') or '默认配置')
         if not isinstance(name,str) or not name.strip() or len(name)>80:raise ValueError('配置名称须为 1–80 个字符')
         name=name.strip()
@@ -46,7 +46,11 @@ def save(e,args):
         if not data['activeProfile'] or args.get('activate') is True:data['activeProfile']=pid
         import project_embedding
         project_embedding.pin_existing(e)
-        write(e,data);return pid
+        write(e,data)
+        # Projects created before setup must retain this identity for both
+        # indexing and QA paths, which can generate vectors independently.
+        if first:project_embedding.pin_existing(e)
+        return pid
 
 def activate(e,pid):
     with storage.file_lock(e.ROOT/'config/embedding-settings.lock'):

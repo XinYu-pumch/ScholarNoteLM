@@ -15,6 +15,8 @@ def fingerprint(cfg):
 def verified(root,cfg=None):
     import vector_service as v
     cfg=cfg or v.config(SimpleNamespace(ROOT=root));p=root/'config/embedding-verification.json'
+    import project_embedding
+    if project_embedding.connection(cfg)['state']!='ready':return False
     if not cfg['baseUrl'] or not p.exists():return False
     data=json.loads(p.read_text());key=fingerprint(cfg)
     return data.get('fingerprint')==key or key in data.get('verifications',{})

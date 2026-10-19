@@ -1562,7 +1562,7 @@
   "部分标题的可用文本块不足设定数量": "Some headings have fewer available text blocks than requested",
   "已校验章节": "Validated sections",
   "材料模型": "Material model",
-  "当前项目模型": "Project model",
+  "当前项目模型": "Current project model",
   "本轮继续使用原材料；切换请准备新一轮。": "This round keeps its original materials. Prepare a new round to switch.",
   "任务记录": "Task records",
   "综述工作区列表": "Review workspaces",
@@ -1623,5 +1623,13 @@
   "Apple MPS 不可用": "Apple MPS is unavailable",
   "已检测到 NVIDIA 显卡，请通过环境安装程序安装 CUDA 加速组件": "NVIDIA GPU detected; install the CUDA acceleration component with ScholarNoteLM Setup",
   "实际计算设备：{p0}": "Actual compute device: {p0}",
-  "加速异常已自动重试，详情见转换报告": "Accelerator failure retried automatically; see the conversion report"
+  "加速异常已自动重试，详情见转换报告": "Accelerator failure retried automatically; see the conversion report",
+  "项目材料和索引已保留，请重新配置原 Embedding 服务。": "Project materials and indexes are retained. Reconfigure the original Embedding service.",
+  "存在多个匹配的 Embedding 配置，请选择一个用于当前项目。": "Multiple matching Embedding configurations exist. Choose one for this project.",
+  "项目材料和索引已保留，请补充原 Embedding 服务的 API Key。": "Project materials and indexes are retained. Enter the API key for the original Embedding service.",
+  "请先配置 Embedding 服务；本地文本块仍可浏览。": "Configure an Embedding service. Local text chunks remain available to browse.",
+  "本地已保存 {p0} 篇文献的索引，共 {p1} 个向量。": "Indexes for {p0} papers are saved locally, with {p1} vectors.",
+  "其他模型的已保存索引": "Saved index for another model",
+  "索引已保存 · 待连接模型": "Index saved · Connect model service",
+  "本地已保存 {p0} 篇文献的索引；上方显示当前模型和材料的可用数量。": "Indexes for {p0} papers are saved locally; the count above shows readiness for the current model and materials."
 }

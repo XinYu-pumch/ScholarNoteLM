@@ -32,4 +32,34 @@ class ProjectEmbeddingTests(unittest.TestCase):
  def test_deleted_profile_does_not_silently_use_other_model(self):
   profiles.activate(self.e,'b');profiles.delete(self.e,'a')
   cfg=vectors.config(self.e);self.assertEqual(cfg['model'],'embedding-a');self.assertEqual(cfg['apiKey'],'')
+ def test_reinstall_reconnects_equivalent_model_without_changing_binding(self):
+  before=binding.path(self.e).read_bytes();pid=vectors.profile(vectors.config(self.e))
+  profiles.write(self.e,{'profiles':[],'activeProfile':''})
+  cfg=vectors.config(self.e)
+  self.assertEqual(binding.connection(cfg)['state'],'missing');self.assertEqual(vectors.profile(cfg),pid)
+  with self.assertRaisesRegex(ValueError,'重新配置'):binding.require_connection(cfg)
+  replacement={**self.a,'id':'replacement','name':'New config','baseUrl':self.a['baseUrl']+'/embeddings','apiKey':'new-fixture-secret','rpm':200}
+  profiles.write(self.e,{'profiles':[replacement],'activeProfile':'replacement'})
+  cfg=vectors.config(self.e)
+  self.assertEqual(binding.connection(cfg),{'state':'ready','profileId':'replacement','message':''})
+  self.assertEqual(cfg['apiKey'],'new-fixture-secret');self.assertEqual(cfg['rpm'],200)
+  self.assertEqual(vectors.profile(cfg),pid);self.assertEqual(binding.path(self.e).read_bytes(),before)
+  self.assertNotIn('_connectionState',vectors.public(cfg));self.assertNotIn('apiKey',vectors.public(cfg))
+ def test_reconnection_never_guesses_model_endpoint_or_revision(self):
+  for change in ({'model':'other'},{'baseUrl':'https://other.example/v1'},{'modelRevision':'other'}):
+   replacement={**self.a,'id':'new',**change}
+   profiles.write(self.e,{'profiles':[replacement],'activeProfile':'new'})
+   self.assertEqual(binding.connection(vectors.config(self.e))['state'],'missing')
+  profiles.write(self.e,{'profiles':[{**self.a,'baseUrl':'https://other.example/v1'}],'activeProfile':'a'})
+  cfg=vectors.config(self.e);self.assertEqual(cfg['apiKey'],'');self.assertEqual(binding.connection(cfg)['state'],'missing')
+ def test_ambiguous_reconnect_requires_explicit_binding(self):
+  copies=[{**self.a,'id':i,'name':i} for i in ('new1','new2')]
+  profiles.write(self.e,{'profiles':copies,'activeProfile':'new1'})
+  self.assertEqual(binding.connection(vectors.config(self.e))['state'],'ambiguous')
+  binding.bind(self.e,copies[1]);self.assertEqual(binding.connection(vectors.config(self.e))['profileId'],'new2')
+ def test_missing_required_key_and_anonymous_service(self):
+  profiles.write(self.e,{'profiles':[{**self.a,'apiKey':''}],'activeProfile':'a'})
+  self.assertEqual(binding.connection(vectors.config(self.e))['state'],'needs_key')
+  binding.bind(self.e,{**self.a,'apiKey':''})
+  self.assertEqual(binding.connection(vectors.config(self.e))['state'],'ready')
 if __name__=='__main__':unittest.main()

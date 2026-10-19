@@ -10,7 +10,9 @@ import Select from './Select';
 import './vector.css';
 
 type Config={baseUrl:string;model:string;modelRevision:string;apiKey?:string;hasKey:boolean;clearKey?:boolean;batchSize:number;concurrency:number;timeout:number;autoIndex:boolean};
-type Settings={config:Config;configured:boolean;runtimeReady:boolean;splitter:{version:string;maxChars:number;minChars:number}};
+export type EmbeddingConnection={state:'ready'|'missing'|'ambiguous'|'needs_key'|'unconfigured';profileId:string;message:string};
+export type StoredIndex={documents:number;vectors:number;models:{model:string;baseUrl:string;documents:number;current:boolean}[]};
+type Settings={connection?:EmbeddingConnection;storedIndex?:StoredIndex;config:Config;configured:boolean;runtimeReady:boolean;splitter:{version:string;maxChars:number;minChars:number}};
 export type VectorStatus=Settings&{refreshing?:boolean;cleared?:boolean;metadataPending?:number;items:{pmid:string;pdfState:string;markdownState:string;vectorState:string;sourceKind:string}[];xmlFingerprint:string;documents:number;eligibleDocuments:number;readyDocuments:number;chunks:number;readyChunks:number;job:null|{created?:number;finished?:number;id:string;state:string;completed:number;failed:number;skipped:number;current:string;pmids:string[];error?:string;embeddedChunks?:number;totalChunks?:number;vectorProgress?:{completed:number;total:number};adaptiveProgress?:{state:string;completed:number;total:number;concurrency?:number;batchLimit?:number;nextRetryAt?:number};items:{pmid:string;state:string;error?:string}[]}};
 export function adaptivePhase(job:VectorStatus['job']){
  const p=job?.adaptiveProgress;if(!p||job?.state!=='running')return '';

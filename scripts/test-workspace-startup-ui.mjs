@@ -29,5 +29,23 @@ try{
  expect(await readFile(path.join(folder,'keep.txt'),'utf8')).toBe('keep');
  const cfg=JSON.parse(await readFile(path.join(testRoot,'config/storage.json'),'utf8'));expect(cfg.workspace).toBe(folder);
  expect(Object.keys(cfg.projects).sort()).toEqual(['another','old-project']);
+ // A retained model is visible without the installation's provider/key store.
+ await page.getByRole('button',{name:'关闭项目菜单'}).click();
+ await mkdir(path.join(folder,'Old/metadata'),{recursive:true});
+ await writeFile(path.join(folder,'Old/metadata/embedding-model.json'),JSON.stringify({id:'removed-provider',name:'Retained service',baseUrl:'http://127.0.0.1:1/v1',model:'retained-embedding',modelRevision:'r1',requiresKey:true}));
+ await page.getByRole('button',{name:'设置',exact:true}).click();
+ await page.getByRole('button',{name:'文献检索模型',exact:true}).click();
+ await expect(page.getByRole('status').filter({hasText:'项目材料和索引已保留'})).toBeVisible();
+ await expect(page.getByLabel('Embedding API 地址')).toHaveValue('http://127.0.0.1:1/v1');
+ await expect(page.getByLabel('检索模型名称',{exact:true})).toHaveValue('retained-embedding');
+ await expect(page.getByLabel('Embedding API Key',{exact:true})).toHaveValue('');
+ await expect(page.getByRole('button',{name:'将此配置用于当前项目'})).toBeDisabled();
+ await page.getByLabel('Embedding API Key',{exact:true}).fill('ui-fixture-key');
+ await page.getByRole('button',{name:'保存配置',exact:true}).click();
+ await expect(page.getByRole('status').filter({hasText:'项目材料和索引已保留'})).toHaveCount(0);
+ await expect(page.getByRole('button',{name:'将此配置用于当前项目'})).toBeEnabled();
+ const embedding=JSON.parse(await readFile(path.join(testRoot,'config/embedding.json'),'utf8'));
+ expect(embedding.profiles[0].id).not.toBe('removed-provider');
+ expect(JSON.parse(await readFile(path.join(folder,'Old/metadata/embedding-model.json'),'utf8')).id).toBe('removed-provider');
  expect(errors).toEqual([]);console.log('First launch, invalid path, existing projects, Unicode/space path, preservation and restart discovery checks passed.');
 }finally{await browser.close();vite.kill('SIGTERM');await new Promise(resolve=>vite.once('exit',resolve));await rm(testRoot,{recursive:true,force:true});}

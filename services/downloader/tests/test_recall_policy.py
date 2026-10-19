@@ -48,6 +48,7 @@ class RecallPolicyTests(unittest.TestCase):
   self.assertIn('# immune 129',[n['text'] for n in first['neighbors']])
   self.assertEqual(len(records),132)
  def test_semantic_filter_applies_before_limit(self):
+  vectors.rpc(e,'settings.save',{'baseUrl':'http://127.0.0.1:1/v1','model':'fixture','autoIndex':False})
   doc,records=self.make_corpus();doc['indexed']=True
   allowed=[r for r in records if chunks.recall_allowed(r)];blocked=[r for r in records if not chunks.recall_allowed(r)]
   self.assertTrue(allowed and blocked)

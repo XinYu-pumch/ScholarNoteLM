@@ -75,7 +75,7 @@ def run(project,job_id):
                             checked=e.validate_pdf(pdf);sha=checked['sha256'];stat=pdf.stat()
                             requested,effective=m.text_workers(cfg.get('pdftextWorkers','auto'),checked['pages'])
                             worker_info={'pages':checked['pages'],'pdftextWorkers':requested,'effectiveTextWorkers':effective}
-                            if not job.get('force') and same_engine and raw.is_file() and dest.is_file() and meta.get('pdfSha256')==sha and meta.get('rebuildEpoch',0)==generation and meta.get('rawSha256',artifact_state.file_hash(e,raw))==artifact_state.file_hash(e,raw) and meta.get('cleaningSignature')==m.signature(cfg):
+                            if not job.get('force') and same_engine and raw.is_file() and dest.is_file() and meta.get('pdfSha256')==sha and meta.get('rebuildEpoch',0)==generation and meta.get('rawSha256',artifact_state.file_hash(e,raw))==artifact_state.file_hash(e,raw) and m.signature_matches(meta,cfg):
                                 job['skipped']+=1;job['items'].append({'pmid':p,'state':'skipped','reason':'PDF 和清洗规则未变'});continue
                             shutil.copy2(pdf,stage/f'{p}.pdf')
                             raw_text=raw_before.decode('utf-8') if not job.get('force') and same_engine and raw_before is not None and meta.get('pdfSha256')==sha and meta.get('rebuildEpoch',0)==generation else None
@@ -85,7 +85,7 @@ def run(project,job_id):
                             raw_text=raw_before.decode('utf-8');sha=meta.get('pdfSha256');stat=pdf.stat() if pdf.exists() else None
                     if job['mode']=='convert' and dest_before is not None and raw_before is not None:
                         expected=meta.get('publishedSha256')
-                        if not expected and meta.get('cleaningSignature')==m.signature(source_cfg):
+                        if not expected and m.signature_matches(meta,source_cfg):
                             old_clean=published(m.clean(raw_before.decode('utf-8'),source_cfg)[0])
                             expected=hashlib.sha256(old_clean.encode()).hexdigest()
                         if (not expected or hashlib.sha256(dest_before).hexdigest()!=expected) and not job.get('replaceEdited'):

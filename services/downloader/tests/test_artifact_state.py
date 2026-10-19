@@ -89,3 +89,22 @@ class ArtifactStateTests(unittest.TestCase):
   e.atomic(self.base/'pdf/1.pdf',b'%PDF-1.4\nnot a document')
   result=m.rpc(e,'reconcile',{});self.assertEqual(len(result['invalid']),1)
   self.assertEqual(self.state()['pdfState'],'invalid');self.assertFalse(self.state()['sourceReady'])
+
+ def test_device_changes_preserve_markdown_and_vector_document_version(self):
+  self.materialize('1');c.sync(e);version=c.documents(e)[0]['version']
+  for device in ('cpu','mps','auto','cuda'):
+   cfg={**m.config(e),'device':device}
+   self.assertEqual(a.markdown_state(e,'1',cfg)['markdownState'],'latest')
+   self.assertEqual(m.signature(cfg),m.signature(m.config(e)))
+  c.sync(e);self.assertEqual(c.documents(e)[0]['version'],version)
+ def test_recorded_device_signature_requires_exact_provenance(self):
+  from unittest.mock import patch
+  cfg={**m.DEFAULTS,'device':'mps'}
+  values={k:v for k,v in cfg.items() if k in m.conversion.MARKER_KEYS and k!='pdftextWorkers'}
+  old=hashlib.sha256(json.dumps({**values,'cleaningVersion':m.cleaning_version(cfg),'paragraphVersion':m.markdown_cleaning.PARAGRAPH_VERSION},sort_keys=True).encode()).hexdigest()
+  meta={'conversionConfig':cfg,'cleaningSignature':old}
+  self.assertTrue(m.signature_matches(meta,{**cfg,'device':'cpu'}))
+  self.assertFalse(m.signature_matches({**meta,'cleaningSignature':'tampered'},cfg))
+  self.assertFalse(m.signature_matches({'cleaningSignature':old},cfg))
+  with patch.object(m.markdown_cleaning,'PARAGRAPH_VERSION','different'):
+   self.assertFalse(m.signature_matches(meta,cfg))

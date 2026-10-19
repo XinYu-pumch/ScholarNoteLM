@@ -33,6 +33,14 @@ Jina 地址为 `https://api.jina.ai/v1/embeddings`，新配置预设默认选择
 
 文本块预览与关键词检索均在本地运行，不需要配置 Embedding。语义检索需要已建立的当前模型索引。远程 Embedding 服务仅收到 chunk 原文，不额外拼接论文标题或章节路径；查询时会收到查询文本。标题和章节路径保留为来源 metadata。
 
+## 同版本重装与重新连接
+
+保留完整项目目录后重新安装，应用从 `metadata/embedding-model.json` 读取项目模型身份；密钥和服务限速仍只保存在本机。文献库分别显示当前模型/材料的可用索引数、本地已保存索引及服务连接状态，缺少服务配置不清空已有索引，也不把它当成已连接。设置页预填项目原来的地址、模型名和版本，密钥需用户重新填写。
+
+重新保存同一端点、模型和版本的配置，即使配置 ID、名称、密钥不同，仍自动连接并复用已有向量；Base URL 与完整 `/embeddings` 地址等价。若有多个匹配配置，须明确选择“将此配置用于当前项目”。原配置 ID 的服务地址若已改变，不会将新地址的密钥发送到旧地址。已保存的模型身份不随全局默认切换。
+
+缺少配置或必要密钥时，本地文本块和关键词检索仍可用；建立/重建索引与语义检索会提示重新连接。新问题仍需同一模型生成查询向量。不同端点、模型或版本使用独立索引，原索引保留，切回后可复用；材料本身变化仍按正常规则更新。本地文件本来就缺失、已被清空，或跨版本格式不兼容，不属于此恢复机制。
+
 ## 按段落拆分
 
 按空行分段，所有非空短段保留；超长段落按句号附近二分：
@@ -109,6 +117,7 @@ JSONL 一行一个 `{id, text, metadata}`，便于在编辑器中检查或后续
 
 - `runtimes/downloader/bin/python -m unittest discover -s services/downloader/tests`：覆盖句号二分、Unicode 定位、内容失效、PDF 与兼容 Markdown 恢复、并发任务作废、密钥隔离及离线关键词检索。
 - `runtimes/marker/bin/python scripts/test-vectors-integration.py`：SQLite 向量缓存 + 独立 worker + 本机模拟 Embedding 服务，覆盖增量复用、返回顺序重排、部分批次失败重试、旧版本/移出文献排除和维度变化。隔离临时项目自动清理，不发送真实文献。
+- `runtimes/downloader/bin/python scripts/test-project-reinstall.py`：删除隔离安装目录、保留项目并重新发现，验证 Markdown、索引数量、缺少凭据、同模型重连零文献请求、模型隔离与切回复用。
 - 增量与清理测试使用本机模拟 Embedding 服务，不发送项目文献；尚未进行 Windows 实机验证。
 
 完整阶段状态规则见 [文件生命周期与最新状态](ARTIFACT_LIFECYCLE.md)。

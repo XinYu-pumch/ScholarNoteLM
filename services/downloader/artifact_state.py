@@ -43,7 +43,7 @@ def markdown_state(e,p,cfg):
     target_matches=conversion.matches(e.ROOT,info,cfg)
     # A new engine is only a target: keep the published source usable until its replacement succeeds.
     published_cfg=cfg if target_matches else info.get('conversionConfig',{**m.DEFAULTS,**cfg,'engine':'marker'})
-    needs_clean=valid and (not raw_hash or info.get('rawSha256')!=raw_hash or info.get('cleaningSignature')!=m.signature(published_cfg))
+    needs_clean=valid and (not raw_hash or info.get('rawSha256')!=raw_hash or not m.signature_matches(info,published_cfg))
     needs_conversion=bool(sha and (not valid or not target_matches))
     state='latest' if valid and not needs_clean else 'outdated' if md.exists() else 'missing'
     return {'pmid':p,'pdf':bool(sha),'raw':raw.is_file(),'ready':valid,'needsCleaning':bool(needs_clean),'needsConversion':needs_conversion,'engine':info.get('engine','Marker 1.6.0') if valid else '', 'pdfState':pdf_state,'markdownState':state,'pdfSha256':sha,'markdownSha256':md_hash,'rawSha256':raw_hash,'layoutRemoved':info.get('layoutRemoved',0),'removed':info.get('removedCount',0),'error':error or info.get('error','')}

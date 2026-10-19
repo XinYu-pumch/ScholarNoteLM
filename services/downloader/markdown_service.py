@@ -49,10 +49,22 @@ def text_workers(value,pages):
 def signature(cfg):
     # Reading old settings migrates in memory only. Execution parallelism never
     # changes the signature; old unversioned BADR outputs must become stale.
-    cfg={**DEFAULTS,**cfg}
+    # Device selection affects execution, not the identity of published text.
+    # Retain the existing key and canonical auto digest to avoid changing unrelated inputs.
+    cfg={**DEFAULTS,**cfg,'device':'auto'}
     # Preserve every existing Marker signature when merely adding engine choices.
     values={k:v for k,v in cfg.items() if k in conversion.MARKER_KEYS and k!='pdftextWorkers'}
     return hashlib.sha256(json.dumps({**values,'cleaningVersion':cleaning_version(cfg),'paragraphVersion':markdown_cleaning.PARAGRAPH_VERSION},sort_keys=True).encode()).hexdigest()
+
+def signature_matches(meta,cfg):
+    if meta.get('cleaningSignature')==signature(cfg):return True
+    # Verify recorded provenance exactly before ignoring an execution-only device
+    # difference. Do not rewrite the saved digest used by existing vector snapshots.
+    recorded=meta.get('conversionConfig')
+    if not isinstance(recorded,dict) or signature(recorded)!=signature(cfg):return False
+    values={k:v for k,v in {**DEFAULTS,**recorded}.items() if k in conversion.MARKER_KEYS and k!='pdftextWorkers'}
+    previous=hashlib.sha256(json.dumps({**values,'cleaningVersion':cleaning_version(recorded),'paragraphVersion':markdown_cleaning.PARAGRAPH_VERSION},sort_keys=True).encode()).hexdigest()
+    return meta.get('cleaningSignature')==previous
 
 def cleaning_version(cfg):return 'references-only-v2'
 
