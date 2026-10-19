@@ -1,6 +1,6 @@
 # 源码安装版与独立版
 
-Mac 完整独立 App 的使用见 [独立版说明](MACOS_STANDALONE.md)。以下介绍“源码目录 + 预编译桌面程序 + 自动安装运行环境”的版本。普通用户不编译应用，不需要预装 Python、Node、Rust、Homebrew 或 Xcode Command Line Tools。
+两种发行方式及下载位置见 [上传与发布约定](RELEASING.md)。完整独立版通过网盘发布，使用方法见 [Mac 独立版](MACOS_STANDALONE.md) 和 [Windows 独立版](WINDOWS_STANDALONE.md)。以下介绍“源码目录 + 预编译桌面程序 + 自动安装运行环境”的版本。普通用户不编译应用，不需要预装 Python、Node、Rust、Homebrew 或 Xcode Command Line Tools。
 
 ## 系统要求
 
@@ -12,7 +12,7 @@ Mac 完整独立 App 的使用见 [独立版说明](MACOS_STANDALONE.md)。以�
 
 ## 安装步骤
 
-1. 从同一个 GitHub Release 取得源码和 `ScholarNoteLM-0.6.4-macos-arm64.zip`。源码可以直接下载 ZIP；macOS 的 `git` 命令可能要求 Command Line Tools，因此 `git clone` 不是前提。
+1. Git clone 仓库后切换到 Release 指定的匹配源码标签或提交，并下载该 Release 的 `ScholarNoteLM-<版本>-macos-arm64.zip`；也可直接下载匹配源码 ZIP。不要默认最新 `main` 与现有程序一致。macOS 的 `git` 命令可能要求 Command Line Tools，因此 `git clone` 不是前提。
 2. 解压源码到准备长期保留的文件夹，把程序 ZIP 中的 `ScholarNoteLM.app` 放到该源码目录根部。
 3. 双击 **install-environment.command**。脚本下载并校验引导工具，然后安装项目专用 Python 3.12.9、Marker/向量/下载依赖、Node 20.19.0、Playwright/Chromium 与字体。不会安装 Rust 或构建前端。
 4. 从发布者的网盘下载该版本匹配的 `models` 文件夹，放入源码根目录，形成 `models/marker/...`，不要多套一层 `models/models/`。
@@ -25,13 +25,11 @@ Mac 完整独立 App 的使用见 [独立版说明](MACOS_STANDALONE.md)。以�
 
 ## Windows x64
 
-当前源码为 0.6.4，Mac 程序已同步重建。统一 Release 暂时保留现有 Windows 0.6.3 CUDA 程序，等待 Windows 维护者基于 0.6.4 重新编译并替换附件。**现有 Windows 0.6.3 EXE 不能搭配 0.6.4 源码**，程序内嵌的源码清单会拒绝版本不匹配。
-
-发布页仅提供当前 0.6.4 源码，不另附旧源码 ZIP。Windows 用户应等待匹配的 0.6.4 程序；维护者可按本文末尾构建步骤生成。历史 0.6.3 源码仍可从 Git 标签 `v0.6.3-windows.1` 取得，但不属于当前推荐安装组合。
+从当前 GitHub Release 取得 Windows 源码配套程序，并使用附件说明指定的源码标签、提交或源码 ZIP。若发布页标注 Windows 程序尚未同步重编译，应使用它明确对应的源码，或等待新的匹配程序；不能仅凭相同版本号判断兼容性。程序内嵌的源码清单会拒绝不匹配的组合。
 
 目标为 Windows 10/11 x64（Intel/AMD），当前在 Windows 11 上验收；Windows ARM64 不属于此发布目标。沿用“匹配源码 + 平台程序 + models”的布局，Windows 与 macOS 共用仓库和模型资源，运行时须分别安装。
 
-1. 确认已有基于当前源码重新编译的 Windows 程序，再解压源码 ZIP。安装目录须可写，建议使用较短的路径，如 `D:\ScholarNoteLM`，避免系统受保护目录。
+1. 取得 Windows 程序明确对应的源码（Git clone 后切换到指定提交，或解压匹配源码 ZIP）。安装目录须可写，建议使用较短的路径，如 `D:\ScholarNoteLM`，避免系统受保护目录。
 2. 将 `ScholarNoteLM-<版本>-windows-x64.zip` 的内容解压到源码根目录，保留主程序、安装引导、`source-manifest.json` 和第三方许可目录。
 3. 把网盘提供的模型放入 `models/marker/`，不要重复嵌套 `models/models/`。
 4. 双击 `ScholarNoteLM-Setup.exe`，点击“安装 / 继续”。也可双击源码中的 `install-environment.cmd`。无需提前安装 Python；引导程序下载并校验引导工具，再创建项目专用 Python 3.12.9、Node 20.19.0、Chromium 和固定版本依赖。

@@ -4,7 +4,7 @@
 
 ## 使用
 
-取得维护者单独提供的、名称包含 `macos-arm64-standalone` 的文件，解压后将 `ScholarNoteLM.app` 放到 Applications 或其他文件夹，打开即可。不要从压缩包内部直接启动。第一次启动选择研究工作目录并配置模型服务。
+从发布页提供的网盘入口取得名称包含 `macos-arm64-standalone` 的文件，解压后将 `ScholarNoteLM.app` 放到 Applications 或其他文件夹，打开即可。不要从压缩包内部直接启动。第一次启动选择研究工作目录并配置模型服务。
 
 独立版的设置、数据库与运行缓存保存于 `~/Library/Application Support/ScholarNoteLM-Standalone/`；研究文献与稿件保存于用户选择的目录。App 包内资源不会在运行时改写。移动整个 App 后，启动入口会重新连接资源，设置不丢失。不要移动 App 内单个文件，也不要同时用两个版本操作同一工作目录。
 
@@ -31,4 +31,4 @@ runtimes/downloader/bin/python scripts/test-macos-standalone.py --app "/path/to/
 
 后者使用包内 Python、隔离的用户状态目录、有限 PATH 和不可用网络代理，校验资源哈希、依赖导入与 Chromium 离线启动。开发者还应在解压副本中验证原生窗口、中文/空格路径、移动重启、实际 MPS 转换及隔离业务流程，不能用打包成功代替功能验证。`SCHOLARNOTELM_STANDALONE_HOME` 只用于指定独立版的状态目录，测试时必须指定 `tmp/` 下的隔离位置。
 
-包内保留第三方和模型许可。GitHub 只存放打包脚本与源码；完整独立 App 保留本地或由维护者另行通过网盘分发，不上传 GitHub Release。Release 中的普通 Mac 程序 ZIP 是源码配套版，仍需要对应源码、运行环境和 models。
+包内保留第三方和模型许可。GitHub 只存放打包脚本与源码；完整独立 App 通过网盘分发，不上传 GitHub Release。上传分工见 [上传与发布约定](RELEASING.md)。Release 中的普通 Mac 程序 ZIP 是源码配套版，仍需要对应源码、运行环境和 models。

@@ -74,4 +74,4 @@ runtimes\downloader\Scripts\python.exe scripts/test-windows-standalone.py --inst
 
 当前 EXE 未进行 Authenticode 签名；正式分发可另行签名，然后重新生成校验值。目标为 Windows 10/11 x64（Intel/AMD），不包含 ARM64。
 
-大包只通过网盘发布，脚本、模板、清单和本文放在同一 GitHub 仓库。网盘同时提供校验文件和匹配源码入口。保留模型卡、字体及第三方许可；模型和 JCR 数据的许可不随主项目 GPL 自动改变，详见 `scripts/install/ASSET_NOTICES.md` 和 `THIRD_PARTY_NOTICES.md`。Mac 完整版需要独立的 Mac 构建、路径和签名验收。
+大包只通过网盘发布，脚本、模板、清单和本文放在同一 GitHub 仓库；源码配套 Windows 程序放在 GitHub Release。统一规则见 [上传与发布约定](RELEASING.md)。网盘同时提供校验文件和匹配源码入口。保留模型卡、字体及第三方许可；模型和 JCR 数据的许可不随主项目 GPL 自动改变，详见 `scripts/install/ASSET_NOTICES.md` 和 `THIRD_PARTY_NOTICES.md`。Mac 完整版需要独立的 Mac 构建、路径和签名验收。

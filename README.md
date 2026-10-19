@@ -2,6 +2,8 @@
 
 本地优先的生物医学文献研究桌面应用：PubMed 检索 / Zotero 导入 → PDF 或摘要 → Marker 转 Markdown → 分块与 Embedding → 综述大纲、正文和文献问答。
 
+项目分为**源码版**和**独立 App 版**：GitHub 仓库保存源码（含两平台独立版打包脚本），GitHub Releases 提供 Windows/macOS 源码配套预编译程序；完整独立版和单独的 `models/` 通过网盘发布。用户可直接安装独立版，也可取得匹配源码、预编译程序和 models 后安装环境使用。上传位置、版本对应及发布顺序统一见 [上传与发布约定](docs/RELEASING.md)。
+
 支持 macOS Apple Silicon 与 Windows x64 的源码配套安装。Windows 用户将同版本发布包中的 `ScholarNoteLM.exe`、`ScholarNoteLM-Setup.exe` 和 `source-manifest.json` 放入源码根目录，再放入网盘提供的 `models/`，双击安装引导；日常直接打开主程序。具体步骤见 [安装说明](docs/INSTALLATION.md)。Mac 保留 MPS 加速；Windows 可选安装 NVIDIA CUDA 加速，默认自动检测设备，保留 CPU 回退。普通使用不需要 Rust、C++ 编译器或 CUDA Toolkit。
 
 另有可选的 [Windows 完整离线安装包构建流程](docs/WINDOWS_STANDALONE.md)：将环境和模型一起打包为供网盘分发的安装 EXE。该流程新增独立入口，保留现有源码安装版和主程序；大型产物与个人数据不提交 Git。
