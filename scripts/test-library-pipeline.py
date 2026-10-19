@@ -6,7 +6,7 @@ import hashlib,json,os,subprocess,sys,tempfile,threading,time
 from http.server import BaseHTTPRequestHandler,ThreadingHTTPServer
 from pathlib import Path
 import test_paths
-ROOT=Path(__file__).resolve().parents[1];sys.path[:0]=[str(ROOT/'services/downloader'),str(ROOT/'services/downloader/tests')]
+ROOT=test_paths.installation_root(__file__);sys.path[:0]=[str(ROOT/'services/downloader'),str(ROOT/'services/downloader/tests')]
 import engine as e,corpus_files as f,markdown_service as m,vector_service as v
 from test_scihub_retry import pdf
 requests=[];delay=0

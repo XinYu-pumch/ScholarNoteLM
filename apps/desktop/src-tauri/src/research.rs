@@ -1907,7 +1907,7 @@ fn download_rpc(root: &Path, action: &str, mut args: Value) -> R<Value> {
     let runtime = if action.starts_with("vector.") { "marker" } else if action=="llm.test" && root.join(if cfg!(windows) {"runtimes/retrieval/Scripts/python.exe"} else {"runtimes/retrieval/bin/python"}).is_file() { "retrieval" } else { "downloader" };
     let python = root.join(if cfg!(windows) { format!("runtimes/{runtime}/Scripts/python.exe") } else { format!("runtimes/{runtime}/bin/python") });
     if !python.is_file() {
-        return Err("运行环境未安装，请在 ScholarNoteLM 安装目录运行“安装环境.command”".into());
+        return Err("运行环境未安装，请在 ScholarNoteLM 安装目录运行“install-environment.command”".into());
     }
     let owner = if std::env::current_exe()
         .ok()

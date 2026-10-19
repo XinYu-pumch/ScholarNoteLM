@@ -10,6 +10,7 @@
 | [AGENTS.md](../AGENTS.md) | 开发约束与验证要求；CLAUDE.md 引用同一规范 |
 | [DEVELOPMENT.md](DEVELOPMENT.md) | 启动、运行时、RPC、隔离测试 |
 | [INSTALLATION.md](INSTALLATION.md) | macOS 源码安装版、预编译程序、网盘模型与现有环境保护 |
+| [MACOS_STANDALONE.md](MACOS_STANDALONE.md) | Mac 独立 App、内置环境和模型、移动与隔离验证 |
 | [LOCAL_MAINTENANCE.md](LOCAL_MAINTENANCE.md) | 缓存清理与不可误删的依赖、数据 |
 | [PROJECT_STORAGE.md](PROJECT_STORAGE.md) | 项目布局、迁移、删除、紧凑存储 |
 | [ARTIFACT_LIFECYCLE.md](ARTIFACT_LIFECYCLE.md) | 归档恢复、内容指纹与更新判定 |

@@ -7,6 +7,11 @@ import subprocess
 import sys
 from release_manifest import generate,sha,export_source
 import platform
+import argparse
+
+parser=argparse.ArgumentParser(description=__doc__)
+parser.add_argument('--standalone',action='store_true',help='Also package an offline Mac app with runtimes and models')
+args=parser.parse_args()
 
 if sys.platform!='darwin' or platform.machine()!='arm64':raise SystemExit('Build this release on an Apple Silicon Mac.')
 root=Path(__file__).resolve().parents[1]
@@ -42,3 +47,5 @@ archive.with_suffix('.zip.sha256').write_text(sha(archive)+'  '+archive.name+'\n
 print('Built',target,'and',archive,'(ad-hoc signed; not notarized).')
 
 print("Matching source ZIP:",export_source(root,out))
+if args.standalone:
+    subprocess.run([sys.executable,str(root/'scripts/build-macos-standalone.py')],cwd=root,check=True)

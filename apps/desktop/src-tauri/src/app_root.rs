@@ -60,7 +60,7 @@ pub fn resolve()->Result<PathBuf,String>{
         let output=std::process::Command::new("/usr/bin/osascript").args(["-e","POSIX path of (choose folder with prompt \"选择 ScholarNoteLM 安装目录（包含 services、runtimes 和 models；不是研究工作目录）\")"]).output().map_err(|e|e.to_string())?;
         if output.status.success(){let root=PathBuf::from(String::from_utf8_lossy(&output.stdout).trim());validate(&root,manifest)?;return Ok(root);}
     }
-    Err(if cfg!(windows){"未找到安装目录。请将 ScholarNoteLM.exe 放入匹配的源码目录，并运行安装环境.cmd。"}else{"未找到安装目录。请将 app 放入匹配的 ScholarNoteLM 源码目录，并运行安装环境.command。"}.into())
+    Err(if cfg!(windows){"未找到安装目录。请将 ScholarNoteLM.exe 放入匹配的源码目录，并运行install-environment.cmd。"}else{"未找到安装目录。请将 app 放入匹配的 ScholarNoteLM 源码目录，并运行install-environment.command。"}.into())
 }
 
 pub fn check_runtime(root:&Path)->Result<(),String>{
@@ -70,7 +70,7 @@ pub fn check_runtime(root:&Path)->Result<(),String>{
         let config=fs::read_to_string(directory.join("pyvenv.cfg")).unwrap_or_default();
         let home=config.lines().find_map(|line|line.strip_prefix("home = "));
         if !directory.join("Scripts/python.exe").is_file() || !home.is_some_and(|p|Path::new(p).join("python.exe").is_file()){
-            return Err("运行环境缺失或安装目录已移动。请在当前源码目录重新运行安装环境.cmd，然后启动程序。".into());
+            return Err("运行环境缺失或安装目录已移动。请在当前源码目录重新运行install-environment.cmd，然后启动程序。".into());
         }
     }
     let _=root;

@@ -1,10 +1,10 @@
-# macOS 源码安装版
+# 源码安装版与独立版
 
-这是“源码目录 + 预编译桌面程序 + 自动安装运行环境”的版本。普通用户不编译应用，不需要预装 Python、Node、Rust、Homebrew 或 Xcode Command Line Tools。
+Mac 完整独立 App 的使用见 [独立版说明](MACOS_STANDALONE.md)。以下介绍“源码目录 + 预编译桌面程序 + 自动安装运行环境”的版本。普通用户不编译应用，不需要预装 Python、Node、Rust、Homebrew 或 Xcode Command Line Tools。
 
 ## 系统要求
 
-- Apple Silicon Mac（M 系列），macOS 14 或更新版本。Intel Mac、Windows、Linux 尚未提供本发行版本。
+- Apple Silicon Mac（M 系列），macOS 14 或更新版本。Intel Mac、Linux 尚未提供本发行版本；Windows x64 见下文。
 - 建议至少 16 GB 内存；较低内存设备的 PDF 转换体验尚未验收。
 - 安装时建议预留 15–20 GB 空间，研究资料另计。下载缓存可在安装成功后清理，`runtimes/` 和 `models/` 不能当缓存删除。
 - 首次安装需要访问 GitHub、PyPI、Node/npm 和 Playwright 下载服务。安装子进程跟随可用的 HTTP(S) 系统代理，并尊重显式设置的代理环境变量。
@@ -12,11 +12,11 @@
 
 ## 安装步骤
 
-1. 从同一个 GitHub Release 取得源码和 `ScholarNoteLM-0.6.2-macos-arm64.zip`。源码可以直接下载 ZIP；macOS 的 `git` 命令可能要求 Command Line Tools，因此 `git clone` 不是前提。
+1. 从同一个 GitHub Release 取得源码和 `ScholarNoteLM-0.6.4-macos-arm64.zip`。源码可以直接下载 ZIP；macOS 的 `git` 命令可能要求 Command Line Tools，因此 `git clone` 不是前提。
 2. 解压源码到准备长期保留的文件夹，把程序 ZIP 中的 `ScholarNoteLM.app` 放到该源码目录根部。
-3. 双击 **安装环境.command**。脚本下载并校验引导工具，然后安装项目专用 Python 3.12.9、Marker/向量/下载依赖、Node 20.19.0、Playwright/Chromium 与字体。不会安装 Rust 或构建前端。
+3. 双击 **install-environment.command**。脚本下载并校验引导工具，然后安装项目专用 Python 3.12.9、Marker/向量/下载依赖、Node 20.19.0、Playwright/Chromium 与字体。不会安装 Rust 或构建前端。
 4. 从发布者的网盘下载该版本匹配的 `models` 文件夹，放入源码根目录，形成 `models/marker/...`，不要多套一层 `models/models/`。
-5. 再次运行安装入口，检查模型文件完整性和程序/源码匹配情况。也可以在终端运行 `bash 安装环境.command --check`。
+5. 再次运行安装入口，检查模型文件完整性和程序/源码匹配情况。也可以在终端运行 `bash install-environment.command --check`。
 6. 双击根目录中的 **ScholarNoteLM.app**，首次启动先选择研究工作目录，再创建项目、填写模型服务配置。
 
 模型可以在安装环境之前或之后放入。模型尚未补齐时，安装器明确提示待补齐文件；已安装环境保留，PDF 转换在资源完整前不可用。不会自动从已失效的旧模型地址下载替代版本。
@@ -25,20 +25,16 @@
 
 ## Windows x64
 
-当前 CUDA 预发布版本为 `v0.6.3-windows.1`，请从该 Release 下载配套源码 ZIP 和 Windows 程序 ZIP，或指定标签克隆：
+当前源码为 0.6.4，Mac 程序已同步重建。统一 Release 暂时保留现有 Windows 0.6.3 CUDA 程序，等待 Windows 维护者基于 0.6.4 重新编译并替换附件。**现有 Windows 0.6.3 EXE 不能搭配 0.6.4 源码**，程序内嵌的源码清单会拒绝版本不匹配。
 
-```powershell
-git clone --branch v0.6.3-windows.1 https://github.com/XinYu-pumch/ScholarNoteLM.git
-```
-
-这是 Windows 预发布版本。现有 Mac `v0.6.2` 程序继续搭配其同版本源码；不要与本标签源码混用。Mac MPS 回归和新版 Mac 预编译程序另行发布。
+发布页仅提供当前 0.6.4 源码，不另附旧源码 ZIP。Windows 用户应等待匹配的 0.6.4 程序；维护者可按本文末尾构建步骤生成。历史 0.6.3 源码仍可从 Git 标签 `v0.6.3-windows.1` 取得，但不属于当前推荐安装组合。
 
 目标为 Windows 10/11 x64（Intel/AMD），当前在 Windows 11 上验收；Windows ARM64 不属于此发布目标。沿用“匹配源码 + 平台程序 + models”的布局，Windows 与 macOS 共用仓库和模型资源，运行时须分别安装。
 
-1. 克隆对应 Release 的 tag，或解压同次发布的源码 ZIP。安装目录须可写，建议使用较短的路径，如 `D:\ScholarNoteLM`，避免系统受保护目录。
+1. 确认已有基于当前源码重新编译的 Windows 程序，再解压源码 ZIP。安装目录须可写，建议使用较短的路径，如 `D:\ScholarNoteLM`，避免系统受保护目录。
 2. 将 `ScholarNoteLM-<版本>-windows-x64.zip` 的内容解压到源码根目录，保留主程序、安装引导、`source-manifest.json` 和第三方许可目录。
 3. 把网盘提供的模型放入 `models/marker/`，不要重复嵌套 `models/models/`。
-4. 双击 `ScholarNoteLM-Setup.exe`，点击“安装 / 继续”。也可双击源码中的 `安装环境.cmd`。无需提前安装 Python；引导程序下载并校验引导工具，再创建项目专用 Python 3.12.9、Node 20.19.0、Chromium 和固定版本依赖。
+4. 双击 `ScholarNoteLM-Setup.exe`，点击“安装 / 继续”。也可双击源码中的 `install-environment.cmd`。无需提前安装 Python；引导程序下载并校验引导工具，再创建项目专用 Python 3.12.9、Node 20.19.0、Chromium 和固定版本依赖。
 5. 点击“检查环境”，成功后双击 `ScholarNoteLM.exe`。首次使用选择研究工作目录，再创建项目。
 
 普通用户无需勾选“开发工具”。安装器检测 Microsoft Edge WebView2；缺失时运行经 Microsoft 签名验证的官方安装程序。首次安装需要网络，可继承 `HTTPS_PROXY`；下载失败后可重试，成功完成的安装阶段保留。模型不由安装器重新下载。没有 NVIDIA 显卡也能使用 CPU。
@@ -59,7 +55,7 @@ CUDA 环境位于 `runtimes/marker-cu<版本>-<校验标识>/`，自身保存 GP
 
 每次打开新 App 会后台检查设备，不下载组件或加载模型；开始转换前再次验证。检测结果显示在全文转换设置中。自动模式下 GPU 不可用则使用 CPU；手动指定不可用设备会明确报错。仅本地 Marker 模型推理受益，远程 API、下载和数据库不会获得 CUDA 加速。显存不足/设备故障的恢复规则见 [转换说明](MARKDOWN.md)。
 
-此功能需要包含 CUDA 改动的匹配源码和预编译程序；旧 Release 与先前构建的 CPU 独立安装包不会自动更新。当前实测 Windows RTX 4070 Ti SUPER + 驱动 591.74 + cu126；cu128/RTX 50 系与本次 Mac MPS 回归仍需相应机器验证。
+此功能需要包含 CUDA 改动的匹配源码和预编译程序；旧 Release 与先前构建的 CPU 独立安装包不会自动更新。当前实测 Windows RTX 4070 Ti SUPER + 驱动 591.74 + cu126；cu128/RTX 50 系仍需相应机器验证；Mac MPS 已通过隔离合成 PDF 转换验证。
 
 安装引导是独立 WinForms EXE，使用 Windows 自带的 .NET Framework；主程序通过 Tauri/WebView2 显示界面。两者均未做 Authenticode 签名，系统可能显示未知发布者提示；正式公开分发前可另行签名，不通过关闭系统安全功能解决提示。
 
@@ -81,8 +77,8 @@ ScholarNoteLM/
   ScholarNoteLM.exe          # Windows 主程序，与 .app 按平台二选一
   ScholarNoteLM-Setup.exe    # Windows 环境安装引导
   source-manifest.json       # Windows 程序对应的源码清单
-  安装环境.cmd               # Windows 源码安装入口
-  安装环境.command           # 安装/继续安装/检查；日常直接打开 app
+  install-environment.cmd   # Windows 源码安装入口
+  install-environment.command # 安装/继续安装/检查；日常直接打开 app
   apps/                     # 前端与 Rust 源码
   services/                 # Python 服务、Marker、浏览器下载依赖
   scripts/                  # 安装清单和维护脚本
@@ -95,7 +91,7 @@ ScholarNoteLM/
 
 研究工作目录由用户指定，支持中文、空格和可写的外置磁盘目录。新安装不会默认生成 `workspace/`。所选目录可有其他文件，创建项目时不会覆盖同名目录。已有安装沿用原工作目录；磁盘失联时要求重新连接，不自动创建空白替代项目。
 
-首版 `.app` 与安装目录配套使用，不应只把 `.app` 单独移到 `/Applications` 后删除源码目录。程序优先寻找旁边的源码；系统将下载程序临时转移到隔离位置时，可使用安装器登记的目录；找不到或有多个匹配安装时要求选择安装目录。安装目录和研究工作目录是两个不同概念。
+源码配套 `.app` 与安装目录配套使用，不应只把 `.app` 单独移到 `/Applications` 后删除源码目录。程序优先寻找旁边的源码；系统将下载程序临时转移到隔离位置时，可使用安装器登记的目录；找不到或有多个匹配安装时要求选择安装目录。安装目录和研究工作目录是两个不同概念。
 
 安装登记文件位于 `~/Library/Application Support/ScholarNoteLM/installations.json`，只记录安装路径。程序包含源码校验清单，错误版本会明确报错。更新时请取得完整匹配的一组源码和程序；不要只替换 Python 源文件或只更新 app。
 
@@ -123,7 +119,7 @@ runtimes\downloader\Scripts\python.exe scripts/build-windows-release.py
 runtimes/downloader/bin/python scripts/build-source-release.py
 ```
 
-产物为根目录 `ScholarNoteLM.app`，以及 `dist/release/` 下的 `ScholarNoteLM-0.6.2-macos-arm64.zip`、`ScholarNoteLM-0.6.2-source.zip` 和各自的 SHA-256 文件。构建前生成源码清单并嵌入程序，产物只含桌面前端与 Rust 程序，不捆绑用户数据、密钥、Python 环境或模型。
+产物为根目录 `ScholarNoteLM.app`，以及 `dist/release/` 下的 `ScholarNoteLM-0.6.4-macos-arm64.zip`、`ScholarNoteLM-0.6.4-source.zip` 和各自的 SHA-256 文件。构建前生成源码清单并嵌入程序，产物只含桌面前端与 Rust 程序，不捆绑用户数据、密钥、Python 环境或模型。
 
 源码公开范围、检查和发布步骤见 [发布说明](RELEASING.md)。模型与字体许可见 [资源说明](../scripts/install/ASSET_NOTICES.md)。模型走网盘不改变其原始许可证要求。
 
@@ -136,4 +132,4 @@ runtimes/downloader/bin/python scripts/test-runtime-conversion.py --root /绝对
 
 第二项在一次性研究项目中生成人工 PDF，使用真实本地 Marker 转换，不调用模型 API。完整流程测试使用本机模拟模型服务。安装实测应限制 PATH，确认未依赖全局 Python/npm/Rust；开发机上的此项验证不等于已在无 Command Line Tools 的另一台 Mac 或所有 macOS 14+ 版本完成实机验收。
 
-本版已完成：629 项 Python 测试（4 项跳过）、Rust CLI 与桌面测试、前端/release 构建、原生窗口首次目录选择和重启、安装目录移动后的检查、45 项浏览器测试及真实离线 PDF 转换。隔离安装使用仅含 macOS 系统工具的 PATH，并设置不可用的开发工具目录；未在另一台无 CLT 的真机上验收，也尚未验证 macOS 下载隔离后的所有启动路径。
+Mac 源码安装已通过全新环境安装、原生窗口、重启及离线 MPS 转换验证。独立版须另行验证包内运行时、移动路径、不可用网络下的依赖检查及实际转换。开发机验证不代表另一台无 CLT 的真机、所有 macOS 14+ 版本或下载隔离路径均已验收。

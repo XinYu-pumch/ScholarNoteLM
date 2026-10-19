@@ -6,7 +6,9 @@
 
 另有可选的 [Windows 完整离线安装包构建流程](docs/WINDOWS_STANDALONE.md)：将环境和模型一起打包为供网盘分发的安装 EXE。该流程新增独立入口，保留现有源码安装版和主程序；大型产物与个人数据不提交 Git。
 
-本文是使用与开发入口。按 **2026-10-19 的当前源码**核对，包版本为 `0.6.3`；版本号不代表旧打包副本已同步更新。开发约束见 [AGENTS.md](AGENTS.md)，功能细节见 [文档索引](docs/README.md)。文档与源码冲突时以源码为准。
+Mac 用户也可使用 [完整独立 App](docs/MACOS_STANDALONE.md)：包内包含运行环境、模型与浏览器，无需克隆仓库或额外安装。设置保存在用户的 Application Support 目录，研究文件保存在用户选择的工作目录。
+
+本文是使用与开发入口。按 **2026-10-19 的当前源码**核对，包版本为 `0.6.4`；版本号不代表旧打包副本已同步更新。开发约束见 [AGENTS.md](AGENTS.md)，功能细节见 [文档索引](docs/README.md)。文档与源码冲突时以源码为准。
 
 ## 1. 产品约定与已知边界
 
@@ -50,11 +52,11 @@
 - 取消 LLM 字符限制不等于取消 Embedding 的分块、配额、并发、重试或下载预算。各阶段仍按对应专题文档执行。
 - 引用校验确认结构与来源绑定，**不保证论断科学正确**。大纲看到的摘要未必进入某节写作材料，跨节仍可能矛盾；中文 query 的效果依赖模型。短正文、资助和声明等按既定清洗规则保留，可能占用召回名额。
 - 原文转换错误、图表拆分、缺失图注和模型误读不会由结构校验自动修复；目前不自动全篇事实审查。总结/改写的压缩程度仍需人工评价。
-- 原有 Mac 开发以 Apple Silicon 为主；Windows CPU 与 CUDA 12.6 已在本机完成隔离 PDF 转换验证，本次改动仍需在 Mac 上回归 MPS。扫描 PDF 可能因 OCR 关闭而无正文；源码安装版支持 Apple Silicon / macOS 14+，完整签名公证和其他系统版本实机验收另行进行。
+- 原有 Mac 开发以 Apple Silicon 为主；Windows CPU 与 CUDA 12.6 已在本机完成隔离 PDF 转换验证，Mac MPS 已通过隔离合成 PDF 转换验证。扫描 PDF 可能因 OCR 关闭而无正文；源码安装版支持 Apple Silicon / macOS 14+，完整签名公证和其他系统版本实机验收另行进行。
 
 ## 2. 启动与验证
 
-普通用户按 [源码安装版指南](docs/INSTALLATION.md) 取得匹配的源码和预编译程序，双击 `安装环境.command` 准备运行环境，放入网盘下载的 `models/`，之后直接打开根目录的 `ScholarNoteLM.app`。无需系统 Python、Git 或 Xcode Command Line Tools；没有 Git 可以下载源码 ZIP。首次启动先选择研究工作目录，已有安装沿用原配置。
+普通用户按 [源码安装版指南](docs/INSTALLATION.md) 取得匹配的源码和预编译程序，双击 `install-environment.command` 准备运行环境，放入网盘下载的 `models/`，之后直接打开根目录的 `ScholarNoteLM.app`。无需系统 Python、Git 或 Xcode Command Line Tools；没有 Git 可以下载源码 ZIP。首次启动先选择研究工作目录，已有安装沿用原配置。
 
 开发者在项目根目录执行（需要开发工具）：
 

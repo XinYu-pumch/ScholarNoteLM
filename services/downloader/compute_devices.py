@@ -52,7 +52,8 @@ def nvidia_inventory():
 
 def inspect_runtime(root, python, preference='auto'):
     try:
-        process = subprocess.run([str(python), '-I', str(Path(root)/'services/marker/device_probe.py'), '--device', preference],
+        # -I ignores PYTHONDONTWRITEBYTECODE; -B keeps signed standalone resources immutable.
+        process = subprocess.run([str(python), '-I', '-B', str(Path(root)/'services/marker/device_probe.py'), '--device', preference],
                                  cwd=root, env=environment(root), capture_output=True, text=True, encoding='utf-8',
                                  timeout=45, **process_options())
         if process.returncode:

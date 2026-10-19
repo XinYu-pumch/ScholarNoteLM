@@ -3,7 +3,7 @@ import gzip,json,os,sqlite3,subprocess,sys,tempfile,threading,time
 from pathlib import Path
 import test_paths
 from http.server import ThreadingHTTPServer,BaseHTTPRequestHandler
-ROOT=Path(__file__).resolve().parents[1];sys.path.insert(0,str(ROOT/'services/downloader'))
+ROOT=test_paths.installation_root(__file__);sys.path.insert(0,str(ROOT/'services/downloader'))
 import engine as e,storage,review_service as r,vector_service as v,retrieval_settings as rs
 TEST_LANGUAGE=os.environ.get('TEST_CONTENT_LANGUAGE')
 import provider_fixture as pf

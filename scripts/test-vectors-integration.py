@@ -4,7 +4,7 @@ from http.server import BaseHTTPRequestHandler,ThreadingHTTPServer
 from pathlib import Path
 import test_paths
 from xml.sax.saxutils import escape
-ROOT=Path(__file__).resolve().parents[1]
+ROOT=test_paths.installation_root(__file__)
 sys.path.insert(0,str(ROOT/'services/downloader'))
 import engine as e,vector_service as v,vector_chunks as c,corpus_files as f
 requests=[];fail_token='';dimension=4;release_slow=threading.Event();release_slow.set()

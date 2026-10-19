@@ -3,7 +3,7 @@ import gzip,json,os,sqlite3,sys,tempfile,threading,time
 from pathlib import Path
 import test_paths
 from http.server import BaseHTTPRequestHandler,ThreadingHTTPServer
-ROOT=Path(__file__).resolve().parents[1];sys.path.insert(0,str(ROOT/'services/downloader'))
+ROOT=test_paths.installation_root(__file__);sys.path.insert(0,str(ROOT/'services/downloader'))
 import engine as e,storage,qa_service as qa,vector_chunks as chunks,vector_service as vectors
 TEST_LANGUAGE=os.environ.get('TEST_CONTENT_LANGUAGE')
 PLAN_MARK='Interpret question' if TEST_LANGUAGE=='en' else '将用户问题拆解'
