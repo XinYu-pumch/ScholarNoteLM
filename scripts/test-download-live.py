@@ -5,7 +5,7 @@ for name in ['runtimes','services']:
     if not (test/name).exists():(test/name).symlink_to(root/name,target_is_directory=True)
 (test/'data/reference/jcr').mkdir(parents=True,exist_ok=True)
 import shutil
-shutil.copy(root/'data/reference/jcr/default-2025.xlsx',test/'data/reference/jcr/default-2025.xlsx')
+shutil.copy(root/'services/reference/jcr/default-2025.xlsx',test/'data/reference/jcr/default-2025.xlsx')
 env={**os.environ,'SCHOLARNOTELM_ROOT':str(test),'PYTHONDONTWRITEBYTECODE':'1'}
 def rpc(action,args={}):
     r=subprocess.run([str(root/'cache/tauri-target/debug/research-cli')],input=json.dumps({'action':action,'args':args}),text=True,capture_output=True,env=env)

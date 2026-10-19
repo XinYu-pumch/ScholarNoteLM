@@ -5,7 +5,7 @@ import {createServer} from 'node:http';
 import path from 'node:path';
 import ts from 'typescript';
 const root=process.cwd();const testRoot=await mkdtemp(path.join(root,'tmp/workbench-ui-'));
-await mkdir(path.join(testRoot,'data/reference/jcr'),{recursive:true});await cp('data/reference/jcr/default-2025.xlsx',path.join(testRoot,'data/reference/jcr/default-2025.xlsx'));
+await mkdir(path.join(testRoot,'data/reference/jcr'),{recursive:true});await cp('services/reference/jcr/default-2025.xlsx',path.join(testRoot,'data/reference/jcr/default-2025.xlsx'));
 const code=ts.transpileModule(await readFile('apps/desktop/src/data.ts','utf8'),{compilerOptions:{module:ts.ModuleKind.ESNext,target:ts.ScriptTarget.ES2022}}).outputText;
 const {seedState}=await import('data:text/javascript;base64,'+Buffer.from(code).toString('base64'));
 let state={...seedState,active:'ui-test',projects:[{...seedState.projects[1],id:'ui-test',name:'神经炎症与小胶质细胞',papers:[]}]};

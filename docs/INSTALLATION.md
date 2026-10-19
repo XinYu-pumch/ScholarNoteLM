@@ -12,7 +12,7 @@
 
 ## 安装步骤
 
-1. 从同一个 GitHub Release 取得源码和 `ScholarNoteLM-0.6.1-macos-arm64.zip`。源码可以直接下载 ZIP；macOS 的 `git` 命令可能要求 Command Line Tools，因此 `git clone` 不是前提。
+1. 从同一个 GitHub Release 取得源码和 `ScholarNoteLM-0.6.2-macos-arm64.zip`。源码可以直接下载 ZIP；macOS 的 `git` 命令可能要求 Command Line Tools，因此 `git clone` 不是前提。
 2. 解压源码到准备长期保留的文件夹，把程序 ZIP 中的 `ScholarNoteLM.app` 放到该源码目录根部。
 3. 双击 **安装环境.command**。脚本下载并校验引导工具，然后安装项目专用 Python 3.12.9、Marker/向量/下载依赖、Node 20.19.0、Playwright/Chromium 与字体。不会安装 Rust 或构建前端。
 4. 从发布者的网盘下载该版本匹配的 `models` 文件夹，放入源码根目录，形成 `models/marker/...`，不要多套一层 `models/models/`。
@@ -45,7 +45,7 @@ ScholarNoteLM/
 
 安装登记文件位于 `~/Library/Application Support/ScholarNoteLM/installations.json`，只记录安装路径。程序包含源码校验清单，错误版本会明确报错。更新时请取得完整匹配的一组源码和程序；不要只替换 Python 源文件或只更新 app。
 
-系统参考资料独立管理：JCR 由用户导入有权使用的文件，MeSH 可在设置中从官方来源下载；未提供 Sci-Hub Bloom 索引时会提示不可用并保留后续全量重试，不把开发者的 `data/reference/` 随源码复制给新用户。
+系统参考资料独立管理：源码随附 `services/reference/jcr/default-2025.xlsx`，首次使用自动校验并启用；已有 JCR 配置保持不变，用户仍可上传其他分区表或恢复内置默认。MeSH 可在设置中从官方来源下载；未提供 Sci-Hub Bloom 索引时会提示不可用并保留后续全量重试，不把开发者的 `data/reference/` 随源码复制给新用户。
 
 ## 保留已有开发环境
 
@@ -61,7 +61,7 @@ ScholarNoteLM/
 runtimes/downloader/bin/python scripts/build-source-release.py
 ```
 
-产物为根目录 `ScholarNoteLM.app`，以及 `dist/release/` 下的 `ScholarNoteLM-0.6.1-macos-arm64.zip`、`ScholarNoteLM-0.6.1-source.zip` 和各自的 SHA-256 文件。构建前生成源码清单并嵌入程序，产物只含桌面前端与 Rust 程序，不捆绑用户数据、密钥、Python 环境或模型。
+产物为根目录 `ScholarNoteLM.app`，以及 `dist/release/` 下的 `ScholarNoteLM-0.6.2-macos-arm64.zip`、`ScholarNoteLM-0.6.2-source.zip` 和各自的 SHA-256 文件。构建前生成源码清单并嵌入程序，产物只含桌面前端与 Rust 程序，不捆绑用户数据、密钥、Python 环境或模型。
 
 源码公开范围、检查和发布步骤见 [发布说明](RELEASING.md)。模型与字体许可见 [资源说明](../scripts/install/ASSET_NOTICES.md)。模型走网盘不改变其原始许可证要求。
 

@@ -300,12 +300,21 @@ fn activate_jcr(root: &Path, c: &Connection, path: &Path, name: &str) -> R<Value
     put(c, "jcr", &report)?;
     Ok(report)
 }
+const DEFAULT_JCR: &str = "services/reference/jcr/default-2025.xlsx";
+const DEFAULT_JCR_NAME: &str = "2025 JCR（内置默认）";
+
+fn default_jcr_path(root: &Path) -> Option<std::path::PathBuf> {
+    // Source-install editions ship the reference separately from mutable data.
+    // Keep the old location as a fallback for existing local installations.
+    [DEFAULT_JCR, "data/reference/jcr/default-2025.xlsx"]
+        .into_iter().map(|name| root.join(name)).find(|path| path.is_file())
+}
+
 fn ensure_jcr(root: &Path, c: &Connection) -> R<Value> {
     let j = setting(c, "jcr", Value::Null)?;
     if j.is_null() {
-        let p = root.join("data/reference/jcr/default-2025.xlsx");
-        if p.exists() {
-            activate_jcr(root, c, &p, "BADR · 2025JCR.xlsx")
+        if let Some(p) = default_jcr_path(root) {
+            activate_jcr(root, c, &p, DEFAULT_JCR_NAME)
         } else {
             Ok(Value::Null)
         }
@@ -2427,8 +2436,8 @@ pub fn dispatch(root: &Path, request: Value) -> R<Value> {
         "jcr.default" => activate_jcr(
             root,
             &c,
-            &root.join("data/reference/jcr/default-2025.xlsx"),
-            "BADR · 2025JCR.xlsx",
+            &default_jcr_path(root).ok_or("默认 JCR 文件缺失，请重新取得完整源码或上传分区表")?,
+            DEFAULT_JCR_NAME,
         ),
         "mesh.search" => mesh_lookup(root, &c, s(a, "query"), 20),
         "mesh.status" => mesh_status(root, &c),
@@ -2562,6 +2571,47 @@ mod tests {
         p
     }
     use std::path::PathBuf;
+    #[test]
+    fn bundled_jcr_activates_on_clean_install_and_preserves_user_selection() {
+        let root = temp();
+        let c = db(&root).unwrap();
+        assert!(ensure_jcr(&root, &c).unwrap().is_null());
+        let source = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../../").join(DEFAULT_JCR);
+        let bytes = fs::read(source).unwrap();
+        write_file(&root.join(DEFAULT_JCR), &bytes).unwrap();
+        // A legacy default must not shadow the version shipped with the source.
+        write_file(&root.join("data/reference/jcr/default-2025.xlsx"), b"obsolete").unwrap();
+        let report = ensure_jcr(&root, &c).unwrap();
+        assert_eq!(report["rows"], 22249);
+        assert_eq!(report["version"], hash(&bytes));
+        assert_eq!(report["name"], DEFAULT_JCR_NAME);
+        assert_eq!(Jcr::load(&root, s(&report, "version")).unwrap().rows.len(), 22249);
+        assert_eq!(ensure_jcr(&root, &c).unwrap(), report);
+        let custom = json!({"version":"user-upload","name":"User reference","rows":1,"activated":123});
+        put(&c, "jcr", &custom).unwrap();
+        assert_eq!(ensure_jcr(&root, &c).unwrap(), custom);
+        drop(c);
+        let reset = dispatch(&root, json!({"action":"jcr.default","args":{}})).unwrap();
+        assert_eq!(reset["version"], report["version"]);
+        assert_eq!(reset["rows"], report["rows"]);
+        fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    fn legacy_jcr_default_is_supported_and_failed_reset_preserves_selection() {
+        let root = temp();
+        let source = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../../").join(DEFAULT_JCR);
+        write_file(&root.join("data/reference/jcr/default-2025.xlsx"), &fs::read(source).unwrap()).unwrap();
+        let c = db(&root).unwrap();
+        let report = ensure_jcr(&root, &c).unwrap();
+        assert_eq!(report["rows"], 22249);
+        write_file(&root.join(DEFAULT_JCR), b"invalid workbook").unwrap();
+        assert!(dispatch(&root, json!({"action":"jcr.default","args":{}})).is_err());
+        assert_eq!(ensure_jcr(&root, &c).unwrap(), report);
+        drop(c);
+        fs::remove_dir_all(root).unwrap();
+    }
+
     #[test]
     fn network_proxy_changes_are_seen_by_new_requests() {
         // Environment mutation stays in a dedicated test process, never racing

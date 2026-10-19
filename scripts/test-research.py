@@ -5,7 +5,7 @@ from xml.sax.saxutils import escape
 ROOT=pathlib.Path(__file__).resolve().parents[1]
 TEST=pathlib.Path(tempfile.mkdtemp(prefix='research-integration-',dir=ROOT/'tmp'))
 (TEST/'data/reference/jcr').mkdir(parents=True)
-shutil.copy(ROOT/'data/reference/jcr/default-2025.xlsx',TEST/'data/reference/jcr/default-2025.xlsx')
+shutil.copy(ROOT/'services/reference/jcr/default-2025.xlsx',TEST/'data/reference/jcr/default-2025.xlsx')
 (TEST/'runtimes').mkdir(exist_ok=True);(TEST/'runtimes/downloader').symlink_to(ROOT/'runtimes/downloader',target_is_directory=True);(TEST/'services').symlink_to(ROOT/'services',target_is_directory=True)
 ENV=dict(os.environ,SCHOLARNOTELM_ROOT=str(TEST))
 BIN=ROOT/'cache/tauri-target/debug/research-cli'

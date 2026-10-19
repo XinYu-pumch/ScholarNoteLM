@@ -7,7 +7,7 @@ const root=process.cwd(),app=await mkdtemp(path.join(root,'tmp/provider-ui-'));
 const env={...process.env,SCHOLARNOTELM_ROOT:app};
 function rpc(action,args={}){const r=JSON.parse(execFileSync(path.join(root,'cache/tauri-target/debug/research-cli'),[],{env,input:JSON.stringify({action,args:{project:'provider_ui',...args}}),encoding:'utf8'}));if(!r.ok)throw Error(r.error);return r.data;}
 await mkdir(path.join(app,'services'),{recursive:true});await cp(path.join(root,'services/llm_providers'),path.join(app,'services/llm_providers'),{recursive:true});await symlink(path.join(root,'services/downloader'),path.join(app,'services/downloader'));await symlink(path.join(root,'runtimes'),path.join(app,'runtimes'));
-await mkdir(path.join(app,'tmp'));await mkdir(path.join(app,'data/reference/jcr'),{recursive:true});await cp(path.join(root,'data/reference/jcr/default-2025.xlsx'),path.join(app,'data/reference/jcr/default-2025.xlsx'));
+await mkdir(path.join(app,'tmp'));await mkdir(path.join(app,'data/reference/jcr'),{recursive:true});await cp(path.join(root,'services/reference/jcr/default-2025.xlsx'),path.join(app,'data/reference/jcr/default-2025.xlsx'));
 const project={id:'provider_ui',name:'ProviderUI',description:'Isolated fixture',color:'sage',papers:[{id:'fixture-paper',title:'Layout fixture paper',author:'Fixture',year:2026,status:'pdf',starred:false}],messages:[],sections:[],notes:{},tasks:[]};
 rpc('storage.initialize');rpc('storage.register',{folder:'ProviderUI',data:project});rpc('storage.state.write',{state:{version:1,active:project.id,theme:'light',uiLanguage:'zh',projects:[project]}});rpc('mesh.settings',{autoUpdate:false,includeScr:false});
 rpc('query.create');

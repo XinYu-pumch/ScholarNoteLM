@@ -12,6 +12,10 @@ Third-party components retain their original copyright and license terms.
   with the original LICENSE and tokenizer resources retained.
 - Go Noto font: SIL Open Font License 1.1. Copyright notices and full license:
   scripts/install/FONT_NOTICE.txt and scripts/install/FONT_LICENSE.txt.
+- JCR 2025 reference table: services/reference/jcr/default-2025.xlsx, supplied
+  by the project maintainer from the existing local reference. Journal Citation
+  Reports is a Clarivate product; the application's GPL license does not
+  relicense the underlying reference data.
 - Local model weights: separately supplied, with original model cards and
   terms retained under models/marker. See scripts/install/ASSET_NOTICES.md.
   The application's GPL license does not relicense these weights.
