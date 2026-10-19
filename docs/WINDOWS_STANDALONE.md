@@ -42,6 +42,12 @@ runtimes\downloader\Scripts\python.exe scripts/build-windows-standalone.py --vc-
 
 可选 `--iscc <ISCC.exe>`、`--webview-installer <完整离线安装程序>`、`--stage-only`。默认工具路径为 `cache/standalone-tools/inno/ISCC.exe` 和 `cache/standalone-tools/MicrosoftEdgeWebView2RuntimeInstallerX64.exe`。
 
+添加 `--include-cuda` 可同时打包源码安装器已准备好的 CUDA 环境和独立 CPU 回退环境。构建器核对 CUDA 环境与当前依赖锁的一致性，只复制受管理的环境；不会复制或安装系统 NVIDIA 驱动，也不会下载 CUDA。默认不带此参数仍生成 CPU 包。
+
+CUDA 包会更大，首次安装和移动安装目录后，独立入口会一起修复 CUDA Python 的路径。每次打开 App 仍由原有应用逻辑检测实际可用设备；不兼容的 GPU 或驱动使用 CPU。每个包包含一个 CUDA 配置，具体 PyTorch 版本和驱动基线记录在安装说明与 `standalone-manifest.json`；本次 Windows 0.6.4 包为 `2.9.1+cu126`，不承诺该配置支持所有 NVIDIA 显卡（例如需 cu128 的新架构）。
+
+CPU 包仍是单个安装 EXE。CUDA 与模型合并后超过 Inno Setup 的单 EXE 4.2 GB 上限，因此 CUDA 包输出安装 EXE 与配套 `.bin` 数据文件，并自动合成 `ScholarNoteLM-<版本>-windows-x64-standalone-cuda.zip`。网盘分发该 ZIP 及其校验文件；用户完整解压后双击 EXE，不能单独移动或只下载 EXE。所有依赖均在包内，不需要联网获取安装数据。
+
 输出在 `dist/standalone/`：完整安装 EXE、SHA-256、文件清单、编译日志和独立 staging 目录。每次构建创建新目录，不修改现有运行环境，也不自动删除旧构建。打包器不联网、不安装依赖、不上传网盘或 GitHub。
 
 构建包含公开源码、现有预编译主程序、运行时、锁定模型、字体、下载器所需的 Node 包、浏览器和第三方许可。排除真实配置、系统数据库、研究项目、下载记录、缓存、开发工具链、Git 信息，以及包含旧机器路径的 pip 命令入口。Python 的 `pyvenv.cfg` 在目标目录生成，不从开发电脑复制。
