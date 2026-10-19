@@ -286,3 +286,26 @@
 
 
 .index-live-progress{padding:16px 20px;border-top:1px solid var(--border);display:grid;gap:12px}.index-live-progress p{margin:0;font-size:var(--fs-subhead);color:var(--muted)}.index-progress-row>div{display:flex;justify-content:space-between;gap:16px;font-size:var(--fs-subhead);margin-bottom:6px}.index-progress-row progress{display:block;width:100%;height:6px;border:0;border-radius:var(--radius-sm);overflow:hidden;accent-color:var(--accent)}.index-progress-row progress::-webkit-progress-bar{background:var(--border)}.index-progress-row progress::-webkit-progress-value{background:var(--accent)}
+
+.research-settings .vector-settings > .project-model-binding {
+  padding: 0 0 var(--space-4);
+  margin-bottom: var(--space-5);
+  border-top: 0;
+  border-bottom: 1px solid var(--line);
+}
+.project-model-binding p {
+  margin: var(--space-2) 0 0;
+  overflow-wrap: anywhere;
+}
+.vector-settings .model-save-bar {
+  flex-wrap: wrap;
+}
+.vector-settings .embedding-project-actions {
+  margin-left: auto;
+  max-width: 100%;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+.embedding-project-actions .button {
+  flex-shrink: 0;
+}
