@@ -7,6 +7,7 @@ import argparse
 import hashlib
 import json
 import os
+import re
 from pathlib import Path, PurePosixPath
 import subprocess
 import sys
@@ -50,6 +51,17 @@ def environment(root):
     return env
 
 
+def runtime_names(metadata):
+    names = ['downloader', 'marker', 'retrieval']
+    cuda = metadata.get('cuda')
+    if cuda:
+        directory = cuda.get('directory', '')
+        if not re.fullmatch(r'marker-cu(?:126|128)-[0-9a-f]{12}',directory):
+            raise ValueError('Invalid bundled CUDA runtime directory')
+        names.append(directory)
+    return names
+
+
 def prepare(root):
     reject_links(root)
     root = root.resolve()
@@ -62,7 +74,7 @@ def prepare(root):
         raise ValueError('Bundled base Python is missing; reinstall this package.')
     for name in ('config', 'data', 'cache', 'tmp'):
         safe_path(root, name).mkdir(parents=True, exist_ok=True)
-    for kind in ('downloader', 'marker', 'retrieval'):
+    for kind in runtime_names(metadata):
         directory = safe_path(root, 'runtimes/' + kind)
         if not (directory/'Scripts/python.exe').is_file():
             raise ValueError('Bundled runtime missing: ' + kind)
@@ -74,11 +86,11 @@ def prepare(root):
             temporary.write_text(content, encoding='utf-8')
             os.replace(temporary, config)
     # Only test isolated prefixes here. Heavy imports/hash checks are an explicit --check.
-    for kind in ('downloader', 'marker', 'retrieval'):
+    for kind in runtime_names(metadata):
         code = ('import sys;from pathlib import Path;'
                 f'assert Path(sys.prefix).resolve()==Path({str(root/"runtimes"/kind)!r}).resolve();'
                 f'assert Path(sys.base_prefix).resolve()==Path({str(base)!r}).resolve()')
-        subprocess.run([str(root/'runtimes'/kind/'Scripts/python.exe'), '-I', '-c', code],
+        subprocess.run([str(root/'runtimes'/kind/'Scripts/python.exe'), '-I', '-B', '-c', code],
                        cwd=root, env=environment(root), check=True,
                        creationflags=getattr(subprocess, 'CREATE_NO_WINDOW', 0))
     print('Standalone paths prepared; no network or system Python used.', flush=True)
@@ -101,8 +113,14 @@ def verify(root, metadata):
     marker = ("import sys;from pathlib import Path;sys.path.insert(0,str(Path.cwd()/'services/marker/vendor'));"
               "import torch,numpy,transformers,surya;from marker.models import create_model_dict;"
               "assert not torch.cuda.is_available();print('CPU Marker imports OK')")
-    for kind, code in (('downloader', common), ('marker', marker), ('retrieval', 'import httpx,numpy,torch;print("Retrieval imports OK")')):
-        subprocess.run([str(root/'runtimes'/kind/'Scripts/python.exe'), '-I', '-c', code],
+    checks = [('downloader', common), ('marker', marker), ('retrieval', 'import httpx,numpy,torch;print("Retrieval imports OK")')]
+    cuda = metadata.get('cuda')
+    if cuda:
+        checks.append((runtime_names(metadata)[-1],
+                       'import torch,transformers,surya;assert torch.__version__=='+repr(cuda['torch'])+
+                       ';print("CUDA runtime imports OK (GPU availability is checked separately)")'))
+    for kind, code in checks:
+        subprocess.run([str(root/'runtimes'/kind/'Scripts/python.exe'), '-I', '-B', '-c', code],
                        cwd=root, env=env, check=True, timeout=120,
                        creationflags=getattr(subprocess, 'CREATE_NO_WINDOW', 0))
     code = ("import {createRequire} from 'node:module';"

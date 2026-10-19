@@ -56,6 +56,25 @@ class PackageBoundaries(unittest.TestCase):
             self.assertNotIn('bad',env['PATH'])
             self.assertEqual(env['HF_HUB_OFFLINE'],'1')
 
+    def test_cuda_runtime_names_and_path_rejection(self):
+        self.assertEqual(bootstrap.runtime_names({}),['downloader','marker','retrieval'])
+        name='marker-cu126-0123456789ab'
+        self.assertEqual(bootstrap.runtime_names({'cuda':{'directory':name}})[-1],name)
+        for name in ('../marker','marker-cu126/../../config','marker-cu999-0123456789ab'):
+            with self.subTest(name=name), self.assertRaises(ValueError):
+                bootstrap.runtime_names({'cuda':{'directory':name}})
+
+    def test_cuda_copy_excludes_developer_paths_and_keeps_relative_overlay(self):
+        with tempfile.TemporaryDirectory() as folder:
+            root=Path(folder);kind='marker-cu126-0123456789ab'
+            included=('Scripts/python.exe','Lib/site-packages/torch/lib/torch_cuda.dll',
+                      'Lib/site-packages/scholarnotelm-base.pth')
+            excluded=('Scripts/activate.bat','Scripts/torchrun.exe','pyvenv.cfg','torch.lock','cuda-install.json')
+            for name in included+excluded:
+                path=root/'runtimes'/kind/name
+                path.parent.mkdir(parents=True,exist_ok=True);path.write_bytes(b'fixture')
+            self.assertEqual({p.relative_to(root/'runtimes'/kind).as_posix() for p in builder.runtime_files(root,kind)},set(included))
+
 
 def installed_smoke(installation):
     installation=installation.resolve()
@@ -68,7 +87,7 @@ def installed_smoke(installation):
         if name.startswith(('app/config/','app/data/','app/workspace/','app/cache/','app/tmp/','app/runtimes/rust/')):
             raise AssertionError('Private/developer path in distribution: '+name)
     # Simulate moving from a developer machine, and poison inherited Python paths.
-    for kind in ('downloader','marker','retrieval'):
+    for kind in bootstrap.runtime_names(manifest):
         (app/'runtimes'/kind/'pyvenv.cfg').write_text('home = Z:\\missing-developer-machine\n',encoding='utf-8')
     env={**os.environ,'PYTHONHOME':'Z:\\invalid','PYTHONPATH':'Z:\\invalid',
          'SCHOLARNOTELM_ROOT':'Z:\\invalid','PATH':str(Path(os.environ['SystemRoot'])/'System32'),
@@ -78,7 +97,7 @@ def installed_smoke(installation):
     log=(app/'tmp/standalone-check.log').read_text(encoding='utf-8')
     print(log)
     if result.returncode:raise AssertionError('Installed offline runtime check failed')
-    for kind in ('downloader','marker','retrieval'):
+    for kind in bootstrap.runtime_names(manifest):
         home=(app/'runtimes'/kind/'pyvenv.cfg').read_text(encoding='utf-8').splitlines()[0]
         assert str(app/'runtimes/python'/manifest['python']) in home
     print('Installed smoke passed with relocated homes, unrelated working directory, poisoned global Python and unavailable network proxies.')

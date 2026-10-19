@@ -20,6 +20,11 @@ SetupIconFile={#IconFile}
 UninstallDisplayIcon={app}\ScholarNoteLM-Standalone.exe
 Compression=lzma2/normal
 SolidCompression=yes
+#ifdef BundleCuda
+; CUDA plus the offline models exceeds Windows' single-EXE size limit.
+DiskSpanning=yes
+DiskSliceSize=max
+#endif
 LZMAUseSeparateProcess=yes
 AppMutex=Local\ScholarNoteLMStandalone
 CloseApplications=no
