@@ -3,6 +3,7 @@ import argparse
 import importlib.util
 import json
 import os
+import plistlib
 from pathlib import Path
 import subprocess
 import tempfile
@@ -31,6 +32,44 @@ class PackageTests(unittest.TestCase):
         (app/'Contents/Resources/standalone-manifest.json').write_text(json.dumps({
             'schemaVersion': 1, 'platform': 'macos-arm64', 'files': builder.records(payload)}))
         return app
+
+    def standalone(self, app, label):
+        (app/'Contents/Resources').mkdir(parents=True)
+        (app/'Contents/Info.plist').write_bytes(plistlib.dumps({'CFBundleIdentifier':'com.scholarnotelm.standalone'}))
+        (app/'Contents/Resources/standalone-manifest.json').write_text('{}')
+        (app/'label').write_text(label)
+
+    def test_only_final_app_remains_and_failed_rebuild_preserves_it(self):
+        from unittest.mock import patch
+        with tempfile.TemporaryDirectory() as name:
+            base=Path(name);source=base/'Source.app';output=base/'output'
+            (source/'Contents/Resources').mkdir(parents=True)
+            (source/'Contents/Resources/source-manifest.json').write_text('{"version":"fixture"}')
+            def assemble(_source, app, *_args):self.standalone(app,'new')
+            with patch.object(builder.sys,'platform','darwin'),patch.object(builder.platform,'machine',return_value='arm64'),patch.object(builder,'validate'),patch.object(builder,'assets_manifest',return_value=[]),patch.object(builder,'assemble',side_effect=assemble):
+                app=builder.build(source,output)
+                self.assertEqual(list(output.iterdir()),[app])
+                (app/'label').write_text('previous')
+                with patch.object(builder,'assemble',side_effect=RuntimeError('failed build')):
+                    with self.assertRaisesRegex(RuntimeError,'failed build'):builder.build(source,output)
+                self.assertEqual((app/'label').read_text(),'previous')
+                self.assertEqual(list(output.iterdir()),[app])
+                builder.build(source,output)
+                self.assertEqual((app/'label').read_text(),'new')
+                self.assertEqual(list(output.iterdir()),[app])
+
+    def test_publish_failure_restores_previous_app(self):
+        with tempfile.TemporaryDirectory() as name:
+            base=Path(name);target=base/'ScholarNoteLM.app';self.standalone(target,'previous')
+            with self.assertRaises(FileNotFoundError):builder.publish(base/'missing.app',target)
+            self.assertEqual((target/'label').read_text(),'previous')
+            self.assertEqual(list(base.iterdir()),[target])
+
+    def test_foreign_output_is_never_replaced(self):
+        with tempfile.TemporaryDirectory() as name:
+            base=Path(name);target=base/'ScholarNoteLM.app';target.mkdir();(target/'keep').write_text('precious')
+            with self.assertRaises(ValueError):builder.publish(base/'replacement.app',target)
+            self.assertEqual((target/'keep').read_text(),'precious')
 
     def test_relocation_preserves_state_and_never_writes_app(self):
         with tempfile.TemporaryDirectory() as name:

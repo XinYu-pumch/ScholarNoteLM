@@ -74,7 +74,7 @@ Mac 详见 [MACOS_STANDALONE.md](MACOS_STANDALONE.md)；Windows 详见 [WINDOWS_
 | Mac 独立版（同时生成配套程序） | `runtimes/downloader/bin/python scripts/build-source-release.py --standalone` |
 | Windows 独立版 | `scripts/build-windows-standalone.py`，参数和依赖见 [Windows 独立版文档](WINDOWS_STANDALONE.md#构建命令) |
 
-源码配套程序及源码 ZIP 位于 `dist/release/`；Mac 独立包位于 `dist/macos-standalone/`，Windows 独立包位于 `dist/standalone/`。只有打包成功并不代表功能验收通过。
+源码配套程序及源码 ZIP 位于 `dist/release/`；Mac 独立版只生成 `dist/macos-standalone/ScholarNoteLM.app`（不附 ZIP 或中间目录），Windows 独立包位于 `dist/standalone/`。只有打包成功并不代表功能验收通过。
 
 ## 5. 不发布个人数据
 

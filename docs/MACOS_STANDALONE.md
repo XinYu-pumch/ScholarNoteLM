@@ -22,7 +22,7 @@
 runtimes/downloader/bin/python scripts/build-source-release.py --standalone
 ```
 
-先生成源码配套的根目录 App，再生成 `dist/macos-standalone/` 下的独立 App 和 ZIP。已有匹配源码配套 App 时可单独运行 `scripts/build-macos-standalone.py`。构建器校验模型、程序与源码；只复制公开源码和指定运行资源，拒绝指向包外的链接，不包含 Rust 工具链、Git、用户数据和配置。
+先生成源码配套的根目录 App 及用于 Release 的源码配套 ZIP，再生成 `dist/macos-standalone/ScholarNoteLM.app`。独立版构建默认只保留这个最终 App，不生成独立版 ZIP、外置校验文件或 `latest-build.json`；签名和资源清单保存在 App 内。临时 staging 自动清理，新包验证成功后才替换已有独立 App。已有匹配源码配套 App 时可单独运行 `scripts/build-macos-standalone.py`。构建器校验模型、程序与源码；只复制公开源码和指定运行资源，拒绝指向包外的链接，不包含 Rust 工具链、Git、用户数据和配置。
 
 ```sh
 runtimes/downloader/bin/python scripts/test-macos-standalone.py

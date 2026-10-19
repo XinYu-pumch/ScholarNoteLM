@@ -1,4 +1,4 @@
-"""Package a complete Apple Silicon app; no user state or developer tools included."""
+"""Build only the final standalone .app; clean temporary staging, without a ZIP."""
 import argparse
 import json
 import os
@@ -8,6 +8,7 @@ import plistlib
 import shutil
 import subprocess
 import sys
+import tempfile
 import uuid
 
 from install_assets import manifest as assets_manifest, matches
@@ -52,9 +53,44 @@ def build(source_app, output):
         if not matches(ROOT/item['path'], item):
             raise ValueError('Offline asset missing or changed: '+item['path'])
     output.mkdir(parents=True, exist_ok=True)
-    stage = output/('stage-'+uuid.uuid4().hex[:8])
-    stage.mkdir()
-    app = stage/'ScholarNoteLM.app'
+    target = output/'ScholarNoteLM.app'
+    validate_target(target)
+    if source_app.resolve() == target.resolve():
+        raise ValueError('Source companion app and standalone output must differ.')
+    with tempfile.TemporaryDirectory(prefix='.build-', dir=output) as stage:
+        app = Path(stage)/'ScholarNoteLM.app'
+        assemble(source_app, app, pairing, assets)
+        publish(app, target)
+    print('Built standalone:', target, flush=True)
+    return target
+
+
+def validate_target(target):
+    if not target.exists() and not target.is_symlink():return
+    if target.is_symlink():raise ValueError('Refusing linked output app.')
+    info = target/'Contents/Info.plist'
+    manifest = target/'Contents/Resources/standalone-manifest.json'
+    if not info.is_file() or not manifest.is_file():
+        raise ValueError('Output is not a generated standalone app; refusing to replace it.')
+    if plistlib.loads(info.read_bytes()).get('CFBundleIdentifier') != 'com.scholarnotelm.standalone':
+        raise ValueError('Output bundle belongs to another application.')
+
+
+def publish(app, target):
+    # Keep the old app until the replacement has been assembled and verified.
+    validate_target(target)
+    backup = target.with_name('.previous-'+uuid.uuid4().hex+'.app')
+    had_previous = target.exists()
+    if had_previous:target.rename(backup)
+    try:
+        app.rename(target)
+    except BaseException:
+        if had_previous:backup.rename(target)
+        raise
+    if had_previous:shutil.rmtree(backup)
+
+
+def assemble(source_app, app, pairing, assets):
     shutil.copytree(source_app, app, symlinks=True)
     contents = app/'Contents'
     payload = contents/'Resources/payload'
@@ -96,14 +132,6 @@ def build(source_app, output):
     (contents/'Resources/standalone-manifest.json').write_text(json.dumps(metadata, separators=(',', ':')))
     subprocess.run(['/usr/bin/codesign', '--force', '--sign', '-', str(app)], check=True)
     subprocess.run(['/usr/bin/codesign', '--verify', '--deep', '--strict', str(app)], check=True)
-    archive = output/f'ScholarNoteLM-{pairing["version"]}-macos-arm64-standalone.zip'
-    archive.unlink(missing_ok=True)
-    subprocess.run(['/usr/bin/ditto', '-c', '-k', '--sequesterRsrc', '--keepParent', str(app), str(archive)], check=True)
-    archive.with_suffix('.zip.sha256').write_text(sha(archive)+'  '+archive.name+'\n')
-    (output/'latest-build.json').write_text(json.dumps({'app':str(app),'archive':str(archive)},indent=2))
-    print('Built standalone:', app, flush=True)
-    print('Archive:', archive, 'bytes:', archive.stat().st_size, flush=True)
-    return app
 
 
 if __name__ == '__main__':

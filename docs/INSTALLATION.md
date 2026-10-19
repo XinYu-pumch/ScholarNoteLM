@@ -117,7 +117,7 @@ runtimes\downloader\Scripts\python.exe scripts/build-windows-release.py
 runtimes/downloader/bin/python scripts/build-source-release.py
 ```
 
-产物为根目录 `ScholarNoteLM.app`，以及 `dist/release/` 下的 `ScholarNoteLM-0.6.4-macos-arm64.zip`、`ScholarNoteLM-0.6.4-source.zip` 和各自的 SHA-256 文件。构建前生成源码清单并嵌入程序，产物只含桌面前端与 Rust 程序，不捆绑用户数据、密钥、Python 环境或模型。
+产物为根目录 `ScholarNoteLM.app`，以及 `dist/release/` 下的 `ScholarNoteLM-<版本>-macos-arm64.zip`、`ScholarNoteLM-<版本>-source.zip` 和各自的 SHA-256 文件。构建前生成源码清单并嵌入程序，产物只含桌面前端与 Rust 程序，不捆绑用户数据、密钥、Python 环境或模型。
 
 源码公开范围、检查和发布步骤见 [发布说明](RELEASING.md)。模型与字体许可见 [资源说明](../scripts/install/ASSET_NOTICES.md)。模型走网盘不改变其原始许可证要求。
 
