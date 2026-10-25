@@ -1,6 +1,6 @@
 // Isolated Vite + real Rust settings RPC. No live model requests or real user data.
 import {chromium,expect} from '@playwright/test';
-import {mkdir,mkdtemp,cp,symlink,rm,writeFile} from 'node:fs/promises';
+import {mkdir,mkdtemp,cp,symlink,rm,writeFile,readFile} from 'node:fs/promises';
 import {spawn,execFileSync} from 'node:child_process';
 import path from 'node:path';
 import {createServer} from 'node:http';
@@ -30,15 +30,17 @@ try{
  await expect(page.getByRole('combobox',{name:'已保存的配置',exact:true})).toHaveCount(0);
  const base=page.getByRole('textbox',{name:'API 地址',exact:true});await expect(base).toHaveValue('https://opencode.ai/inference/go/v1');await expect(base).toHaveAttribute('readonly','');
  await page.getByRole('textbox',{name:'API Key',exact:true}).fill('fixture-ui-secret');await page.getByRole('button',{name:'手动添加模型',exact:true}).click();await page.getByRole('textbox',{name:'手动模型名称',exact:true}).fill('deepseek-v4.1-flash');await page.getByRole('button',{name:'添加模型',exact:true}).click();
- for(const model of ['gemini-4-argon-contributor','deepseek-v4-pro','minimax-m2.7']){await page.getByRole('textbox',{name:'手动模型名称',exact:true}).fill(model);await page.getByRole('button',{name:'添加模型',exact:true}).click();}
+ for(const model of ['gemini-4-argon-contributor','deepseek-v4-pro','minimax-m2.7','qwen3.8-max']){await page.getByRole('textbox',{name:'手动模型名称',exact:true}).fill(model);await page.getByRole('button',{name:'添加模型',exact:true}).click();}
  await page.getByRole('checkbox',{name:'gemini-4-argon-contributor 支持图片输入',exact:true}).check();
  async function effort(model,options,selection){const control=page.getByRole('combobox',{name:model+' 思考强度',exact:true});await control.click();await expect(page.getByRole('listbox').getByRole('option')).toHaveText(['服务端默认',...options]);await page.getByRole('option',{name:selection,exact:true}).click();}
  await effort('deepseek-v4.1-flash',['low','high','max'],'max');await effort('gemini-4-argon-contributor',['low','medium','high'],'medium');await effort('deepseek-v4-pro',['high','max'],'high');
  await expect(page.getByRole('combobox',{name:'minimax-m2.7 思考强度',exact:true})).toBeDisabled();
+ await effort('qwen3.8-max',['low','medium','xhigh','enabled','disabled','budget'],'budget');
+ await page.getByRole('spinbutton',{name:'qwen3.8-max 思考 token 预算',exact:true}).fill('262144');
  // Switching providers participates in the existing unsaved-change guard.
  await ordinaryButton.click();await expect(page.getByRole('dialog')).toBeVisible();await page.getByRole('button',{name:'继续编辑',exact:true}).click();
  await page.getByRole('button',{name:'保存配置',exact:true}).click();await expect(page.getByText('当前配置已保存',{exact:true})).toBeVisible();
- const saved=rpc('profile.list');const go=saved.profiles.find(p=>p.provider==='opencode_go');expect(go.name).toBe('opencode_go');expect(go.hasKey).toBe(true);expect(go.apiKey).toBeUndefined();expect(saved.activeProfile).toBe('ordinary');expect(saved.profiles.filter(p=>p.provider==='opencode_go')).toHaveLength(1);expect(go.reasoningByModel).toEqual({'deepseek-v4.1-flash':'max','gemini-4-argon-contributor':'medium','deepseek-v4-pro':'high'});
+ const saved=rpc('profile.list');const go=saved.profiles.find(p=>p.provider==='opencode_go');expect(go.name).toBe('opencode_go');expect(go.hasKey).toBe(true);expect(go.apiKey).toBeUndefined();expect(saved.activeProfile).toBe('ordinary');expect(saved.profiles.filter(p=>p.provider==='opencode_go')).toHaveLength(1);expect(go.reasoningByModel).toEqual({'deepseek-v4.1-flash':'max','gemini-4-argon-contributor':'medium','deepseek-v4-pro':'high','qwen3.8-max':'budget'});expect(go.reasoningBudgetByModel).toEqual({'qwen3.8-max':262144});
 
  const keyInput=page.getByRole('textbox',{name:'API Key',exact:true});
  for(let i=0;i<2;i++){
@@ -55,8 +57,11 @@ try{
  await ordinaryButton.click();await expect(page.getByRole('textbox',{name:'配置名称',exact:true})).toHaveValue('opencode_go');await expect(page.getByRole('textbox',{name:'API 地址',exact:true})).not.toHaveAttribute('readonly','');await expect(page.getByRole('button',{name:'新建供应商',exact:true})).toBeVisible();await expect(page.getByRole('combobox',{name:/思考强度/})).toHaveCount(0);
 
  const presetControl=page.getByRole('combobox',{name:'ordinary 思考预设',exact:true});
- await presetControl.click();await expect(page.getByRole('listbox').getByRole('option')).toHaveText(['服务端默认','Gemini 4 · OpenAI Compatible','Gemini 4 · Native','DeepSeek · OpenAI Compatible']);
- await page.getByRole('option',{name:'Gemini 4 · Native',exact:true}).click();
+ await presetControl.click();await expect(page.getByRole('listbox').getByRole('option')).toHaveText(['服务端默认',...JSON.parse(await readFile(path.join(root,'services/downloader/thinking_presets.json'),'utf8')).map(p=>p.name)]);
+ await page.getByRole('option',{name:'Generic · Reasoning Effort',exact:true}).click();
+ await expect(page.getByRole('combobox',{name:'ordinary 思考强度',exact:true})).toContainText('default');
+ await page.setViewportSize({width:900,height:650});expect(await page.evaluate(()=>document.documentElement.scrollWidth>innerWidth)).toBe(false);
+ await presetControl.click();await page.getByRole('option',{name:'Gemini 4 · Native',exact:true}).click();
  const ordinaryEffort=page.getByRole('combobox',{name:'ordinary 思考强度',exact:true});
  await expect(ordinaryEffort).toContainText('medium');await ordinaryEffort.click();await page.getByRole('option',{name:'high',exact:true}).click();
  await page.getByRole('button',{name:'保存配置',exact:true}).click();await expect(page.getByText('当前配置已保存',{exact:true})).toBeVisible();
@@ -69,7 +74,7 @@ try{
  expect(rpc('profile.list').profiles.find(p=>p.id==='ordinary').thinkingByModel).toEqual({});
  await page.reload();await page.getByRole('button',{name:'设置',exact:true}).click();await expect(ordinaryButton).toHaveAttribute('aria-pressed','true');
  await page.setViewportSize({width:900,height:650});await goButton.click();expect(await page.evaluate(()=>document.documentElement.scrollWidth>innerWidth)).toBe(false);await expect(page.getByRole('combobox',{name:'deepseek-v4.1-flash 思考强度',exact:true})).toContainText('max');await expect(page.getByRole('combobox',{name:'gemini-4-argon-contributor 思考强度',exact:true})).toContainText('medium');
- await effort('deepseek-v4.1-flash',['low','high','max'],'服务端默认');await page.getByRole('button',{name:'保存配置',exact:true}).click();await expect(page.getByText('当前配置已保存',{exact:true})).toBeVisible();expect(rpc('profile.list').profiles.find(p=>p.provider==='opencode_go').reasoningByModel).toEqual({'gemini-4-argon-contributor':'medium','deepseek-v4-pro':'high'});
+ await effort('deepseek-v4.1-flash',['low','high','max'],'服务端默认');await page.getByRole('button',{name:'保存配置',exact:true}).click();await expect(page.getByText('当前配置已保存',{exact:true})).toBeVisible();expect(rpc('profile.list').profiles.find(p=>p.provider==='opencode_go').reasoningByModel).toEqual({'gemini-4-argon-contributor':'medium','deepseek-v4-pro':'high','qwen3.8-max':'budget'});expect(go.reasoningBudgetByModel).toEqual({'qwen3.8-max':262144});
  await page.screenshot({path:path.join(app,'provider-compact.png'),fullPage:true});
  await mkdir(path.join(root,'docs/screenshots'),{recursive:true});await page.evaluate(()=>document.documentElement.dataset.theme='dark');await page.screenshot({path:path.join(root,'docs/screenshots/provider-dark.png'),fullPage:true});await page.evaluate(()=>delete document.documentElement.dataset.theme);
 

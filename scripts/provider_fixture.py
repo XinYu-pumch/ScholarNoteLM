@@ -28,8 +28,9 @@ def setup(app,root,base,models):
 
 def profile(value):
     if THINKING:
-        assert THINKING in ('deepseek_openai','gemini4_openai')
-        return {**value,'thinkingByModel':{model:{'preset':THINKING,'level':'high'} for model in value.get('models',[value['model']])}}
+        assert THINKING in ('deepseek_openai','gemini4_openai','generic_effort','generic_thinking_toggle','qwen_openai','glm_openai')
+        level='medium' if THINKING=='qwen_openai' else 'disabled' if THINKING=='generic_thinking_toggle' else 'high'
+        return {**value,'thinkingByModel':{model:{'preset':THINKING,'level':level} for model in value.get('models',[value['model']])}}
     return {**value,'provider':'opencode_go','reasoningByModel':{model:'max' for model in value.get('models',[value['model']])}} if ENABLED else value
 
 def capture(headers,body):
@@ -40,7 +41,11 @@ def sessions():return [session for body,session,_ in requests if 'messages' in b
 def verify():
     for body,session,agent in requests:
         if THINKING and 'messages' in body:
-            assert body.get('reasoning_effort')=='high','Workflow lost its thinking preset'
+            if THINKING=='generic_thinking_toggle':
+                assert body.get('thinking')=={'type':'disabled'} and 'reasoning_effort' not in body
+            else:
+                assert body.get('reasoning_effort')==('medium' if THINKING=='qwen_openai' else 'high'),'Workflow lost its thinking preset'
+            if THINKING=='qwen_openai':assert body.get('enable_thinking') is True and 'extra_body' not in body
             if THINKING=='deepseek_openai':
                 assert body.get('thinking')=={'type':'enabled'}
                 assert 'temperature' not in body

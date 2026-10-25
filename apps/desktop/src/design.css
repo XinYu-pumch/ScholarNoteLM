@@ -991,6 +991,8 @@ input[type='checkbox'], input[type='radio'] { accent-color: var(--accent); }
 :root[lang="en"] .model-row-controls .model-reasoning-control .app-select { width:140px; }
 .model-row-controls .model-thinking-presets>label:first-child .app-select { width:auto; min-width:0; }
 .model-thinking-presets>label:first-child { min-width:0; max-width:100%; }
+.model-reasoning-control>label:has(input[type="number"]) { white-space:nowrap; flex-shrink:0; }
+.model-reasoning-control input[type="number"] { width:calc(var(--space-8) * 3); min-width:0; }
 .model-test-feedback { min-height:var(--space-4); max-height:var(--space-4); line-height:var(--space-4); overflow:auto; display:flex; gap:var(--space-3); }
 .model-test-feedback .model-row-result { flex:1; font-size:var(--fs-footnote); margin:0; }
 

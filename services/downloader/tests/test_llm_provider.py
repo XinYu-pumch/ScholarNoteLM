@@ -108,6 +108,37 @@ class ProviderTests(unittest.IsolatedAsyncioTestCase):
   p=self.profile('deepseek-v4.1-flash');module=providers.adapter(p)
   self.assertEqual(module.prepare(p,[])[1],module.prepare({**p,'reasoningByModel':{'gemini-4-argon-contributor':'high'}},[])[1])
   self.assertEqual(module.prepare(p,[])[1],module.prepare({**p,'reasoningByModel':{p['model']:''}},[])[1])
+ def test_go_toggle_budget_and_new_catalog(self):
+  for model,on in [('longcat-2.0','enabled'),('longcat-2.5-preview-free','enabled'),('minimax-m3','adaptive'),('claude-haiku-5-5','adaptive'),('qwen3.7-plus','enabled')]:
+   p=self.profile(model);module=providers.adapter(p)
+   for level,kind in [('enabled',on),('disabled','disabled')]:
+    body=module.prepare({**p,'reasoningByModel':{model:level}},[])[1]
+    self.assertEqual(body['thinking'],{'type':kind});self.assertNotIn('output_config',body)
+  p=self.profile('qwen3.8-max');p['reasoningByModel']={p['model']:'budget'}
+  module=providers.adapter(p)
+  for budget in [1,32768,262144]:
+   selected={**p,'reasoningBudgetByModel':{p['model']:budget}}
+   body=module.prepare(selected,[])[1]
+   self.assertEqual(body['thinking'],{'type':'enabled','budget_tokens':budget})
+   self.assertNotIn('output_config',body)
+   self.assertEqual(providers.signature_fields(selected,())['reasoningBudget'],budget)
+  for budget in [None,0,-1,True,1.5,262145,'100']:
+   with self.assertRaises(ValueError):module.prepare({**p,'reasoningBudgetByModel':{p['model']:budget}},[])
+  plain={**p,'reasoningByModel':{p['model']:'low'}}
+  ignored={**plain,'reasoningBudgetByModel':{p['model']:32000,'other':777}}
+  self.assertEqual(module.prepare(plain,[])[1],module.prepare(ignored,[])[1])
+  self.assertEqual(providers.signature_fields(plain,()),providers.signature_fields(ignored,()))
+  for model,level in [('kimi-k3.1-pro','low'),('minimax-m3.1-flash','xhigh'),('beam-free','max'),('step-5-preview','medium')]:
+   p=self.profile(model);body=providers.adapter(p).prepare({**p,'reasoningByModel':{model:level}},[])[1]
+   self.assertEqual(body['reasoning_effort'],level)
+  # Every registered model/option prepares a body, including fixed-thinking models.
+  for model,info in providers.manifest({'provider':'opencode_go'})['models'].items():
+   for level in ['',*info['reasoning']['levels']]:
+    p={**self.profile(model),'reasoningByModel':{model:level},'reasoningBudgetByModel':{model:4096}}
+    url,body,headers,_=providers.adapter(p).prepare(p,[])
+    self.assertTrue(url.startswith('https://opencode.ai/'))
+    self.assertIn('x-opencode-session',headers)
+
  def test_reasoning_signature_changes_only_for_selected_model(self):
   for fn in [review_writing.profile_signature,qa_service.profile_signature]:
    p=self.profile('deepseek-v4.1-flash');original=fn(p)

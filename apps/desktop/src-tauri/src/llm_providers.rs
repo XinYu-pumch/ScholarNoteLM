@@ -58,6 +58,13 @@ pub fn validate(root:&Path,profile:&Value)->R<Option<Value>> {
                 if !level.is_empty() && m["models"][model]["reasoning"]["options"].get(level).is_none() {
                     return Err("此模型不支持所选思考强度，请重新选择".into());
                 }
+                if level=="budget" {
+                    let spec=&m["models"][model]["reasoning"]["budget"];
+                    let value=profile["reasoningBudgetByModel"][model].as_u64().ok_or("请填写此模型支持的正整数思考 token 预算")?;
+                    if spec.is_null() || value<spec["min"].as_u64().unwrap_or(1) || spec["max"].as_u64().is_some_and(|max|value>max) {
+                        return Err("请填写此模型支持的正整数思考 token 预算".into());
+                    }
+                }
             }
         }
     }

@@ -3,6 +3,7 @@
 Independent of optional provider modules. Never infer a protocol from model names
 or send Go session headers. Endpoint conversion preserves the configured host.
 """
+import copy
 import json
 import re
 from pathlib import Path
@@ -75,7 +76,7 @@ def prepare(profile, messages):
     if not selected:
         raise ValueError('未选择模型思考预设')
     native = selected['preset'] == 'gemini4_native'
-    deepseek = selected['preset'] == 'deepseek_openai'
+    preset = PRESETS[selected['preset']]
     if native:
         body = {'contents': [], 'generationConfig': {'thinkingConfig': {
             'thinkingLevel': selected['level'], 'includeThoughts': True}}}
@@ -96,12 +97,11 @@ def prepare(profile, messages):
         if system:
             body['systemInstruction'] = {'parts': system}
     else:
-        body = {'model': profile['model'], 'messages': messages, 'stream': True,
-                'reasoning_effort': selected['level']}
-        if deepseek:
-            body['thinking'] = {'type': 'enabled'}
+        body = {'model': profile['model'], 'messages': messages, 'stream': True}
+        # Only reviewed local presets can supply request fields.
+        body.update(copy.deepcopy(preset['options'][selected['level']]))
     temperature = profile.get('temperature')
-    if isinstance(temperature, (int, float)) and not deepseek:
+    if isinstance(temperature, (int, float)) and not preset.get('omitTemperature'):
         (body['generationConfig'] if native else body)['temperature'] = temperature
     headers = {'Authorization': 'Bearer ' + profile['apiKey']} if profile.get('apiKey') else {}
     return endpoint(profile), body, headers, Decoder(native)

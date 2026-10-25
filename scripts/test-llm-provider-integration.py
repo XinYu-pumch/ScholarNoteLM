@@ -71,6 +71,15 @@ try:
   child.stdin.write(json.dumps({'action':'chat','args':{'project':'test','chatId':thread['id'],'streamId':sid,'profileId':'go-0','message':'CANCEL_FIXTURE'}}));child.stdin.close()
   assert slow_started.wait(10);start=time.monotonic();rpc('chat.cancel',streamId=sid)
   child.wait(timeout=3);assert time.monotonic()-start<2;history=rpc('chat.get',id=thread['id'])['messages'];assert history[-1]['cancelled']
+  budget_profile={**profile,'model':'qwen3.8-max','models':['qwen3.8-max'],'reasoningByModel':{'qwen3.8-max':'budget'},'reasoningBudgetByModel':{'qwen3.8-max':262144}}
+  budget_saved=rpc('profile.save',profile=budget_profile)
+  assert rpc('llm.test',profile=budget_saved)['reply']
+  assert requests[-1]['body']['thinking']=={'type':'enabled','budget_tokens':262144}
+  assert 'output_config' not in requests[-1]['body']
+  for budget in [None,0,-1,1.5,True,262145]:
+   invalid={**budget_profile,'reasoningBudgetByModel':{'qwen3.8-max':budget}}
+   failed=subprocess.run([exe],input=json.dumps({'action':'profile.save','args':{'profile':invalid}}),text=True,capture_output=True,env=env,timeout=10)
+   assert not json.loads(failed.stdout)['ok']
   normal={'id':'ordinary','name':'opencode_go','baseUrl':base,'model':'normal','models':['normal'],'temperature':None,'timeout':10}
   rpc('profile.save',profile=normal,makeDefault=True);rpc('llm.test',profile=normal);assert 'x-opencode-session' not in headers(requests[-1])
   deepseek={'id':'ds','provider':'deepseek','name':'DeepSeek','baseUrl':base,'model':'deepseek-flash','models':['deepseek-flash'],'reasoningByModel':{'deepseek-flash':'low'},'temperature':None,'timeout':10}
@@ -87,8 +96,8 @@ try:
   assert rpc('llm.test',profile=normal)['reply'];assert 'x-opencode-session' not in headers(requests[-1])
   thread=rpc('chat.new',name='ordinary');h=rpc('chat',stream=True,chatId=thread['id'],streamId=uuid.uuid4().hex,profileId='ordinary',message='Still works');assert not h[-1]['error']
   # Explicit presets remain usable after the Go module is physically removed.
-  assert len(rpc('settings')['thinkingPresets'])==3
-  for preset,level in [('gemini4_openai','medium'),('gemini4_native','high'),('deepseek_openai','max')]:
+  assert len(rpc('settings')['thinkingPresets'])==7
+  for preset,level in [('gemini4_openai','medium'),('gemini4_native','high'),('deepseek_openai','max'),('generic_effort','xhigh'),('generic_thinking_toggle','disabled'),('qwen_openai','medium'),('glm_openai','max')]:
    custom={**normal,'id':'preset-'+preset,'name':preset,'thinkingByModel':{'normal':{'preset':preset,'level':level}},'temperature':0.2}
    saved_custom=rpc('profile.save',profile=custom)
    assert saved_custom['thinkingByModel']==custom['thinkingByModel']
@@ -100,8 +109,11 @@ try:
    if preset=='gemini4_native':
     assert observed['path']=='/v1beta/models/normal:streamGenerateContent?alt=sse'
     assert observed['body']['generationConfig']['thinkingConfig']=={'thinkingLevel':level,'includeThoughts':True}
+   elif preset=='generic_thinking_toggle':
+    assert observed['body']['thinking']=={'type':'disabled'} and 'reasoning_effort' not in observed['body']
    else:
     assert observed['body']['reasoning_effort']==level
+    if preset=='qwen_openai':assert observed['body']['enable_thinking'] is True and 'extra_body' not in observed['body']
     if preset=='deepseek_openai':assert observed['body']['thinking']=={'type':'enabled'} and 'temperature' not in observed['body']
    invalid={**custom,'thinkingByModel':{'normal':{'preset':preset,'level':'invalid'}}}
    failed=subprocess.run([exe],input=json.dumps({'action':'profile.save','args':{'profile':invalid}}),text=True,capture_output=True,env=env,timeout=10)

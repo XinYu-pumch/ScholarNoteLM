@@ -56,6 +56,8 @@ def signature_fields(profile,fields):
         # existing Go caches; changing another model must not invalidate them.
         level=(profile.get('reasoningByModel') or {}).get(profile.get('model'))
         if level:result['reasoningLevel']=level
+        if level=='budget':
+            result['reasoningBudget']=(profile.get('reasoningBudgetByModel') or {}).get(profile.get('model'))
     return result
 
 

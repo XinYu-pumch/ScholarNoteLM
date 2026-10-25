@@ -1653,5 +1653,11 @@
   "{p0} · 当前列表未返回，已保留配置": "{p0} · Not in the current model list; saved configuration retained",
   "思考预设": "Thinking preset",
   "{p0} 思考预设": "{p0} thinking preset",
-  "预设不可用": "Preset unavailable"
+  "预设不可用": "Preset unavailable",
+  "思考 token 预算": "Thinking token budget",
+  "{p0} 思考 token 预算": "{p0} thinking token budget",
+  "请填写此模型支持的正整数思考 token 预算": "Enter a positive integer thinking token budget supported by this model.",
+  "Go 未公布可调思考参数；保持服务端行为。没有档位不表示没有思考。": "Go publishes no adjustable thinking controls for this model. Service behavior is preserved; this does not mean thinking is disabled.",
+  "enabled/disabled 控制思考开关；budget 为思考 token 预算，与强度档位互斥。留在服务端默认时不发送这些参数。": "enabled/disabled toggles thinking; budget sets the thinking token budget instead of effort. Server default sends neither.",
+  "Go 当前仅公布 max 档位，不能照搬 Kimi 官方其他接口的 low/high。": "Go currently lists only max for this model; low/high from other Kimi endpoints do not apply."
 }

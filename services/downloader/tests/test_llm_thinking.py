@@ -36,6 +36,31 @@ class ThinkingTests(unittest.IsolatedAsyncioTestCase):
         with patch.object(llm_provider, 'DIRECTORY', Path('/nonexistent/providers')):
             self.assertIs(llm_provider.adapter(self.profile()), thinking)
 
+    def test_new_chat_wire_formats_and_defaults(self):
+        cases = [
+            ('generic_effort', 'xhigh', {'reasoning_effort': 'xhigh'}),
+            ('generic_effort', 'none', {'reasoning_effort': 'none'}),
+            ('generic_thinking_toggle', 'disabled', {'thinking': {'type': 'disabled'}}),
+            ('generic_thinking_toggle', 'enabled', {'thinking': {'type': 'enabled'}}),
+            ('qwen_openai', 'xhigh', {'enable_thinking': True, 'reasoning_effort': 'xhigh'}),
+            ('qwen_openai', 'disabled', {'enable_thinking': False}),
+            ('glm_openai', 'max', {'thinking': {'type': 'enabled'}, 'reasoning_effort': 'max'}),
+        ]
+        for preset, level, expected in cases:
+            with self.subTest(preset=preset, level=level):
+                p = self.profile(preset, level)
+                _, body, headers, _ = thinking.prepare(p, [])
+                expected = {'model': p['model'], 'messages': [], 'stream': True, **expected}
+                if preset in ('qwen_openai', 'glm_openai'): expected['temperature'] = .2
+                self.assertEqual(body, expected)
+                self.assertNotIn('x-opencode-session', headers)
+        for preset in ('generic_effort', 'generic_thinking_toggle', 'qwen_openai', 'glm_openai'):
+            p = self.profile(preset, 'default')
+            body = thinking.prepare(p, [])[1]
+            self.assertFalse({'thinking', 'enable_thinking', 'reasoning_effort'} & body.keys())
+        for preset, level in [('qwen_openai', 'high'), ('glm_openai', 'medium'), ('generic_thinking_toggle', 'low')]:
+            with self.assertRaises(ValueError):thinking.prepare(self.profile(preset, level), [])
+
     def test_native_endpoint_and_messages(self):
         p = self.profile()
         messages = [{'role': 'system', 'content': 'system'}, {'role': 'user', 'content': 'hi'},

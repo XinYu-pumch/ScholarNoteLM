@@ -87,7 +87,8 @@
         ],
         "levels": [
           "max"
-        ]
+        ],
+        "note": "Go 当前仅公布 max 档位，不能照搬 Kimi 官方其他接口的 low/high。"
       }
     },
     "kimi-k2.7-code": {
@@ -95,7 +96,8 @@
       "reasoning": {
         "options": {},
         "controls": [],
-        "levels": []
+        "levels": [],
+        "note": "Go 未公布可调思考参数；保持服务端行为。没有档位不表示没有思考。"
       }
     },
     "kimi-k2.6": {
@@ -109,11 +111,25 @@
     "longcat-2.0": {
       "protocol": "chat",
       "reasoning": {
-        "options": {},
+        "options": {
+          "enabled": {
+            "thinking": {
+              "type": "enabled"
+            }
+          },
+          "disabled": {
+            "thinking": {
+              "type": "disabled"
+            }
+          }
+        },
         "controls": [
           "toggle"
         ],
-        "levels": []
+        "levels": [
+          "enabled",
+          "disabled"
+        ]
       }
     },
     "deepseek-v4.1-flash": {
@@ -180,7 +196,8 @@
       "reasoning": {
         "options": {},
         "controls": [],
-        "levels": []
+        "levels": [],
+        "note": "Go 未公布可调思考参数；保持服务端行为。没有档位不表示没有思考。"
       }
     },
     "mimo-v2.6-pro": {
@@ -188,7 +205,8 @@
       "reasoning": {
         "options": {},
         "controls": [],
-        "levels": []
+        "levels": [],
+        "note": "Go 未公布可调思考参数；保持服务端行为。没有档位不表示没有思考。"
       }
     },
     "mimo-v2.5": {
@@ -196,7 +214,8 @@
       "reasoning": {
         "options": {},
         "controls": [],
-        "levels": []
+        "levels": [],
+        "note": "Go 未公布可调思考参数；保持服务端行为。没有档位不表示没有思考。"
       }
     },
     "mimo-v2.5-pro": {
@@ -204,7 +223,8 @@
       "reasoning": {
         "options": {},
         "controls": [],
-        "levels": []
+        "levels": [],
+        "note": "Go 未公布可调思考参数；保持服务端行为。没有档位不表示没有思考。"
       }
     },
     "hy4-preview": {
@@ -286,11 +306,25 @@
     "longcat-2.5-preview-free": {
       "protocol": "chat",
       "reasoning": {
-        "options": {},
+        "options": {
+          "enabled": {
+            "thinking": {
+              "type": "enabled"
+            }
+          },
+          "disabled": {
+            "thinking": {
+              "type": "disabled"
+            }
+          }
+        },
         "controls": [
           "toggle"
         ],
-        "levels": []
+        "levels": [
+          "enabled",
+          "disabled"
+        ]
       }
     },
     "step-5-preview-free": {
@@ -645,6 +679,16 @@
             "output_config": {
               "effort": "max"
             }
+          },
+          "enabled": {
+            "thinking": {
+              "type": "adaptive"
+            }
+          },
+          "disabled": {
+            "thinking": {
+              "type": "disabled"
+            }
           }
         },
         "controls": [
@@ -656,7 +700,9 @@
           "medium",
           "high",
           "xhigh",
-          "max"
+          "max",
+          "enabled",
+          "disabled"
         ]
       }
     },
@@ -664,11 +710,25 @@
       "protocol": "messages",
       "maxOutputTokens": 131072,
       "reasoning": {
-        "options": {},
+        "options": {
+          "enabled": {
+            "thinking": {
+              "type": "adaptive"
+            }
+          },
+          "disabled": {
+            "thinking": {
+              "type": "disabled"
+            }
+          }
+        },
         "controls": [
           "toggle"
         ],
-        "levels": []
+        "levels": [
+          "enabled",
+          "disabled"
+        ]
       }
     },
     "minimax-m2.7": {
@@ -677,7 +737,8 @@
       "reasoning": {
         "options": {},
         "controls": [],
-        "levels": []
+        "levels": [],
+        "note": "Go 未公布可调思考参数；保持服务端行为。没有档位不表示没有思考。"
       }
     },
     "qwen3.8-max": {
@@ -708,6 +769,21 @@
             "output_config": {
               "effort": "xhigh"
             }
+          },
+          "enabled": {
+            "thinking": {
+              "type": "enabled"
+            }
+          },
+          "disabled": {
+            "thinking": {
+              "type": "disabled"
+            }
+          },
+          "budget": {
+            "thinking": {
+              "type": "enabled"
+            }
           }
         },
         "controls": [
@@ -718,8 +794,20 @@
         "levels": [
           "low",
           "medium",
-          "xhigh"
-        ]
+          "xhigh",
+          "enabled",
+          "disabled",
+          "budget"
+        ],
+        "budget": {
+          "min": 1,
+          "path": [
+            "thinking",
+            "budget_tokens"
+          ],
+          "max": 262144
+        },
+        "note": "enabled/disabled 控制思考开关；budget 为思考 token 预算，与强度档位互斥。留在服务端默认时不发送这些参数。"
       }
     },
     "qwen3.8-flash": {
@@ -750,6 +838,21 @@
             "output_config": {
               "effort": "xhigh"
             }
+          },
+          "enabled": {
+            "thinking": {
+              "type": "enabled"
+            }
+          },
+          "disabled": {
+            "thinking": {
+              "type": "disabled"
+            }
+          },
+          "budget": {
+            "thinking": {
+              "type": "enabled"
+            }
           }
         },
         "controls": [
@@ -760,20 +863,60 @@
         "levels": [
           "low",
           "medium",
-          "xhigh"
-        ]
+          "xhigh",
+          "enabled",
+          "disabled",
+          "budget"
+        ],
+        "budget": {
+          "min": 1,
+          "path": [
+            "thinking",
+            "budget_tokens"
+          ]
+        },
+        "note": "enabled/disabled 控制思考开关；budget 为思考 token 预算，与强度档位互斥。留在服务端默认时不发送这些参数。"
       }
     },
     "qwen3.7-plus": {
       "protocol": "messages",
       "maxOutputTokens": 65536,
       "reasoning": {
-        "options": {},
+        "options": {
+          "enabled": {
+            "thinking": {
+              "type": "enabled"
+            }
+          },
+          "disabled": {
+            "thinking": {
+              "type": "disabled"
+            }
+          },
+          "budget": {
+            "thinking": {
+              "type": "enabled"
+            }
+          }
+        },
         "controls": [
           "toggle",
           "budget_tokens"
         ],
-        "levels": []
+        "levels": [
+          "enabled",
+          "disabled",
+          "budget"
+        ],
+        "budget": {
+          "min": 1,
+          "path": [
+            "thinking",
+            "budget_tokens"
+          ],
+          "max": 262144
+        },
+        "note": "enabled/disabled 控制思考开关；budget 为思考 token 预算，与强度档位互斥。留在服务端默认时不发送这些参数。"
       }
     },
     "gemini-4-argon-contributor": {
@@ -848,13 +991,175 @@
         ]
       },
       "endpoint": "https://opencode.ai/inference/go/google/v1beta/models/gemini-4-argon:streamGenerateContent?alt=sse"
+    },
+    "beam-free": {
+      "protocol": "chat",
+      "reasoning": {
+        "options": {
+          "low": {
+            "reasoning_effort": "low"
+          },
+          "medium": {
+            "reasoning_effort": "medium"
+          },
+          "high": {
+            "reasoning_effort": "high"
+          },
+          "xhigh": {
+            "reasoning_effort": "xhigh"
+          },
+          "max": {
+            "reasoning_effort": "max"
+          }
+        },
+        "levels": [
+          "low",
+          "medium",
+          "high",
+          "xhigh",
+          "max"
+        ],
+        "controls": [
+          "effort"
+        ]
+      },
+      "endpoint": "https://opencode.ai/inference/go/openai/v1/chat/completions"
+    },
+    "minimax-m3.1-flash-free": {
+      "protocol": "chat",
+      "reasoning": {
+        "options": {
+          "low": {
+            "reasoning_effort": "low"
+          },
+          "medium": {
+            "reasoning_effort": "medium"
+          },
+          "high": {
+            "reasoning_effort": "high"
+          },
+          "xhigh": {
+            "reasoning_effort": "xhigh"
+          },
+          "max": {
+            "reasoning_effort": "max"
+          }
+        },
+        "levels": [
+          "low",
+          "medium",
+          "high",
+          "xhigh",
+          "max"
+        ],
+        "controls": [
+          "effort"
+        ]
+      },
+      "endpoint": "https://opencode.ai/inference/go/openai/v1/chat/completions"
+    },
+    "kimi-k3.1-pro": {
+      "protocol": "chat",
+      "reasoning": {
+        "options": {
+          "low": {
+            "reasoning_effort": "low"
+          },
+          "high": {
+            "reasoning_effort": "high"
+          },
+          "max": {
+            "reasoning_effort": "max"
+          }
+        },
+        "levels": [
+          "low",
+          "high",
+          "max"
+        ],
+        "controls": [
+          "effort"
+        ]
+      },
+      "endpoint": "https://opencode.ai/inference/go/openai/v1/chat/completions"
+    },
+    "step-5-preview": {
+      "protocol": "chat",
+      "reasoning": {
+        "options": {
+          "low": {
+            "reasoning_effort": "low"
+          },
+          "medium": {
+            "reasoning_effort": "medium"
+          },
+          "high": {
+            "reasoning_effort": "high"
+          }
+        },
+        "levels": [
+          "low",
+          "medium",
+          "high"
+        ],
+        "controls": [
+          "effort"
+        ]
+      },
+      "endpoint": "https://opencode.ai/inference/go/openai/v1/chat/completions"
+    },
+    "minimax-m3.1-flash": {
+      "protocol": "chat",
+      "reasoning": {
+        "options": {
+          "low": {
+            "reasoning_effort": "low"
+          },
+          "medium": {
+            "reasoning_effort": "medium"
+          },
+          "high": {
+            "reasoning_effort": "high"
+          },
+          "xhigh": {
+            "reasoning_effort": "xhigh"
+          },
+          "max": {
+            "reasoning_effort": "max"
+          }
+        },
+        "levels": [
+          "low",
+          "medium",
+          "high",
+          "xhigh",
+          "max"
+        ],
+        "controls": [
+          "effort"
+        ]
+      },
+      "endpoint": "https://opencode.ai/inference/go/openai/v1/chat/completions"
+    },
+    "iceman-contributor-free": {
+      "protocol": "chat",
+      "reasoning": {
+        "options": {},
+        "levels": [],
+        "controls": [],
+        "note": "Go 未公布可调思考参数；保持服务端行为。没有档位不表示没有思考。"
+      },
+      "endpoint": "https://opencode.ai/inference/go/openai/v1/chat/completions"
     }
   },
   "userAgent": "ScholarNoteLM/0.6.0",
   "singleProfile": true,
   "reasoningSources": [
-    "https://opencode.ai/v2/docs/models/#variants",
+    "https://opencode.ai/v2/docs/console/go/",
     "https://models.dev/api.json (opencode-go.reasoning_options)",
-    "https://github.com/anomalyco/opencode/blob/4397ee44d038a5f17bf6ac161431673d93e563b5/packages/core/src/variant.ts"
-  ]
+    "https://github.com/anomalyco/opencode/blob/dev/packages/core/src/variant.ts",
+    "https://longcat.chat/platform/docs/api/chat.html",
+    "https://help.aliyun.com/en/model-studio/anthropic-api-messages"
+  ],
+  "reasoningReviewedAt": "2026-10-25"
 }

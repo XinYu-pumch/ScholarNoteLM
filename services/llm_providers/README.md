@@ -47,28 +47,33 @@ Go 配置的 `reasoningByModel` 按模型 ID 保存选择。每行独立选择�
 
 Go 的 Gemini 请求始终发送 `generationConfig.thinkingConfig.includeThoughts: true`，包括强度为“服务端默认”时，以接收流式思考摘要。摘要通过已有推理字段传递，不混入大纲 CSV 或回答正文；所选强度和温度保持不变。此行为仅在 Go 的 `adapter.py` 中实现，不修改共用客户端、超时或缓存签名。摘要不保证固定发送间隔，服务端连续无数据仍可能触发已有超时。协议说明见 [Gemini 思考摘要](https://ai.google.dev/gemini-api/docs/generate-content/thinking#thought-summaries)。
 
-档位以 Go 官网链接的 models.dev 中 `opencode-go` 的 `reasoning_options` 为依据，参数拼写结合 OpenCode 的原生协议实现核对；来源链接固定在 manifest 的 `reasoningSources`。Go 的 `/models` 只返回模型身份，不能据此推断档位。当前登记 22 个模型的离散强度选项：
+档位以 Go 官网链接的 models.dev 中 `opencode-go` 的 `reasoning_options` 为依据，参数拼写结合 OpenCode 的原生协议实现核对；来源链接固定在 manifest 的 `reasoningSources`。Go 的 `/models` 只返回模型身份，不能据此推断档位。按 2026-10-25 的公开目录登记强度、开关和预算选项（保留历史模型 ID，实际可用性仍由 Go 决定）：
 
 | 模型 | 档位 |
 | --- | --- |
 | DeepSeek V4.1 Flash、GLM 5.3 / 5.3 Flash | low / high / max |
 | DeepSeek V4 Pro、GLM 5.2 | high / max |
-| Gemini 4 Argon / Contributor、Step 5 Preview Free | low / medium / high |
+| Gemini 4 Argon / Contributor、Step 5 Preview / Free | low / medium / high |
 | Kimi K3 | max |
+| Kimi K3.1 Pro | low / high / max |
 | Hy4 Preview | none / high |
 | Hy3 | none / low / high |
-| Space Bunny、Cat Jam Free | low / medium / high / xhigh / max |
+| Space Bunny、Cat Jam Free、Beam Free、MiniMax M3.1 Flash / Free | low / medium / high / xhigh / max |
 | Grok 4.6 / 4.7 | low / medium / high / xhigh |
 | GPT 5.6 Luna / 6 Luna | none / low / medium / high / xhigh / max |
 | Muse Spark 1.2 / 1.3 Contributor | minimal / low / medium / high / xhigh |
-| Claude Haiku 5.5 | low / medium / high / xhigh / max |
-| Qwen 3.8 Max / Flash | low / medium / xhigh |
+| Claude Haiku 5.5 | low / medium / high / xhigh / max，或 enabled / disabled |
+| Qwen 3.8 Max / Flash | low / medium / xhigh，或 enabled / disabled / budget |
+| Qwen 3.7 Plus | enabled / disabled / budget |
+| MiniMax M3、LongCat 2.0 / 2.5 Preview Free | enabled / disabled |
 
-其余 11 个模型当前没有登记离散强度档位，保持服务端默认；其中部分原生 API 只提供思考开关或 token 预算，不能套用其他模型的 low / medium / high。模块不将预算开关伪装成强度档位。
+MiMo V2.5/V2.6 系列、Kimi K2.7 Code、MiniMax M2.7、Iceman Contributor Free 在 Go 目录中没有可调参数，界面明确说明保持服务端行为；这不代表它们不思考。不能将 MiMo 原厂开关直接当作 Go 已支持的参数。
+
+开关与强度共用单选控件，避免同时发送冲突指令。LongCat 使用 `thinking.type=enabled/disabled`；MiniMax M3 / Claude 使用 `adaptive/disabled`。Qwen 的 `budget` 模式单独填写正整数 `reasoningBudgetByModel[model]`，请求写入 `thinking.budget_tokens`，不再发送 `output_config.effort`。Max / 3.7 Plus 公开预算上限为 262144；Flash 未公布上限时不自行增设上限。预算和最终正文输出上限独立；不套用 Claude 的 budget < max_tokens 规则。Qwen 官方建议新接口优先使用 effort，预算保留给 Go 仍公开支持的模型。
 
 请求体补丁只来自模块内审核过的 manifest：Chat 使用 `reasoning_effort`，Responses 使用 `reasoning.effort`，Gemini 使用 `generationConfig.thinkingConfig.thinkingLevel`，Messages 使用 `output_config.effort` 及模型相应的 `thinking` 模式。GLM Flash 的 Go 上游拒绝 `thinking` 字段，只发送 `reasoning_effort`。非法档位在保存和发送前明确报错，不静默降档。
 
-选择非默认档位时，只把**当前调用模型**的档位计入综述和问答缓存签名；改其他模型不会使其失效。默认状态保持旧 Go 签名，普通模型签名完全不变。
+选择非默认档位时，只把**当前调用模型**的档位计入综述和问答缓存签名；预算模式仅增加当前模型的实际预算，未启用的预算不入签名；改其他模型不会使其失效。默认状态保持旧 Go 签名，普通模型签名完全不变。
 
 ## 更新、停用与删除
 
@@ -97,7 +102,7 @@ TEST_LLM_PROVIDER=opencode_go runtimes/downloader/bin/python scripts/test-reader
 
 ## 自定义模型思考预设
 
-每个普通供应商的模型可单独选择 `Gemini 4 · OpenAI Compatible`、`Gemini 4 · Native` 或 `DeepSeek · OpenAI Compatible`，也可保留“服务端默认”（不发送额外参数）。选中预设时初始化档位：Gemini 为 medium，DeepSeek 为 high；随后可独立修改并保存。Gemini 支持 low / medium / high，DeepSeek 当前 V4 系列支持 low / high / max。预设不凭模型名字自动启用，旧配置不迁移。
+每个普通供应商的模型可单独选择 `Gemini 4 · OpenAI Compatible`、`Gemini 4 · Native` 、`DeepSeek · OpenAI Compatible` 或下表中的新增预设，也可保留“服务端默认”（不发送额外参数）。选中预设时初始化档位：Gemini 为 medium，DeepSeek 为 high；随后可独立修改并保存。Gemini 支持 low / medium / high，DeepSeek 可选 low / high / max，具体模型以官方支持范围为准。预设不凭模型名字自动启用，旧配置不迁移。
 
 配置存储为 `thinkingByModel[model] = {preset, level}`。目录和官方来源在 `services/downloader/thinking_presets.json`，请求与响应处理在 `llm_thinking.py`，不依赖 Go 或 DeepSeek 专用模块。Rust 的检索助手与 Python 的大纲、正文、问答、阅读和连接测试共用此实现。未选择预设的普通请求保持原路径。只有当前调用模型的有效预设和档位进入签名，其他模型改动不影响已有材料。
 
@@ -106,3 +111,31 @@ TEST_LLM_PROVIDER=opencode_go runtimes/downloader/bin/python scripts/test-reader
 - DeepSeek OpenAI Compatible：发送 `thinking.type=enabled` 与 `reasoning_effort`；思考模式不发送无效的 temperature。面向当前 DeepSeek V4 系列，其他模型是否接受由服务端决定。
 
 不增加输出 token 限制，不改变全局网络或用户研究数据。非法预设/档位拒绝保存或调用；原生响应过滤、截断、工具调用明确失败，不静默切换协议。新版构建会包含预设目录。官方资料：Google [OpenAI兼容](https://ai.google.dev/gemini-api/docs/openai#thinking)、[原生思考](https://ai.google.dev/gemini-api/docs/generate-content/thinking)，[DeepSeek思考模式](https://api-docs.deepseek.com/guides/thinking_mode/)。
+
+### OpenAI Chat Completions 预设目录与去重
+
+所有下列预设保留用户填写的地址，不凭模型名称切换供应商，也不添加 Go 请求头。只有 Gemini Native 会显式切换原生协议。新增预设初始为 `default`（不发送思考字段），已有三个预设的 ID 和默认档位保持兼容。
+
+| 预设 | 请求字段 | 适用范围 |
+| --- | --- | --- |
+| Generic · Reasoning Effort | `reasoning_effort` | 相同字段合并一份，支持值取并集，实际可选子集见下文 |
+| Generic · Thinking Toggle | `thinking.type=enabled/disabled` | 可切换模式的 MiMo V2.6、Kimi K2.6、GLM 4.x；不是强度档位 |
+| Qwen 3.8 · OpenAI Compatible | `enable_thinking` + `reasoning_effort` | low / medium / xhigh；或仅 enabled / disabled（早期混合 Qwen 不一定支持 effort） |
+| GLM 5.2 / 5.3 · OpenAI Compatible | `thinking.type=enabled` + `reasoning_effort` | 5.3 / Flash 为 low / high / max；5.2 为 high / max，原厂默认 max |
+
+通用 effort 不是“所有模型支持所有档位”：Kimi K3 / K3.1 为 low/high/max；Grok 4.6/4.7 为 low/medium/high/xhigh；Meta **Muse** 为 minimal/low/medium/high/xhigh，max 仅用于文档指定的 Muse Wonder 1.0 / Spark 1.3，Contributor 不适用；旧 Llama 不因来自 Meta 就支持思考参数。OpenAI 按模型版本区分，GPT-6 Astra 不支持 none，GPT-6.1 Sol 不支持 none/minimal。通用选项提供并集，用户须根据中转站实际模型选择；服务端拒绝的档位不会被应用静默更改。
+
+通用 effort 省略 temperature，以兼容 OpenAI 推理模型；通用开关同样省略，由原厂决定各模式采样值。Qwen/GLM 保留原温度。GLM 与 DeepSeek 的思考字段形式虽然一致，温度规则和初始档位不同，所以不强行合并。Gemini 原有预设保留，以保持已保存配置和签名不变。
+
+官方来源（2026-10-25 核对；后续以厂商最新文档为准）：
+
+- [OpenAI reasoning](https://developers.openai.com/api/docs/guides/reasoning)、[temperature 限制](https://developers.openai.com/api/docs/guides/deployment-checklist)
+- [Grok reasoning](https://docs.x.ai/developers/model-capabilities/text/reasoning)
+- [Meta Muse reasoning](https://dev.meta.ai/docs/reasoning)
+- [Kimi Chat](https://platform.moonshot.ai/docs/api/chat)
+- [MiMo Chat](https://mimo.mi.com/docs/en-US/api/chat/openai-api)
+- [Qwen Chat](https://help.aliyun.com/en/model-studio/qwen-api-via-openai-chat-completions)、[Messages](https://help.aliyun.com/en/model-studio/anthropic-api-messages)
+- [GLM Chat](https://docs.z.ai/api-reference/llm/chat-completion)
+- [Go 模型范围](https://opencode.ai/v2/docs/console/go/)、[models.dev 参数目录](https://models.dev/api.json)、[LongCat Chat 开关](https://longcat.chat/platform/docs/api/chat.html)
+
+测试以隔离模拟服务核对保存、实际请求字段、流式响应和模块隔离。HTTP 成功不能单独证明中转站执行了思考参数，未实测的模型不宣称已完成线上验证。

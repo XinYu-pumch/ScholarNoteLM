@@ -48,7 +48,8 @@ def apply_reasoning(profile,body):
     if not isinstance(selected,dict):raise ValueError('模型思考强度配置格式无效')
     level=selected.get(profile['model'],'')
     if level=='':return
-    options=route(profile).get('reasoning',{}).get('options',{})
+    reasoning=route(profile).get('reasoning',{})
+    options=reasoning.get('options',{})
     if not isinstance(level,str) or level not in options:raise ValueError('此模型不支持所选思考强度，请重新选择')
     def merge(target,patch):
         for key,value in patch.items():
@@ -56,6 +57,15 @@ def apply_reasoning(profile,body):
             else:target[key]=copy.deepcopy(value)
     # Patches come only from this installed provider's reviewed manifest.
     merge(body,options[level])
+    if level=='budget':
+        spec=reasoning.get('budget',{})
+        values=profile.get('reasoningBudgetByModel',{})
+        value=values.get(profile['model']) if isinstance(values,dict) else None
+        if type(value) is not int or value<spec.get('min',1) or ('max' in spec and value>spec['max']):
+            raise ValueError('请填写此模型支持的正整数思考 token 预算')
+        target=body
+        for key in spec['path'][:-1]:target=target.setdefault(key,{})
+        target[spec['path'][-1]]=value
 
 def prepare(profile,messages):
     url=endpoint(profile);model=profile['model'];settings=route(profile);protocol=settings['protocol'];session=profile.get('_session','')
