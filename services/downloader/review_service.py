@@ -9,7 +9,6 @@ from urllib.parse import urlsplit
 import xml.etree.ElementTree as ET
 import pubmed_xml
 import storage
-from contextlib import contextmanager
 
 # Track new outline prompts without changing saved workspaces or writing signatures.
 OUTLINE_PROMPT_VERSION='outline-unbounded-v2'
@@ -51,17 +50,22 @@ def version(e,name,vid=None):
     # Compatibility argument only; a workspace now owns one current outline.
     manifest(e,name)
     return work(e,name)
-@contextmanager
-def lock(e):
-    deadline=time.monotonic()+5
-    while True:
-        guard=storage.file_lock(storage.project_dir(e.ROOT,e.PROJECT)/'metadata/reviews.lock')
-        try:guard.__enter__();break
-        except ValueError:
-            if time.monotonic()>deadline:raise
-            time.sleep(.03)
-    try:yield
-    finally:guard.__exit__(None,None,None)
+
+def cancellation_file(path,kind,token):
+    if not isinstance(token,str) or not re.fullmatch(r'[A-Za-z0-9_-]{1,128}',token):return None
+    return safe(path,'cancellations',kind+'-'+token)
+
+def cancel_requested(path,kind,token):
+    marker=cancellation_file(path,kind,token)
+    return marker is not None and marker.exists()
+
+def request_cancel(e,path,kind,token):
+    marker=cancellation_file(path,kind,token)
+    if marker is None:return False
+    # Cancellation has a separate, token-scoped record so a concurrent progress
+    # write cannot erase it. This is a signal, not an acquisition or wait gate.
+    e.atomic(marker,'cancelled\n')
+    return True
 
 def parse_csv(text):
     if not isinstance(text,str):raise ValueError('CSV 内容格式无效')
@@ -171,7 +175,8 @@ def nodes(e,path,rows,supplied=None):
 def vstate(e,name,vid):
     path=version(e,name,vid);v=read(safe(path,'outline-state.json'))
     if not v:raise ValueError('大纲不存在')
-    if v['state'] in ACTIVE and v.get('pid') and not e.process_alive(v['pid']):
+    if v['state'] in ACTIVE and cancel_requested(path,'outline',v.get('token')):v['state']='stopping'
+    if v['state'] in ACTIVE and ((v.get('pid') and not e.process_alive(v['pid'])) or (not v.get('pid') and time.time()-v.get('updated',time.time())>30)):
         v.update(state='cancelled' if v['state']=='stopping' else 'failed',error='生成进程已结束，可重新生成');e.write_json(path/'outline-state.json',v)
     return v
 
@@ -220,129 +225,129 @@ def start(e,name,vid,a):
     python=e.ROOT/('runtimes/downloader/Scripts/python.exe' if os.name=='nt' else 'runtimes/downloader/bin/python')
     try:
         with safe(path,'worker.log').open('ab') as log:
-            child=subprocess.Popen([str(python),str(e.ROOT/'services/downloader/review_worker.py'),'--project',e.PROJECT,'--review',name,'--version',vid,'--token',token],cwd=e.ROOT,env={**os.environ,'SCHOLARNOTELM_ROOT':str(e.ROOT),'PYTHONDONTWRITEBYTECODE':'1','PYTHONUTF8':'1','TMPDIR':str(e.ROOT/'tmp'),'TMP':str(e.ROOT/'tmp'),'TEMP':str(e.ROOT/'tmp')},stdin=subprocess.DEVNULL,stdout=log,stderr=log,**({'creationflags':subprocess.CREATE_NO_WINDOW} if os.name=='nt' else {'start_new_session':True}))
-        v['pid']=child.pid;e.write_json(path/'outline-state.json',v)
+            subprocess.Popen([str(python),str(e.ROOT/'services/downloader/review_worker.py'),'--project',e.PROJECT,'--review',name,'--version',vid,'--token',token],cwd=e.ROOT,env={**os.environ,'SCHOLARNOTELM_ROOT':str(e.ROOT),'PYTHONDONTWRITEBYTECODE':'1','PYTHONUTF8':'1','TMPDIR':str(e.ROOT/'tmp'),'TMP':str(e.ROOT/'tmp'),'TEMP':str(e.ROOT/'tmp')},stdin=subprocess.DEVNULL,stdout=log,stderr=log,**({'creationflags':subprocess.CREATE_NO_WINDOW} if os.name=='nt' else {'start_new_session':True}))
+        # The worker publishes its PID with progress; the parent must not overwrite it.
     except Exception:
         v.update(state='failed',error='无法启动大纲生成进程');e.write_json(path/'outline-state.json',v);raise ValueError(v['error'])
     return detail(e,name,vid)
 
 def rpc(e,op,a):
     if op=='validate':return {'rows':parse_csv(a.get('csv',''))}
-    with lock(e):
-        if op=='list':
-            folder=root(e);items=[]
-            if folder.exists():
-                for d in sorted(folder.iterdir()):
-                    try:storage.folder_name(d.name)
-                    except ValueError:continue
-                    if not d.is_symlink() and (d/'review.json').is_file():
-                        m=dict(manifest(e,d.name))
-                        try:m['outlineCount']=len(parse_csv((d/'outline.csv').read_text(encoding='utf-8-sig')))
-                        except (OSError,ValueError):m['outlineCount']=0
-                        m['contentLanguage']=content_settings(e,d.name)[0]
-                        import review_writing as writing
-                        ctx=writing.manuscripts.context(e,d.name)
-                        m['materialModel']=ctx.get('materialSnapshot',{}).get('retrieval',{}).get('embeddingModel',{}).get('model','')
-                        m['writingState']=writing.job(e,d.name).get('state','idle')
-                        items.append(m)
-            try:p=profile(e);model=p['model'];model_label=(p.get('name','')+'/' if p.get('name') else '')+model
-            except ValueError:model='';model_label=''
-            try:_,_,source=abstracts(e)
-            except ValueError:source=None
-            return {'workspaces':items,'model':model,'modelLabel':model_label,'source':source,'prompt':PROMPT,'system':SYSTEM}
-        name=a.get('name','');path=work(e,name)
-        if op=='create':
-            if root(e).exists() and any(d.name.lower()==name.lower() for d in root(e).iterdir()):raise ValueError('该工作区名称已存在（不区分大小写）')
-            desc=bounded(a.get('description',''),2000,'综述描述');data=inputs(a);language=lang.normalize(a.get('contentLanguage'));explicit_language='contentLanguage' in a
-            if a.get('templateWorkspace'):
-                template=detail(e,a['templateWorkspace'],'current');data=inputs(template['version'])
-            source=a.get('outlineSource','llm')
-            if source not in ('llm','file','workspace'):raise ValueError('综述框架来源无效')
-            rows=parse_csv(a.get('csv','')) if source=='file' else []
-            origin={'type':source}
-            if source=='workspace':
-                source_name=storage.folder_name(a.get('sourceWorkspace',''))
-                original=detail(e,source_name,'current');idle(original['version'])
-                rows=checked_rows(original['rows']);data=inputs(original['version']);language=content_settings(e,source_name)[0];explicit_language=explicit_language or content_settings(e,source_name)[1] is not None
-                origin.update(workspace=source_name,imported=time.time(),sha256=hashlib.sha256(to_csv(rows).encode()).hexdigest())
-            if source=='file':
-                filename=bounded(a.get('fileName','outline.csv'),255,'CSV 文件名')
-                if not filename.lower().endswith('.csv'):raise ValueError('请选择 CSV 文件')
-                origin.update(fileName=filename,sha256=hashlib.sha256(a['csv'].encode('utf8')).hexdigest(),imported=time.time())
-            root(e).mkdir(parents=True,exist_ok=True)
-            stage=root(e)/('.creating-'+uuid.uuid4().hex)
-            stage.mkdir()
-            try:
-                e.write_json(stage/'review.json',{'name':name,'description':desc,'created':time.time(),'schema':2,'outlineSource':origin,**({'contentLanguage':language,'promptVersion':lang.VERSION} if explicit_language else {})})
-                e.write_json(stage/'outline-state.json',{'id':'current','created':time.time(),'updated':time.time(),'revision':0,'state':'draft','error':'',**data})
-                if rows:
-                    # Preserve the exact UTF-8 source, including a BOM when supplied.
-                    e.atomic(stage/'imported.csv',a['csv'] if source=='file' else to_csv(rows))
-                    e.atomic(stage/'outline.csv',to_csv(rows));nodes(e,stage,rows)
-                os.replace(stage,path)
-            finally:
-                if stage.exists():shutil.rmtree(stage)
-            return detail(e,name,'current')
-        m=manifest(e,name)
-        import review_writing as writing
-        if op.startswith('writing.'):
-            return writing.rpc(e,name,op.removeprefix('writing.'),a)
-        if op in ('save','restore','import','start','delete'):
-            writing.ensure_idle(e,name)
-        if op=='language':
-            writing.ensure_idle(e,name);idle(vstate(e,name,'current'))
-            if (path/'outline.csv').exists():raise ValueError('已有大纲，请创建另一语言的综述工作区')
-            m.update(contentLanguage=lang.normalize(a.get('contentLanguage')),promptVersion=lang.VERSION);e.write_json(path/'review.json',m);return detail(e,name,'current')
-        if op=='describe':
-            writing.ensure_idle(e,name);idle(vstate(e,name,'current'))
-            new_name=storage.folder_name(a.get('newName',name))
-            if new_name!=name:
-                if any(d.name.casefold()==new_name.casefold() and d.name!=name for d in root(e).iterdir()):raise ValueError('该工作区名称已存在（不区分大小写）')
-                description=bounded(a.get('description',''),2000,'综述描述')
-                target=work(e,new_name);os.rename(path,target)
-                try:e.write_json(target/'review.json',{**m,'name':new_name,'description':description})
-                except BaseException:os.rename(target,path);raise
-                return {**m,'name':new_name,'description':description}
-            m['description']=bounded(a.get('description',''),2000,'综述描述');e.write_json(path/'review.json',m);return m
-        if op=='delete':
-            if a.get('confirm')!=name:raise ValueError('请确认要删除的综述工作区名称')
-            idle(vstate(e,name,'current'))
-            shutil.rmtree(path);return {'deleted':True}
-        vid='current';v=vstate(e,name,vid);vp=version(e,name,vid)
-        if op=='get':return detail(e,name,vid)
-        if op=='open':return e.open_local(vp)
-        if op=='prompt':
-            idle(v);data=inputs(a)
-            if not data['topic']:raise ValueError('请填写综述主题')
-            _,text,source=abstracts(e)
-            if not source['abstractCount']:raise ValueError('当前 XML 没有可用摘要')
-            system,prompt,language,prompt_version=outline_prompt(e,name,data,text)
-            dest=safe(vp,'prompt-preview.txt');e.atomic(dest,full_prompt(prompt,system))
-            return {'path':str(dest),'content':full_prompt(prompt,system),'abstractCount':source['abstractCount']}
-        if op=='start':return start(e,name,vid,a)
-        if op=='cancel':
-            if v['state'] in ACTIVE:v.update(state='stopping',updated=time.time());e.write_json(vp/'outline-state.json',v)
-            return detail(e,name,vid)
-        idle(v);revision(v,a)
-        if op=='export':
-            rows=checked_rows(a.get('rows'));dest=safe(vp,'outline-export.csv');content=to_csv(rows)
-            e.atomic(dest,'\ufeff'+content);return {'path':str(dest),'content':content}
-        if op=='save':
-            data=inputs(a);rows=checked_rows(a['rows']) if a.get('rows') else []
-            if not rows and (vp/'generated.csv').exists():raise ValueError('大纲至少需要一个标题')
-            writing.manuscripts.before_outline_change(e,name)
+    if op=='list':
+        folder=root(e);items=[]
+        if folder.exists():
+            for d in sorted(folder.iterdir()):
+                try:storage.folder_name(d.name)
+                except ValueError:continue
+                if not d.is_symlink() and (d/'review.json').is_file():
+                    m=dict(manifest(e,d.name))
+                    try:m['outlineCount']=len(parse_csv((d/'outline.csv').read_text(encoding='utf-8-sig')))
+                    except (OSError,ValueError):m['outlineCount']=0
+                    m['contentLanguage']=content_settings(e,d.name)[0]
+                    import review_writing as writing
+                    ctx=writing.manuscripts.context(e,d.name)
+                    m['materialModel']=ctx.get('materialSnapshot',{}).get('retrieval',{}).get('embeddingModel',{}).get('model','')
+                    m['writingState']=writing.job(e,d.name).get('state','idle')
+                    items.append(m)
+        try:p=profile(e);model=p['model'];model_label=(p.get('name','')+'/' if p.get('name') else '')+model
+        except ValueError:model='';model_label=''
+        try:_,_,source=abstracts(e)
+        except ValueError:source=None
+        return {'workspaces':items,'model':model,'modelLabel':model_label,'source':source,'prompt':PROMPT,'system':SYSTEM}
+    name=a.get('name','');path=work(e,name)
+    if op=='create':
+        if root(e).exists() and any(d.name.lower()==name.lower() for d in root(e).iterdir()):raise ValueError('该工作区名称已存在（不区分大小写）')
+        desc=bounded(a.get('description',''),2000,'综述描述');data=inputs(a);language=lang.normalize(a.get('contentLanguage'));explicit_language='contentLanguage' in a
+        if a.get('templateWorkspace'):
+            template=detail(e,a['templateWorkspace'],'current');data=inputs(template['version'])
+        source=a.get('outlineSource','llm')
+        if source not in ('llm','file','workspace'):raise ValueError('综述框架来源无效')
+        rows=parse_csv(a.get('csv','')) if source=='file' else []
+        origin={'type':source}
+        if source=='workspace':
+            source_name=storage.folder_name(a.get('sourceWorkspace',''))
+            original=detail(e,source_name,'current');idle(original['version'])
+            rows=checked_rows(original['rows']);data=inputs(original['version']);language=content_settings(e,source_name)[0];explicit_language=explicit_language or content_settings(e,source_name)[1] is not None
+            origin.update(workspace=source_name,imported=time.time(),sha256=hashlib.sha256(to_csv(rows).encode()).hexdigest())
+        if source=='file':
+            filename=bounded(a.get('fileName','outline.csv'),255,'CSV 文件名')
+            if not filename.lower().endswith('.csv'):raise ValueError('请选择 CSV 文件')
+            origin.update(fileName=filename,sha256=hashlib.sha256(a['csv'].encode('utf8')).hexdigest(),imported=time.time())
+        root(e).mkdir(parents=True,exist_ok=True)
+        stage=root(e)/('.creating-'+uuid.uuid4().hex)
+        stage.mkdir()
+        try:
+            e.write_json(stage/'review.json',{'name':name,'description':desc,'created':time.time(),'schema':2,'outlineSource':origin,**({'contentLanguage':language,'promptVersion':lang.VERSION} if explicit_language else {})})
+            e.write_json(stage/'outline-state.json',{'id':'current','created':time.time(),'updated':time.time(),'revision':0,'state':'draft','error':'',**data})
             if rows:
-                e.atomic(vp/'outline.csv',to_csv(rows));nodes(e,vp,rows,a.get('rows'))
-            v.update(**data,revision=v['revision']+1,updated=time.time());e.write_json(vp/'outline-state.json',v);return detail(e,name,vid)
-        if op=='restore':
-            source=safe(vp,'imported.csv' if m.get('outlineSource',{}).get('type') in ('file','workspace') else 'generated.csv')
-            if not source.exists():raise ValueError('当前工作区没有原始大纲')
-            rows=parse_csv(source.read_text(encoding='utf-8-sig'));writing.manuscripts.before_outline_change(e,name);e.atomic(vp/'outline.csv',to_csv(rows));v.update(revision=v['revision']+1,updated=time.time());e.write_json(vp/'outline-state.json',v);return detail(e,name,vid)
-        if op=='import':
-            rows=parse_csv(a.get('csv',''));data=inputs(a) if 'topic' in a else {}
-            writing.manuscripts.before_outline_change(e,name)
-            e.atomic(vp/'outline.csv',to_csv(rows));v.update(**data,revision=v['revision']+1,updated=time.time());e.write_json(vp/'outline-state.json',v);return detail(e,name,vid)
-        raise ValueError('未知综述操作')
+                # Preserve the exact UTF-8 source, including a BOM when supplied.
+                e.atomic(stage/'imported.csv',a['csv'] if source=='file' else to_csv(rows))
+                e.atomic(stage/'outline.csv',to_csv(rows));nodes(e,stage,rows)
+            os.replace(stage,path)
+        finally:
+            if stage.exists():shutil.rmtree(stage)
+        return detail(e,name,'current')
+    m=manifest(e,name)
+    import review_writing as writing
+    if op.startswith('writing.'):
+        return writing.rpc(e,name,op.removeprefix('writing.'),a)
+    if op in ('save','restore','import','start','delete'):
+        writing.ensure_idle(e,name)
+    if op=='language':
+        writing.ensure_idle(e,name);idle(vstate(e,name,'current'))
+        if (path/'outline.csv').exists():raise ValueError('已有大纲，请创建另一语言的综述工作区')
+        m.update(contentLanguage=lang.normalize(a.get('contentLanguage')),promptVersion=lang.VERSION);e.write_json(path/'review.json',m);return detail(e,name,'current')
+    if op=='describe':
+        writing.ensure_idle(e,name);idle(vstate(e,name,'current'))
+        new_name=storage.folder_name(a.get('newName',name))
+        if new_name!=name:
+            if any(d.name.casefold()==new_name.casefold() and d.name!=name for d in root(e).iterdir()):raise ValueError('该工作区名称已存在（不区分大小写）')
+            description=bounded(a.get('description',''),2000,'综述描述')
+            target=work(e,new_name);os.rename(path,target)
+            try:e.write_json(target/'review.json',{**m,'name':new_name,'description':description})
+            except BaseException:os.rename(target,path);raise
+            return {**m,'name':new_name,'description':description}
+        m['description']=bounded(a.get('description',''),2000,'综述描述');e.write_json(path/'review.json',m);return m
+    if op=='delete':
+        if a.get('confirm')!=name:raise ValueError('请确认要删除的综述工作区名称')
+        idle(vstate(e,name,'current'))
+        shutil.rmtree(path);return {'deleted':True}
+    vid='current';v=vstate(e,name,vid);vp=version(e,name,vid)
+    if op=='get':return detail(e,name,vid)
+    if op=='open':return e.open_local(vp)
+    if op=='prompt':
+        idle(v);data=inputs(a)
+        if not data['topic']:raise ValueError('请填写综述主题')
+        _,text,source=abstracts(e)
+        if not source['abstractCount']:raise ValueError('当前 XML 没有可用摘要')
+        system,prompt,language,prompt_version=outline_prompt(e,name,data,text)
+        dest=safe(vp,'prompt-preview.txt');e.atomic(dest,full_prompt(prompt,system))
+        return {'path':str(dest),'content':full_prompt(prompt,system),'abstractCount':source['abstractCount']}
+    if op=='start':return start(e,name,vid,a)
+    if op=='cancel':
+        if v['state'] in ACTIVE and not request_cancel(e,vp,'outline',v.get('token')):
+            v.update(state='stopping',updated=time.time());e.write_json(vp/'outline-state.json',v)
+        return detail(e,name,vid)
+    idle(v);revision(v,a)
+    if op=='export':
+        rows=checked_rows(a.get('rows'));dest=safe(vp,'outline-export.csv');content=to_csv(rows)
+        e.atomic(dest,'\ufeff'+content);return {'path':str(dest),'content':content}
+    if op=='save':
+        data=inputs(a);rows=checked_rows(a['rows']) if a.get('rows') else []
+        if not rows and (vp/'generated.csv').exists():raise ValueError('大纲至少需要一个标题')
+        writing.manuscripts.before_outline_change(e,name)
+        if rows:
+            e.atomic(vp/'outline.csv',to_csv(rows));nodes(e,vp,rows,a.get('rows'))
+        v.update(**data,revision=v['revision']+1,updated=time.time());e.write_json(vp/'outline-state.json',v);return detail(e,name,vid)
+    if op=='restore':
+        source=safe(vp,'imported.csv' if m.get('outlineSource',{}).get('type') in ('file','workspace') else 'generated.csv')
+        if not source.exists():raise ValueError('当前工作区没有原始大纲')
+        rows=parse_csv(source.read_text(encoding='utf-8-sig'));writing.manuscripts.before_outline_change(e,name);e.atomic(vp/'outline.csv',to_csv(rows));v.update(revision=v['revision']+1,updated=time.time());e.write_json(vp/'outline-state.json',v);return detail(e,name,vid)
+    if op=='import':
+        rows=parse_csv(a.get('csv',''));data=inputs(a) if 'topic' in a else {}
+        writing.manuscripts.before_outline_change(e,name)
+        e.atomic(vp/'outline.csv',to_csv(rows));v.update(**data,revision=v['revision']+1,updated=time.time());e.write_json(vp/'outline-state.json',v);return detail(e,name,vid)
+    raise ValueError('未知综述操作')
 
 class Cancelled(Exception):pass
 
@@ -350,14 +355,13 @@ def worker(e,name,vid,token):
     with storage.file_lock(e.ROOT/'config/storage.lock',shared=True):
         path=version(e,name,vid);output='';reasoning=0;last_save=0
         def update(**fields):
-            with lock(e):
-                v=read(path/'outline-state.json')
-                if not v or v.get('token')!=token or v['state'] not in ACTIVE:raise Cancelled()
-                if v['state']=='stopping' or (v.get('owner') and not e.process_alive(v['owner'])):raise Cancelled()
-                v.update(**fields,updated=time.time());e.write_json(path/'outline-state.json',v)
+            v=read(path/'outline-state.json')
+            if not v or v.get('token')!=token or v['state'] not in ACTIVE:raise Cancelled()
+            if v['state']=='stopping' or cancel_requested(path,'outline',token) or (v.get('owner') and not e.process_alive(v['owner'])):raise Cancelled()
+            v.update(**fields,updated=time.time());e.write_json(path/'outline-state.json',v)
         def cancelled():
             v=read(path/'outline-state.json')
-            return not v or v.get('token')!=token or v['state'] not in {'queued','running'} or (v.get('owner') and not e.process_alive(v['owner']))
+            return not v or v.get('token')!=token or v['state'] not in {'queued','running'} or cancel_requested(path,'outline',token) or (v.get('owner') and not e.process_alive(v['owner']))
         def receive(value):
             nonlocal output,reasoning,last_save
             if value.get('error'):raise ValueError('模型服务返回错误，请检查服务状态和参数')
@@ -423,24 +427,22 @@ def worker(e,name,vid,token):
                 if not task.done():task.cancel()
                 await asyncio.gather(task,return_exceptions=True)
         try:
-            update(state='running');v=read(path/'outline-state.json');p=profile(e,v['profileId'],v.get('model'))
+            update(state='running',pid=os.getpid());v=read(path/'outline-state.json');p=profile(e,v['profileId'],v.get('model'))
             if p['model']!=v['model']:raise ValueError('模型配置已变化，请重新生成')
             asyncio.run(generate(p))
             if not output.strip():raise ValueError('模型没有返回大纲正文（仅推理内容不能作为 CSV）')
             rows=parse_csv(output);normalized=to_csv(rows)
-            with lock(e):
-                if cancelled():raise Cancelled()
-                e.atomic(path/'response.txt',output)
-                if not (path/'generated.csv').exists():e.atomic(path/'generated.csv',normalized)
-                e.atomic(path/'outline.csv',normalized)
-                v=read(path/'outline-state.json');v.update(state='done',error='',received=len(output),reasoningCharacters=reasoning,revision=v['revision']+1,updated=time.time());e.write_json(path/'outline-state.json',v)
+            if cancelled():raise Cancelled()
+            e.atomic(path/'response.txt',output)
+            if not (path/'generated.csv').exists():e.atomic(path/'generated.csv',normalized)
+            e.atomic(path/'outline.csv',normalized)
+            v=read(path/'outline-state.json');v.update(state='done',error='',received=len(output),reasoningCharacters=reasoning,revision=v['revision']+1,updated=time.time());e.write_json(path/'outline-state.json',v)
         except Exception as exc:
             import httpx
             if isinstance(exc,Cancelled):state,error='cancelled','已取消生成，部分输出未作为有效大纲'
             elif isinstance(exc,httpx.TimeoutException):state,error='failed','等待模型响应超时；已接收的推理或正文会持续延长等待，不设总生成时限'
             elif isinstance(exc,httpx.HTTPError):state,error='failed','模型连接失败，请检查网络或服务地址'
             else:state,error='failed',str(exc) if isinstance(exc,ValueError) else '大纲生成失败，请重试或检查本地文件'
-            with lock(e):
-                v=read(path/'outline-state.json')
-                if v and v.get('token')==token:
-                    e.atomic(path/'response.txt',output);v.update(state=state,error=error,received=len(output),reasoningCharacters=reasoning,updated=time.time());e.write_json(path/'outline-state.json',v)
+            v=read(path/'outline-state.json')
+            if v and v.get('token')==token:
+                e.atomic(path/'response.txt',output);v.update(state=state,error=error,received=len(output),reasoningCharacters=reasoning,updated=time.time());e.write_json(path/'outline-state.json',v)

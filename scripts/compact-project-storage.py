@@ -10,7 +10,6 @@ sys.path.insert(0, str(ROOT / 'services/downloader'))
 import engine as e
 import corpus_files
 import project_compaction
-import review_service
 import storage
 
 
@@ -34,7 +33,6 @@ def main():
             e.PROJECT = project
             with ExitStack() as project_guards:
                 if args.apply:
-                    project_guards.enter_context(review_service.lock(e))
                     project_guards.enter_context(corpus_files.lock(e))
                 result = project_compaction.compact_project(e, args.apply, include_html=args.html)
                 result['folder'] = cfg['projects'][project]

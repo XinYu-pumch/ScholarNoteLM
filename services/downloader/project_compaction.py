@@ -1,6 +1,6 @@
 """Explicit, lossless maintenance. Optional self-contained HTML resource pooling.
 
-The CLI holds exclusive storage, review and corpus locks for application. A dry
+The CLI holds exclusive storage and corpus locks for application. A dry
 run only reads files. Each file is independently verified and atomically replaced;
 interruption leaves a readable mixture of legacy and compact storage.
 """

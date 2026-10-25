@@ -337,6 +337,32 @@ class WritingTests(unittest.TestCase):
   self.seed();token=self.setup_run()
   j=r.read(self.path/'writing-job.json');j['state']='stopping';e.write_json(self.path/'writing-job.json',j)
   asyncio.run(w.run(e,'Test',token));self.assertEqual(self.status()['job']['state'],'cancelled');self.assertEqual(len(list((self.path/'sections').glob('*.json'))),4)
+ def test_cancel_signal_survives_progress_overwrite(self):
+  record={'id':'c1','text':'Evidence','metadata':{'pmid':'123','title':'Article','sourceKind':'pubmed_abstract','sectionPath':[]}}
+  class FakeRetriever:
+   def __init__(self,*args):pass
+   def retrieve(self,*args):return [record]
+  with patch.object(w.retrieval,'corpus',return_value=[record]):
+   asyncio.run(w.run(e,'Test',self.setup_run(),FakeRetriever))
+  self.assertEqual(self.status()['prepared'],4)
+  self.seed();token=self.setup_run('write');job_path=self.path/'writing-job.json'
+  before={p:p.read_bytes() for p in (self.path/'sections').glob('*.json')};write=e.write_json;injected=[]
+  def racing_write(path,value):
+   if path==job_path and value.get('state')=='running' and any(v.get('reasoningCharacters')==12 for v in value.get('items',{}).values()) and not injected:
+    injected.append(True)
+    self.assertEqual(r.rpc(e,'writing.cancel',{'name':'Test'})['job']['state'],'stopping')
+   write(path,value)
+  async def fake_chat(profile,messages,cancelled,progress=lambda **kw:None):
+   progress(received=0,reasoningCharacters=12)
+   cancelled()
+   raise AssertionError('Cancelled writing must not continue')
+  with patch.object(e,'write_json',side_effect=racing_write),patch.object(w,'chat',side_effect=fake_chat):
+   asyncio.run(w.run(e,'Test',token))
+  self.assertTrue(injected);self.assertEqual(self.status()['job']['state'],'cancelled')
+  self.assertEqual(before,{p:p.read_bytes() for p in before})
+  next_token=self.setup_run('write')
+  self.assertFalse(r.cancel_requested(self.path,'writing',next_token))
+  self.assertEqual(w.job(e,'Test')['state'],'queued')
  def test_deleted_public_section_disappears_from_status_preview_and_detail(self):
   self.seed();u=w.tree_units(self.detail['rows'])[0];before=self.status()['fileRevision']
   (self.path/'review_parts'/f'section_{u["serial"]}.json').unlink()

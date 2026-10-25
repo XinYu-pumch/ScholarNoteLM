@@ -1,6 +1,6 @@
 """Immutable manuscripts with shared image storage and one mutable writing round.
 
-Call mutations under review_service.lock. Reset uses a strict allowlist and
+Mutations require an idle workspace. Reset uses a strict allowlist and
 never traverses exports or manuscripts. Frozen display blocks include images.
 """
 import content_language as lang
@@ -66,7 +66,7 @@ def get(e,name,ident):
     return result
 
 def store(e,name,value):
-    """Publish only after a lossless round trip; caller holds the review lock."""
+    """Publish only after a lossless round trip."""
     ident=value['id']
     if payload_hash(value)!=ident:raise ValueError('已保存稿件校验失败，原稿未修改')
     target=outline.safe(folder(e,name),ident,'document.json')

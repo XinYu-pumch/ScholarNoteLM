@@ -11,6 +11,33 @@ class ReviewTests(unittest.TestCase):
  def tearDown(self):e.ROOT,e.PROJECT=self.old;self.tmp.cleanup()
  def call(self,op,**a):return r.rpc(e,op,{'name':'Review1',**a})
  def create(self):return self.call('create',description='目标',topic='免疫')
+ def test_obsolete_project_lock_does_not_block_workspaces(self):
+  with storage.file_lock(self.base/'metadata/reviews.lock'):
+   self.create()
+   self.call('create',name='Independent',topic='Other')
+   self.assertEqual(self.call('get')['workspace']['name'],'Review1')
+   self.assertEqual({v['name'] for v in self.call('list')['workspaces']},{'Review1','Independent'})
+ def test_outline_cancel_survives_stale_progress_write(self):
+  import review_llm
+  self.create();path=r.work(e,'Review1');token='cancel-race'
+  state=r.read(path/'outline-state.json');state.update(state='queued',token=token,profileId='p',model='m')
+  e.write_json(path/'outline-state.json',state);e.write_json(path/'prompt.json',{'system':'fixture','user':'fixture'})
+  e.atomic(path/'outline.csv','1,Original\n');write=e.write_json;injected=[]
+  def racing_write(target,value):
+   if target==path/'outline-state.json' and value.get('reasoningCharacters')==12 and value.get('state')=='running' and not injected:
+    injected.append(True)
+    self.assertEqual(self.call('cancel')['version']['state'],'stopping')
+   write(target,value)
+  async def chat(profile,messages,cancelled,progress,on_text):
+   progress(received=0,reasoningCharacters=12)
+   self.assertTrue(cancelled())
+   on_text('1,Must not publish\n')
+  with patch.object(e,'write_json',side_effect=racing_write),patch.object(r,'profile',return_value={'model':'m'}),patch.object(r.llm_provider,'adapter',return_value=object()),patch.object(review_llm,'chat',side_effect=chat):
+   r.worker(e,'Review1','current',token)
+  self.assertTrue(injected);self.assertEqual(r.read(path/'outline-state.json')['state'],'cancelled')
+  self.assertEqual((path/'outline.csv').read_text(),'1,Original\n')
+  self.assertTrue(r.cancel_requested(path,'outline',token))
+  self.assertFalse(r.cancel_requested(path,'outline','new-run'))
  def test_outline_publishes_reasoning_progress_before_answer_callback(self):
   import review_llm
   self.create();path=r.work(e,'Review1');token='thinking-progress'
@@ -33,6 +60,21 @@ class ReviewTests(unittest.TestCase):
     result=self.call('start',revision=0,topic='免疫',profileId='provider-b',model='chosen-model')
    resolve.assert_called_once_with(e,'provider-b','chosen-model')
   self.assertEqual(result['version']['profileId'],'provider-b');self.assertEqual(result['version']['model'],'chosen-model')
+ def test_start_does_not_overwrite_worker_progress(self):
+  import os
+  self.create();path=r.work(e,'Review1')/'outline-state.json'
+  def spawned(*args,**kwargs):
+   state=r.read(path);state.update(state='running',pid=os.getpid(),reasoningCharacters=42);e.write_json(path,state)
+  with patch.object(r,'profile',return_value={'id':'p','model':'m'}),patch.object(r.subprocess,'Popen',side_effect=spawned):
+   result=self.call('start',revision=0,topic='Review')
+  self.assertEqual(result['version']['state'],'running')
+  self.assertEqual(result['version']['pid'],os.getpid())
+  self.assertEqual(result['version']['reasoningCharacters'],42)
+ def test_worker_that_exits_before_registering_can_be_restarted(self):
+  import time
+  self.create();path=r.work(e,'Review1')/'outline-state.json'
+  state=r.read(path);state.update(state='queued',pid=0,updated=time.time()-40);e.write_json(path,state)
+  self.assertEqual(self.call('get')['version']['state'],'failed')
  def test_csv_all_levels_and_quotes(self):
   rows=r.parse_csv('\ufeff```csv\nSerial,Title\n1,引言\n1.1,"背景,机制"\n1.1.1,"作用与""边界"""\n1.2,问题\n2,结论\n```')
   self.assertEqual(len(rows),5);self.assertEqual(rows[1]['title'],'背景,机制');self.assertEqual(r.parse_csv(r.to_csv(rows)),rows)

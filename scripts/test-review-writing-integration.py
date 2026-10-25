@@ -58,10 +58,10 @@ try:
    value=json.loads(process.stdout)
    if not value['ok']:raise AssertionError(value.get('error'))
    return value['data']
-  def wait():
+  def wait(name='ReviewTest'):
    end=time.monotonic()+180;last=''
    while time.monotonic()<end:
-    try:d=rpc('writing.status')
+    try:d=rpc('writing.status',name=name)
     except AssertionError as error:
      if '文献或索引正在更新' not in str(error):raise
      time.sleep(.2);continue
@@ -175,6 +175,19 @@ try:
   for fmt in ('md','html','docx'):
    historical=rpc('writing.manuscript.export',id=archived[0]['id'],format=fmt);assert Path(historical['path']).is_file()
   assert all(Path(p).read_bytes()==content for p,content in preserved.items())
+  # Separate workspaces run at their own concurrency, even if an old app still
+  # holds the retired project lock. Status polling must not serialize workers.
+  rpc('writing.prepare');wait()
+  rpc('writing.prepare',name='CopyReview');wait('CopyReview')
+  slow=True;peak=0
+  with storage.file_lock(base/'metadata/reviews.lock'):
+   rpc('writing.start')
+   rpc('writing.start',name='CopyReview')
+   parallel_a=wait();parallel_b=wait('CopyReview')
+  slow=False
+  assert parallel_a['stages']['writing']['state']=='complete'
+  assert parallel_b['stages']['writing']['state']=='complete'
+  assert 3<peak<=6,('Workspace requests did not overlap',peak)
   for f in path.rglob('*'):
    if f.suffix in ('.txt','.json','.log','.csv','.md'):assert 'isolated-test-secret' not in f.read_text(errors='replace')
    if f.suffix=='.gz':assert b'isolated-test-secret' not in gzip.decompress(f.read_bytes())

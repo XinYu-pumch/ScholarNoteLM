@@ -64,6 +64,7 @@ def source_signature(e):
 
 def job(e,name):
     path=outline.work(e,name)/'writing-job.json';j=outline.read(path,{})
+    if j.get('state') in ACTIVE and outline.cancel_requested(path.parent,'writing',j.get('token')):j['state']='stopping'
     if j.get('state') in ACTIVE and ((j.get('pid') and not e.process_alive(j['pid'])) or (not j.get('pid') and time.time()-j.get('created',time.time())>30)):
         stopped=j['state']=='stopping'
         for item in j.get('items',{}).values():
@@ -302,7 +303,8 @@ def rpc(e,name,op,a):
         return {'markdown':md,'displayBlocks':ordered}
     if op=='cancel':
         j=job(e,name)
-        if j.get('state') in ACTIVE:j.update(state='stopping');e.write_json(path/'writing-job.json',j)
+        if j.get('state') in ACTIVE and not outline.request_cancel(e,path,'writing',j.get('token')):
+            j.update(state='stopping');e.write_json(path/'writing-job.json',j)
         return status(e,name)
     ensure_idle(e,name);outline.idle(outline.vstate(e,name,'current'))
     if op=='reset':
@@ -373,11 +375,8 @@ def rpc(e,name,op,a):
     env={**os.environ,'SCHOLARNOTELM_ROOT':str(e.ROOT),'PYTHONUTF8':'1','PYTHONDONTWRITEBYTECODE':'1','TMPDIR':str(e.ROOT/'tmp'),'TEMP':str(e.ROOT/'tmp'),'TMP':str(e.ROOT/'tmp')}
     try:
         with (run/'worker.log').open('ab') as out:
-            proc=subprocess.Popen([str(runtime(e,rcfg)),str(e.ROOT/'services/downloader/review_write_worker.py'),'--project',e.PROJECT,'--review',name,'--token',token],cwd=e.ROOT,env=env,stdin=subprocess.DEVNULL,stdout=out,stderr=out,**({'creationflags':subprocess.CREATE_NO_WINDOW} if os.name=='nt' else {'start_new_session':True}))
-        # review_service.rpc already holds the project review lock here.
-        current=outline.read(path/'writing-job.json',{})
-        if current.get('token')==token:
-            current['pid']=proc.pid;e.write_json(path/'writing-job.json',current)
+            subprocess.Popen([str(runtime(e,rcfg)),str(e.ROOT/'services/downloader/review_write_worker.py'),'--project',e.PROJECT,'--review',name,'--token',token],cwd=e.ROOT,env=env,stdin=subprocess.DEVNULL,stdout=out,stderr=out,**({'creationflags':subprocess.CREATE_NO_WINDOW} if os.name=='nt' else {'start_new_session':True}))
+        # The worker owns progress and PID publication after spawning.
     except Exception:
         j.update(state='failed',error='无法启动综述撰写进程')
         for item in j['items'].values():item.update(state='failed',error=j['error'])
@@ -413,7 +412,7 @@ async def run(e,name,token,retriever_factory=None):
     mode=snapshot.get('mode','legacy');rcfg=snapshot.get('retrieval',retrieval_settings.snapshot(e.ROOT,e.PROJECT));candidate_k=retrieval_settings.effective(rcfg,cfg['topK'])
     def cancelled():
         j=outline.read(path/'writing-job.json',{})
-        return j.get('token')!=token or j.get('state') not in ('queued','running') or bool(j.get('owner') and not e.process_alive(j['owner']))
+        return j.get('token')!=token or j.get('state') not in ('queued','running') or outline.cancel_requested(path,'writing',token) or bool(j.get('owner') and not e.process_alive(j['owner']))
     def check():
         # Called from HTTP polling, token callbacks and quota waits. Keep it
         # cancellation-only: synchronous corpus parsing blocks the event loop.
@@ -428,18 +427,17 @@ async def run(e,name,token,retriever_factory=None):
         check()
         return False
     def update(ident=None,**fields):
-        with outline.lock(e):
-            check();j=outline.read(path/'writing-job.json')
-            if ident:
-                j['items'][ident].update(fields)
-                if fields.get('state') in ('done','failed'):j['items'][ident]['finished']=time.time()
-                if fields.get('state')=='writing':j['items'][ident]['started']=time.time()
-            else:j.update(fields)
-            j.update(progress_counts(j));j['updated']=time.time();e.write_json(path/'writing-job.json',j)
-            if 'state' in fields:e.write_json(runpath/'result.json',j)
+        check();j=outline.read(path/'writing-job.json')
+        if ident:
+            j['items'][ident].update(fields)
+            if fields.get('state') in ('done','failed'):j['items'][ident]['finished']=time.time()
+            if fields.get('state')=='writing':j['items'][ident]['started']=time.time()
+        else:j.update(fields)
+        j.update(progress_counts(j));j['updated']=time.time();e.write_json(path/'writing-job.json',j)
+        if 'state' in fields:e.write_json(runpath/'result.json',j)
     try:
         if mode not in ('prepare','write'):raise ValueError('旧任务使用不同的检索流程，请重新准备提示词')
-        check();update(state='running',phase='准备当前文本块' if mode=='prepare' else '读取已保存的提示词')
+        check();update(state='running',pid=os.getpid(),phase='准备当前文本块' if mode=='prepare' else '读取已保存的提示词')
         p=outline.profile(e,snapshot['profileId'],snapshot.get('model') or cfg.get('model')) if mode=='write' else {}
         if mode=='write' and snapshot['profileSignature'] not in compatible_profile_signatures(p):raise ValueError('模型配置已变化，请重新开始')
         records=await asyncio.to_thread(retrieval.corpus,e) if mode=='prepare' else []
@@ -447,7 +445,7 @@ async def run(e,name,token,retriever_factory=None):
         corpus_sig=chunks.digest([snapshot['modelsSignature'],[(r['id'],chunks.embedding_text(r)) for r in records]])
         leaves={n['id']:n for u in snapshot['tasks'] for n in u['leaves']}
         queries={ident:n['title'] for ident,n in leaves.items()}
-        # One global local-inference queue, with one model instance per run, across workspaces.
+        # Each workspace schedules its own requests independently.
         guard=None;retriever=None;evidence_all={};writing_tasks=[];sem=asyncio.Semaphore(cfg['concurrency'])
         async def write_unit(unit,evidence):
             async with sem:
@@ -485,12 +483,11 @@ async def run(e,name,token,retriever_factory=None):
                         sections,errors=review_bundle.decode(object_json(fixed),bundle,unit,p)
                         if errors:raise ValueError('引用校验仍未通过：仅允许当前共享池中的证据 ID，父标题导语不能引用')
                     await verify_materials()
-                    with outline.lock(e):
-                        check();current=current_prepared(path,unit,cfg,snapshot['topic'],snapshot['sourceSignature'],set(snapshot.get('modelsAliases',[snapshot['modelsSignature']])))
-                        if not current or current['hash']!=pre['hash']:raise ValueError('生成期间材料包或资源发生变化，结果未发布，请重新准备')
-                        value={'signature':unit['signature'],'unitId':unit['id'],'unit_id':unit['serial'],'sections':sections,'evidence':evidence,'created':time.time(),'run':token,'model':p['model'],'promptHash':pre['hash']}
-                        e.write_json(path/'sections'/f'{unit["id"]}.json',value)
-                        e.write_json(path/'review_parts'/f'section_{unit["serial"]}.json',review_format.public_part(unit,sections,evidence))
+                    check();current=current_prepared(path,unit,cfg,snapshot['topic'],snapshot['sourceSignature'],set(snapshot.get('modelsAliases',[snapshot['modelsSignature']])))
+                    if not current or current['hash']!=pre['hash']:raise ValueError('生成期间材料包或资源发生变化，结果未发布，请重新准备')
+                    value={'signature':unit['signature'],'unitId':unit['id'],'unit_id':unit['serial'],'sections':sections,'evidence':evidence,'created':time.time(),'run':token,'model':p['model'],'promptHash':pre['hash']}
+                    e.write_json(path/'sections'/f'{unit["id"]}.json',value)
+                    e.write_json(path/'review_parts'/f'section_{unit["serial"]}.json',review_format.public_part(unit,sections,evidence))
                     update(unit['id'],state='done')
                 except (Cancelled,InputsChanged):raise
                 except Exception as ex:update(unit['id'],state='failed',error=safe_error(ex))
@@ -520,8 +517,7 @@ async def run(e,name,token,retriever_factory=None):
                             e.write_json(path/'retrieval'/f'{ident}.json',result)
                         evidence[ident]=result;evidence_all[ident]=result
                     await verify_materials()
-                    with outline.lock(e):
-                        check();prepare_unit(e,path,snapshot,unit,evidence)
+                    check();prepare_unit(e,path,snapshot,unit,evidence)
                     update(unit['id'],state='done');await asyncio.sleep(0)
                 except (Cancelled,InputsChanged):raise
                 except Exception as ex:update(unit['id'],state='failed',error=safe_error(ex))
@@ -537,28 +533,26 @@ async def run(e,name,token,retriever_factory=None):
         check();j=outline.read(path/'writing-job.json');failed=sum(i['state']=='failed' for i in j['items'].values());completed=sum(i['state']=='done' for i in j['items'].values())
         update(state='partial' if failed else 'done',completed=completed,failed=failed,phase='部分任务失败，可继续重试' if failed else '提示词准备完成' if mode=='prepare' else '综述撰写完成')
     except BaseException as ex:
-        with outline.lock(e):
-            j=outline.read(path/'writing-job.json',{})
-            if j.get('token')==token:
-                stopped=isinstance(ex,(Cancelled,asyncio.CancelledError)) or j.get('state')=='stopping'
-                for item in j.get('items',{}).values():
-                    if item['state'] not in ('done','failed'):item['state']='cancelled' if stopped else 'failed'
-                j.update(state='cancelled' if stopped else 'failed',error=safe_error(ex),completed=sum(i['state']=='done' for i in j['items'].values()),failed=sum(i['state']=='failed' for i in j['items'].values()),updated=time.time())
-                j.update(progress_counts(j));e.write_json(path/'writing-job.json',j)
-                e.write_json(runpath/'result.json',j)
+        j=outline.read(path/'writing-job.json',{})
+        if j.get('token')==token:
+            stopped=isinstance(ex,(Cancelled,asyncio.CancelledError)) or j.get('state')=='stopping' or outline.cancel_requested(path,'writing',token)
+            for item in j.get('items',{}).values():
+                if item['state'] not in ('done','failed'):item['state']='cancelled' if stopped else 'failed'
+            j.update(state='cancelled' if stopped else 'failed',error=safe_error(ex),completed=sum(i['state']=='done' for i in j['items'].values()),failed=sum(i['state']=='failed' for i in j['items'].values()),updated=time.time())
+            j.update(progress_counts(j));e.write_json(path/'writing-job.json',j)
+            e.write_json(runpath/'result.json',j)
         if not isinstance(ex,(Exception,asyncio.CancelledError)):raise
 
     finally:
         if mode=='write':
-            with outline.lock(e):
-                try:
-                    current=status(e,name)
-                    if current['total'] and current['completed']==current['total']:manuscripts.save(e,name)
-                except Exception as ex:
-                    current=outline.read(path/'writing-job.json',{})
-                    if current.get('token')==token:
-                        current['error']='正文已保留，但自动保存稿件失败：'+safe_error(ex)
-                        e.write_json(path/'writing-job.json',current)
+            try:
+                current=status(e,name)
+                if current['total'] and current['completed']==current['total']:manuscripts.save(e,name)
+            except Exception as ex:
+                current=outline.read(path/'writing-job.json',{})
+                if current.get('token')==token:
+                    current['error']='正文已保留，但自动保存稿件失败：'+safe_error(ex)
+                    e.write_json(path/'writing-job.json',current)
 
 def display_image(path,project,obj):
     # Prepared resources belong to the review, independently of corpus/vector life.

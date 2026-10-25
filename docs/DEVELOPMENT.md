@@ -89,7 +89,7 @@ CLI 为 `cache/tauri-target/debug/research-cli`。直接调用时必须设置 `S
 
 综述主要 RPC：`review.writing.status`、`prepare`、`start`、`retry`、`cancel`、`section`、`preview`、`export`、`settings`。文献库新增按钮对应 `download.start`、`markdown.reconcile`、`markdown.start`。
 
-`review_service.rpc()` 已持有项目综述锁。不要在其同步子调用里重复获取同一非重入文件锁；后台 worker 自己持锁。曾通过真实 CLI 集成测试发现过这种重复加锁导致的“无法启动撰写进程”，不能仅靠直接调用 Python 函数的单元测试判断。
+综述 RPC 和后台 worker 不再获取项目级综述文件锁，不添加跨工作区等待队列。各工作区按独立任务 token 更新进度并原子写入文件；同一工作区的活动任务检查、修订号和材料校验仍须保留。取消信号独立于进度 JSON，进度写入不能抹掉取消。并发改动应运行真实 CLI / worker 集成测试，覆盖跨工作区并行、持有遗留锁文件时正常运行、取消和失败重试；不要只用直接函数调用判断。
 
 ## 测试入口与隔离
 
