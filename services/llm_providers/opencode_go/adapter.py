@@ -43,6 +43,11 @@ def parts(content,protocol,role):
         else:raise ValueError('opencode_go 收到不支持的消息内容类型')
     return result
 
+def merge(target,patch):
+    for key,value in patch.items():
+        if isinstance(value,dict):merge(target.setdefault(key,{}),value)
+        else:target[key]=copy.deepcopy(value)
+
 def apply_reasoning(profile,body):
     selected=profile.get('reasoningByModel',{})
     if not isinstance(selected,dict):raise ValueError('模型思考强度配置格式无效')
@@ -51,10 +56,6 @@ def apply_reasoning(profile,body):
     reasoning=route(profile).get('reasoning',{})
     options=reasoning.get('options',{})
     if not isinstance(level,str) or level not in options:raise ValueError('此模型不支持所选思考强度，请重新选择')
-    def merge(target,patch):
-        for key,value in patch.items():
-            if isinstance(value,dict):merge(target.setdefault(key,{}),value)
-            else:target[key]=copy.deepcopy(value)
     # Patches come only from this installed provider's reviewed manifest.
     merge(body,options[level])
     if level=='budget':
@@ -95,10 +96,13 @@ def prepare(profile,messages):
         if protocol=='google':body['generationConfig']={'temperature':profile['temperature']}
         else:body['temperature']=profile['temperature']
     apply_reasoning(profile,body)
-    if protocol=='google':
-        # Go Gemini streams thought summaries only when explicitly requested.
-        # Preserve the selected effort (or server default) and temperature.
-        body.setdefault('generationConfig',{}).setdefault('thinkingConfig',{})['includeThoughts']=True
+    # Output opt-ins are protocol/model specific. They do not change effort or
+    # override an explicit disabled mode; automatic-output APIs need no extra flag.
+    output=settings.get('reasoning',{}).get('output',{})
+    if not (output.get('defaultThinkingType') and body.get('thinking',{}).get('type')=='disabled'):
+        merge(body,output.get('request',{}))
+        if output.get('defaultThinkingType'):
+            body.setdefault('thinking',{}).setdefault('type',output['defaultThinkingType'])
     return url,body,headers,Decoder(protocol)
 
 def chunk(text='',thought='',finish=None):
@@ -112,7 +116,21 @@ def stop(reason):
     return 'stop'
 
 class Decoder:
-    def __init__(self,protocol):self.protocol=protocol;self.text_seen=False;self.stop_reason=None
+    def __init__(self,protocol):
+        self.protocol=protocol;self.text_seen=False;self.stop_reason=None;self.thoughts={}
+
+    def thought(self,value,family,text,complete=False):
+        # Responses may repeat a delta stream in a done event and again in the
+        # final response. Track each item/part independently, also accepting
+        # gateways that send only done events or one completed JSON response.
+        key=(value.get('output_index',0),family,value.get('summary_index',value.get('content_index',0)))
+        previous=self.thoughts.get(key,'')
+        if complete:
+            if previous and not text.startswith(previous):return ''
+            self.thoughts[key]=text
+            return text[len(previous):]
+        self.thoughts[key]=previous+text
+        return text
     def decode(self,value):
         if value.get('error') or value.get('type')=='error':raise ValueError('opencode_go 服务返回流式错误，请检查订阅状态或稍后重试')
         if self.protocol=='chat':
@@ -131,17 +149,25 @@ class Decoder:
         kind=value.get('type','')
         if self.protocol=='responses':
             if kind=='response.output_text.delta':self.text_seen=True;return chunk(value.get('delta',''))
-            if kind in ('response.reasoning_summary_text.delta','response.reasoning_text.delta'):return chunk(thought=value.get('delta',''))
+            if kind in ('response.reasoning_summary_text.delta','response.reasoning_text.delta'):
+                return chunk(thought=self.thought(value,'summary' if 'summary' in kind else 'content',value.get('delta','')))
+            if kind in ('response.reasoning_summary_text.done','response.reasoning_text.done'):
+                return chunk(thought=self.thought(value,'summary' if 'summary' in kind else 'content',value.get('text',''),complete=True))
             if kind in ('response.failed','response.incomplete','response.refusal.delta'):raise ValueError('opencode_go Responses 未完整返回正文')
             if kind=='response.completed' or value.get('object')=='response':
                 response=value.get('response',value);stop(response.get('status',''))
-                text=''
-                for item in response.get('output',[]):
+                text='';thought=''
+                for index,item in enumerate(response.get('output',[])):
                     if item.get('type') not in ('message','reasoning'):raise ValueError('opencode_go 返回了应用不支持的工具调用')
+                    if item.get('type')=='reasoning':
+                        for family in ('summary','content'):
+                            for part_index,part in enumerate(item.get(family,[])):
+                                if part.get('type') in ('summary_text','reasoning_text','text'):
+                                    thought+=self.thought({'output_index':index,'content_index':part_index},family,part.get('text',''),complete=True)
                     for part in item.get('content',[]):
                         if part.get('type')=='refusal':raise ValueError('opencode_go 模型拒绝了请求')
                         if part.get('type')=='output_text' and not self.text_seen:text+=part.get('text','')
-                return chunk(text,finish='stop')
+                return chunk(text,thought,finish='stop')
             return chunk()
         if kind=='message' and 'content' in value:
             text='';thought=''

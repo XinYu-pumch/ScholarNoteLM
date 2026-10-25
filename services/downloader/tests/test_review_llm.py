@@ -103,9 +103,10 @@ class ConnectionTests(unittest.IsolatedAsyncioTestCase):
     for delta in chunks:yield ('data: '+json.dumps({'choices':[{'delta':delta}]})+'\n\n').encode()
     yield b'data: [DONE]\n\n'
   async def handler(req):return httpx.Response(200,headers={'Content-Type':'text/event-stream'},stream=Thoughts())
-  thoughts=[];content=[]
-  with self.client(handler):result=await llm.chat(self.profile,[],lambda:False,on_text=content.append,on_reasoning=thoughts.append)
+  thoughts=[];content=[];progress=[]
+  with self.client(handler):result=await llm.chat(self.profile,[],lambda:False,on_text=content.append,on_reasoning=thoughts.append,progress=lambda **v:progress.append(v))
   self.assertEqual(thoughts,['先查','先查资料。','先查资料。再核对。']);self.assertEqual(result,'Answer');self.assertEqual(content[-1],'Answer');self.assertNotIn('先查',result)
+  self.assertEqual(progress[-1],{'received':6,'reasoningCharacters':len(thoughts[-1])})
  async def test_reasoning_keeps_real_connection_alive_past_timeout(self):
   class Handler(BaseHTTPRequestHandler):
    def log_message(self,*args):pass

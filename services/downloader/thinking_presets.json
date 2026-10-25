@@ -49,7 +49,7 @@
         "summary",
         "off"
       ],
-      "note": "此预设使用 Gemini 原生接口。原有默认行为会请求思考摘要；不请求摘要不等于关闭思考。",
+      "note": "此预设使用 Gemini 原生接口，默认请求思考摘要。摘要是否返回仍由服务端决定；4router 可尝试 high 档位。不请求摘要不等于关闭思考。",
       "kind": "summary",
       "defaultMode": "summary"
     }

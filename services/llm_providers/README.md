@@ -47,6 +47,12 @@ Go 配置的 `reasoningByModel` 按模型 ID 保存选择。每行独立选择�
 
 Go 的 Gemini 请求始终发送 `generationConfig.thinkingConfig.includeThoughts: true`，包括强度为“服务端默认”时，以接收流式思考摘要。摘要通过已有推理字段传递，不混入大纲 CSV 或回答正文；所选强度和温度保持不变。此行为仅在 Go 的 `adapter.py` 中实现，不修改共用客户端、超时或缓存签名。摘要不保证固定发送间隔，服务端连续无数据仍可能触发已有超时。协议说明见 [Gemini 思考摘要](https://ai.google.dev/gemini-api/docs/generate-content/thinking#thought-summaries)。
 
+所有 Go 模型在各自 `reasoning.output` 中登记输出策略：GPT 与 Muse 的 Responses 请求发送 `reasoning.summary=auto`；Claude Haiku 5.5 发送 `thinking.display=summarized`（未指定模式时显式保持原厂默认 adaptive，disabled 时不发送 display）；Grok 按官方协议自动接收摘要；Chat 与其他 Messages 模型接收服务端提供的推理字段，不添加未经支持的输出开关。显式 none / disabled 保持原意；开启输出不等于强制模型每次都产生可读思考。设置弹窗说明该模型的策略，连接测试正确区分摘要与服务端推理文本。输出策略只在 Go 模块中实现，不改变普通配置、强度选择或缓存签名。
+
+Responses 同时解析摘要增量、done 事件和完整 JSON / completed 响应中的 summary 数组；按输出项和摘要分段去重，补齐仅在结束时返回的摘要，不显示 encrypted_content 或签名。共享客户端结束时刷新最终字符统计，避免短响应的思考计数遗漏。
+
+官方输出参数来源：[OpenAI summaries](https://developers.openai.com/api/docs/guides/reasoning#reasoning-summaries)、[Meta summaries](https://dev.meta.ai/docs/reasoning#reasoning-summaries)、[Claude display](https://platform.claude.com/docs/en/build-with-claude/thinking#controlling-thinking-display)、[Grok summaries](https://docs.x.ai/developers/model-capabilities/text/reasoning)。
+
 档位以 Go 官网链接的 models.dev 中 `opencode-go` 的 `reasoning_options` 为依据，参数拼写结合 OpenCode 的原生协议实现核对；来源链接固定在 manifest 的 `reasoningSources`。Go 的 `/models` 只返回模型身份，不能据此推断档位。按 2026-10-25 的公开目录登记强度、开关和预算选项（保留历史模型 ID，实际可用性仍由 Go 决定）：
 
 | 模型 | 档位 |
@@ -109,6 +115,8 @@ TEST_LLM_PROVIDER=opencode_go runtimes/downloader/bin/python scripts/test-reader
 - Gemini OpenAI Compatible：旧配置或输出选择“预设默认”时仍发送 `reasoning_effort`。显式选择请求／不请求摘要时，发送 `extra_body.google.thinking_config`，其中含 `thinking_level` 和 `include_thoughts`；不同时发送 `reasoning_effort`，避免重叠。这里的 extra_body 是 Google REST 请求本身的字段，不是 Python SDK 的展开语法。第三方中转站须支持这一扩展。
 - Gemini Native：将配置地址的尾部 `/v1` 转为 `/v1beta`（保留主机及中转前缀），也接受 `/v1beta` 或 `/v1beta/openai`；调用 `/models/{model}:streamGenerateContent?alt=sse`。转换文本、内嵌图片和系统消息；发送 `generationConfig.thinkingConfig.thinkingLevel` 及 `includeThoughts`（默认 true，可显式关闭）。返回摘要单独解析，不混入正文。不携带 Go 请求头。模型目录仍走配置地址的 `/models`，建议 4router 保留其 `/v1` Base URL。
 - DeepSeek OpenAI Compatible：发送 `thinking.type=enabled` 与 `reasoning_effort`；思考模式不发送无效的 temperature。面向当前 DeepSeek V4 系列，其他模型是否接受由服务端决定。
+
+4router 的 Gemini 原生预设与 openmirothinker 的可选模块使用相同的摘要参数。当前隔离实测中 medium 未返回摘要，high 返回了 `thought=true` 文本；需要摘要时可选择 high + 请求思考摘要，但这不保证服务端每次都返回。`thoughtSignature` 不是可显示的思考文本；应用不会通过提示词让模型把思考写入正文，也不会静默升档。
 
 不增加输出 token 限制，不改变全局网络或用户研究数据。非法预设/档位拒绝保存或调用；原生响应过滤、截断、工具调用明确失败，不静默切换协议。新版构建会包含预设目录。官方资料：Google [OpenAI兼容](https://ai.google.dev/gemini-api/docs/openai#thinking)、[原生思考](https://ai.google.dev/gemini-api/docs/generate-content/thinking)，[DeepSeek思考模式](https://api-docs.deepseek.com/guides/thinking_mode/)。
 

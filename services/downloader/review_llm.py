@@ -140,6 +140,7 @@ async def chat(profile,messages,cancelled,progress=lambda **kw:None,on_text=None
         await task
         if cancelled():raise Cancelled('已取消')
         if not output.strip():raise ValueError('模型只返回了推理内容，没有返回正文')
+        progress(received=len(output),reasoningCharacters=reasoning)
         return output
     except httpx.HTTPError as exc:raise ConnectionFailure(exc,profile['endpoint'],phase,attempts,len(output),reasoning,network_mode) from None
     finally:

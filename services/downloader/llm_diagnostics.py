@@ -17,6 +17,8 @@ FIELDS = ('reasoning_effort', 'thinking', 'enable_thinking', 'reasoning',
 def thinking_fields(body):
     """Expose only thinking fields, never messages, headers, keys or whole bodies."""
     result = {k: copy.deepcopy(body[k]) for k in FIELDS[:4] if k in body}
+    if isinstance(body.get('output_config'),dict) and 'effort' in body['output_config']:
+        result['output_config.effort'] = body['output_config']['effort']
     for key, path in [('generationConfig', ('thinkingConfig',)), ('extra_body', ('google', 'thinking_config'))]:
         value = body.get(key, {})
         for part in path:
@@ -58,6 +60,8 @@ async def test_connection(profile):
     selected = llm_thinking.selection(p)
     # Reject malformed preset choices before any request goes out.
     preset = llm_thinking.PRESETS[selected['preset']] if selected else None
+    provider = llm_provider.manifest(p)
+    output = (preset or {}).get('output',{}) if not provider else provider.get('models',{}).get(p['model'],{}).get('reasoning',{}).get('output',{})
     started = time.monotonic()
     content = 'Reply only: connection OK'
     expected = None
@@ -94,7 +98,7 @@ async def test_connection(profile):
     result = {'reply':reply[:200], 'seconds':round(time.monotonic()-started,2), 'model':p['model'],
               'client':'qa-stream', 'networkMode':connection.get('networkMode','direct'), 'imageVerified':bool(expected),
               'thinking':{'parameters':sent, **observation,
-                          'outputKind':preset.get('output',{}).get('kind','provider_defined') if preset else 'provider_defined',
+                          'outputKind':output.get('kind','provider_defined'),
                           'probe':{'status':'not_requested'}}}
     if not profile.get('testThinkingProbe'):
         return result

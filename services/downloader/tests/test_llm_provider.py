@@ -34,6 +34,49 @@ class ProviderTests(unittest.IsolatedAsyncioTestCase):
   self.assertEqual(url,'https://opencode.ai/inference/go/google/v1beta/models/gemini-4-argon:streamGenerateContent?alt=sse')
   self.assertEqual(body['generationConfig']['thinkingConfig'],{'thinkingLevel':'medium','includeThoughts':True})
   self.assertIn('x-opencode-session',headers)
+ def test_go_output_policy_covers_catalog_without_changing_effort(self):
+  catalog=providers.manifest({'provider':'opencode_go'})['models']
+  for model,info in catalog.items():
+   for level in ['',*info['reasoning']['levels']]:
+    p={**self.profile(model),'reasoningByModel':{model:level},'reasoningBudgetByModel':{model:4096}}
+    before=copy.deepcopy(p);body=providers.adapter(p).prepare(p,[])[1]
+    self.assertIn('output',info['reasoning']);self.assertEqual(p,before)
+    if model.startswith(('gpt-','muse-')):
+     self.assertEqual(body['reasoning']['summary'],'auto')
+     self.assertEqual(body['reasoning'].get('effort',''),level)
+    elif info['protocol']=='google':self.assertTrue(body['generationConfig']['thinkingConfig']['includeThoughts'])
+    else:self.assertNotIn('summary',body.get('reasoning',{}))
+    if model=='claude-haiku-5-5':
+     if level=='disabled':self.assertNotIn('display',body['thinking'])
+     else:self.assertEqual(body['thinking'],{'type':'adaptive','display':'summarized'})
+    if level=='disabled':self.assertEqual(body['thinking']['type'],'disabled')
+    self.assertNotIn('include',body)  # Never request opaque encrypted reasoning as display text.
+ async def test_responses_final_json_summary_is_separate_and_classified(self):
+  response={'object':'response','status':'completed','output':[
+   {'type':'reasoning','summary':[{'type':'summary_text','text':'summary'}],'encrypted_content':'not-display-text'},
+   {'type':'message','content':[{'type':'output_text','text':'answer'}]}]}
+  async def handler(req):
+   self.assertEqual(json.loads(req.content)['reasoning']['summary'],'auto')
+   return httpx.Response(200,json=response)
+  thoughts=[];p=self.profile('gpt-6-luna')
+  with self.client(handler),patch.object(llm,'system_proxy',return_value=None):
+   self.assertEqual(await llm.chat(p,[],lambda:False,on_reasoning=thoughts.append),'answer')
+   result=await llm.test_connection(p)
+  self.assertEqual(thoughts,['summary']);self.assertEqual(result['thinking']['outputKind'],'summary')
+  self.assertEqual(result['thinking']['reasoningCharacters'],7)
+ def test_responses_done_and_completion_do_not_duplicate_or_drop_summary_parts(self):
+  decoder=providers.adapter(self.profile('gpt-6-luna')).Decoder('responses')
+  events=[{'type':'response.reasoning_summary_text.delta','output_index':0,'summary_index':0,'delta':'first'},
+   {'type':'response.reasoning_summary_text.done','output_index':0,'summary_index':0,'text':'first summary'},
+   {'type':'response.reasoning_summary_text.done','output_index':0,'summary_index':1,'text':'second summary'},
+   {'type':'response.reasoning_text.done','output_index':1,'content_index':0,'text':'reasoning'},
+   {'type':'response.completed','response':{'status':'completed','output':[
+    {'type':'reasoning','summary':[{'type':'summary_text','text':'first summary'},{'type':'summary_text','text':'second summary'}]},
+    {'type':'reasoning','content':[{'type':'reasoning_text','text':'reasoning'}]},
+    {'type':'message','content':[{'type':'output_text','text':'answer'}]}]}}]
+  chunks=[decoder.decode(e)['choices'][0]['delta'] for e in events]
+  self.assertEqual(''.join(c['reasoning_content'] for c in chunks),'first summarysecond summaryreasoning')
+  self.assertEqual(''.join(c['content'] for c in chunks),'answer')
  def profile(self,model):
   p={'id':'p','provider':'opencode_go','baseUrl':'https://opencode.ai/inference/go/v1','model':model,'apiKey':'fixture-secret','temperature':None,'timeout':10}
   p['endpoint']=providers.endpoint(p,llm.endpoint);return providers.with_session(p,'qa','project','thread')
@@ -93,8 +136,8 @@ class ProviderTests(unittest.IsolatedAsyncioTestCase):
   selected={'deepseek-v4.1-flash':'max','gemini-4-argon-contributor':'medium','gpt-6-luna':'xhigh','claude-haiku-5-5':'high','qwen3.8-max':'xhigh'}
   expected=[('deepseek-v4.1-flash',{'reasoning_effort':'max','thinking':{'type':'enabled'}}),
    ('gemini-4-argon-contributor',{'generationConfig':{'thinkingConfig':{'thinkingLevel':'medium','includeThoughts':True}}}),
-   ('gpt-6-luna',{'reasoning':{'effort':'xhigh'}}),
-   ('claude-haiku-5-5',{'thinking':{'type':'adaptive'},'output_config':{'effort':'high'}}),
+   ('gpt-6-luna',{'reasoning':{'effort':'xhigh','summary':'auto'}}),
+   ('claude-haiku-5-5',{'thinking':{'type':'adaptive','display':'summarized'},'output_config':{'effort':'high'}}),
    ('qwen3.8-max',{'thinking':{'type':'enabled'},'output_config':{'effort':'xhigh'}})]
   for model,fields in expected:
    p={**self.profile(model),'reasoningByModel':selected}
@@ -113,7 +156,7 @@ class ProviderTests(unittest.IsolatedAsyncioTestCase):
    p=self.profile(model);module=providers.adapter(p)
    for level,kind in [('enabled',on),('disabled','disabled')]:
     body=module.prepare({**p,'reasoningByModel':{model:level}},[])[1]
-    self.assertEqual(body['thinking'],{'type':kind});self.assertNotIn('output_config',body)
+    self.assertEqual(body['thinking'],{'type':kind,**({'display':'summarized'} if model=='claude-haiku-5-5' and level!='disabled' else {})});self.assertNotIn('output_config',body)
   p=self.profile('qwen3.8-max');p['reasoningByModel']={p['model']:'budget'}
   module=providers.adapter(p)
   for budget in [1,32768,262144]:
