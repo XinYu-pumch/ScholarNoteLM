@@ -27,7 +27,11 @@ def selection(profile):
     level = value.get('level', preset['defaultLevel'])
     if not isinstance(level, str) or level not in preset['levels']:
         raise ValueError('此思考预设不支持所选档位，请重新选择')
-    return {'preset': preset['id'], 'level': level}
+    output = value.get('output', 'default')
+    if not isinstance(output, str) or output not in preset.get('output', {}).get('modes', ['default']):
+        raise ValueError('此思考预设不支持所选输出方式')
+    # Missing/default preserves historic signatures exactly.
+    return {'preset': preset['id'], 'level': level, **({'output': output} if output != 'default' else {})}
 
 
 def endpoint(profile):
@@ -100,6 +104,16 @@ def prepare(profile, messages):
         body = {'model': profile['model'], 'messages': messages, 'stream': True}
         # Only reviewed local presets can supply request fields.
         body.update(copy.deepcopy(preset['options'][selected['level']]))
+    output = selected.get('output', 'default')
+    if output != 'default':
+        if native:
+            body['generationConfig']['thinkingConfig']['includeThoughts'] = output == 'summary'
+        else:
+            # Google REST extension is genuinely nested in extra_body. Unlike
+            # Python SDK extra_body, it must not be flattened on the wire.
+            body.pop('reasoning_effort', None)
+            body['extra_body'] = {'google': {'thinking_config': {
+                'thinking_level': selected['level'], 'include_thoughts': output == 'summary'}}}
     temperature = profile.get('temperature')
     if isinstance(temperature, (int, float)) and not preset.get('omitTemperature'):
         (body['generationConfig'] if native else body)['temperature'] = temperature

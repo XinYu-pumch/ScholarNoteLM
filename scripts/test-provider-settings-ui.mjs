@@ -32,11 +32,12 @@ try{
  await page.getByRole('textbox',{name:'API Key',exact:true}).fill('fixture-ui-secret');await page.getByRole('button',{name:'手动添加模型',exact:true}).click();await page.getByRole('textbox',{name:'手动模型名称',exact:true}).fill('deepseek-v4.1-flash');await page.getByRole('button',{name:'添加模型',exact:true}).click();
  for(const model of ['gemini-4-argon-contributor','deepseek-v4-pro','minimax-m2.7','qwen3.8-max']){await page.getByRole('textbox',{name:'手动模型名称',exact:true}).fill(model);await page.getByRole('button',{name:'添加模型',exact:true}).click();}
  await page.getByRole('checkbox',{name:'gemini-4-argon-contributor 支持图片输入',exact:true}).check();
- async function effort(model,options,selection){const control=page.getByRole('combobox',{name:model+' 思考强度',exact:true});await control.click();await expect(page.getByRole('listbox').getByRole('option')).toHaveText(['服务端默认',...options]);await page.getByRole('option',{name:selection,exact:true}).click();}
+ async function openThinking(model){await page.getByRole('button',{name:model+' 思考设置',exact:true}).click();}
+ async function applyThinking(){await page.getByRole('dialog',{name:'思考设置',exact:true}).getByRole('button',{name:'应用',exact:true}).click();}
+ async function effort(model,options,selection){await openThinking(model);const control=page.getByRole('combobox',{name:model+' 思考强度',exact:true});await control.click();await expect(page.getByRole('listbox').getByRole('option')).toHaveText(['服务端默认',...options]);await page.getByRole('option',{name:selection,exact:true}).click();if(selection==='budget')await page.getByRole('spinbutton',{name:model+' 思考 token 预算',exact:true}).fill('262144');await applyThinking();}
  await effort('deepseek-v4.1-flash',['low','high','max'],'max');await effort('gemini-4-argon-contributor',['low','medium','high'],'medium');await effort('deepseek-v4-pro',['high','max'],'high');
- await expect(page.getByRole('combobox',{name:'minimax-m2.7 思考强度',exact:true})).toBeDisabled();
+ await openThinking('minimax-m2.7');await expect(page.getByRole('combobox',{name:'minimax-m2.7 思考强度',exact:true})).toBeDisabled();await applyThinking();
  await effort('qwen3.8-max',['low','medium','xhigh','enabled','disabled','budget'],'budget');
- await page.getByRole('spinbutton',{name:'qwen3.8-max 思考 token 预算',exact:true}).fill('262144');
  // Switching providers participates in the existing unsaved-change guard.
  await ordinaryButton.click();await expect(page.getByRole('dialog')).toBeVisible();await page.getByRole('button',{name:'继续编辑',exact:true}).click();
  await page.getByRole('button',{name:'保存配置',exact:true}).click();await expect(page.getByText('当前配置已保存',{exact:true})).toBeVisible();
@@ -48,33 +49,55 @@ try{
   const eye=page.getByRole('button',{name:'隐藏 API 密钥',exact:true});const inputBox=await keyInput.boundingBox(),eyeBox=await eye.boundingBox();expect(eyeBox.y).toBeGreaterThanOrEqual(inputBox.y);expect(eyeBox.y+eyeBox.height).toBeLessThanOrEqual(inputBox.y+inputBox.height+1);
   await eye.click();await expect(keyInput).toHaveAttribute('type','password');await expect(page.getByText('当前配置已保存',{exact:true})).toBeVisible();
  }
- await page.route('**/__research',async route=>{const body=route.request().postDataJSON();if(body.action==='llm.test'){await new Promise(r=>setTimeout(r,700));await route.fulfill({json:{ok:true,data:{seconds:0.7,reply:'fixture'}}});}else await route.continue();});
+ await page.route('**/__research',async route=>{const body=route.request().postDataJSON();if(body.action==='llm.test'){await new Promise(r=>setTimeout(r,700));await route.fulfill({json:{ok:true,data:{seconds:0.7,reply:'fixture',thinking:{parameters:{reasoning_effort:'high'},reasoningCharacters:10,reasoningTokens:24,outputKind:'summary',probe:{status:body.args.profile.testThinkingProbe?'rejected':'not_requested',parameter:'reasoning_effort',httpStatus:422}}}}});}else await route.continue();});
  await page.locator('.model-unified-row').first().scrollIntoViewIfNeeded();
  const row=page.locator('.model-unified-row').nth(1);const rowPosition=()=>row.evaluate(el=>el.getBoundingClientRect().y+document.querySelector('.settings-body').scrollTop);const before=await rowPosition();await page.getByRole('button',{name:'测试连接',exact:true}).first().click();await expect(page.getByText('正在测试…',{exact:true})).toBeVisible();expect(Math.abs((await rowPosition())-before)).toBeLessThan(1);await expect(page.getByText('连接通过 · 0.7 秒',{exact:true})).toBeVisible();expect(Math.abs((await rowPosition())-before)).toBeLessThan(1);
+ // A response from an obsolete draft must not reappear after a setting changes.
+ await page.getByRole('button',{name:'测试连接',exact:true}).first().click();
+ const changedVision=page.getByRole('checkbox',{name:'deepseek-v4.1-flash 支持图片输入',exact:true});await changedVision.check();await changedVision.uncheck();
+ await expect(page.getByRole('button',{name:'测试连接',exact:true}).first()).toBeEnabled();
+ await expect(page.getByText('连接通过 · 0.7 秒',{exact:true})).toHaveCount(0);
+ await page.getByRole('button',{name:'保存配置',exact:true}).click();await expect(page.getByText('当前配置已保存',{exact:true})).toBeVisible();
  const nav=page.locator('.settings-nav');const navBefore=await nav.boundingBox();await page.locator('.settings-body').evaluate(el=>el.scrollTop=el.scrollHeight);expect(Math.abs((await nav.boundingBox()).y-navBefore.y)).toBeLessThan(1);expect(await page.locator('.main-content').evaluate(el=>el.scrollTop)).toBe(0);
  await page.locator('.model-choice-box').scrollIntoViewIfNeeded();
  await page.screenshot({path:path.join(app,'provider-open.png'),fullPage:true});
  await ordinaryButton.click();await expect(page.getByRole('textbox',{name:'配置名称',exact:true})).toHaveValue('opencode_go');await expect(page.getByRole('textbox',{name:'API 地址',exact:true})).not.toHaveAttribute('readonly','');await expect(page.getByRole('button',{name:'新建供应商',exact:true})).toBeVisible();await expect(page.getByRole('combobox',{name:/思考强度/})).toHaveCount(0);
 
  const presetControl=page.getByRole('combobox',{name:'ordinary 思考预设',exact:true});
+ const ordinaryEffort=page.getByRole('combobox',{name:'ordinary 思考强度',exact:true});
+ await openThinking('ordinary');
  await presetControl.click();await expect(page.getByRole('listbox').getByRole('option')).toHaveText(['服务端默认',...JSON.parse(await readFile(path.join(root,'services/downloader/thinking_presets.json'),'utf8')).map(p=>p.name)]);
  await page.getByRole('option',{name:'Generic · Reasoning Effort',exact:true}).click();
- await expect(page.getByRole('combobox',{name:'ordinary 思考强度',exact:true})).toContainText('default');
+ await expect(ordinaryEffort).toContainText('default');
+ await expect(page.getByRole('combobox',{name:'ordinary 思考输出',exact:true})).toBeDisabled();
+ await presetControl.click();await page.getByRole('option',{name:'Gemini 4 · OpenAI Compatible',exact:true}).click();
+ await ordinaryEffort.click();await page.getByRole('option',{name:'high',exact:true}).click();
+ const output=page.getByRole('combobox',{name:'ordinary 思考输出',exact:true});
+ await output.click();await page.getByRole('option',{name:'请求思考摘要',exact:true}).click();
+ await page.getByRole('button',{name:'深入验证参数',exact:true}).click();
+ await expect(page.getByText('错误值被服务端明确拒绝，说明该参数被校验；这不能证明合法档位的实际推理强度。',{exact:false})).toBeVisible();
+ await page.getByText('本次发送的思考参数',{exact:true}).click();await expect(page.locator('.thinking-test-details pre')).toContainText('reasoning_effort');
  await page.setViewportSize({width:900,height:650});expect(await page.evaluate(()=>document.documentElement.scrollWidth>innerWidth)).toBe(false);
- await presetControl.click();await page.getByRole('option',{name:'Gemini 4 · Native',exact:true}).click();
- const ordinaryEffort=page.getByRole('combobox',{name:'ordinary 思考强度',exact:true});
- await expect(ordinaryEffort).toContainText('medium');await ordinaryEffort.click();await page.getByRole('option',{name:'high',exact:true}).click();
- await page.getByRole('button',{name:'保存配置',exact:true}).click();await expect(page.getByText('当前配置已保存',{exact:true})).toBeVisible();
- expect(rpc('profile.list').profiles.find(p=>p.id==='ordinary').thinkingByModel).toEqual({ordinary:{preset:'gemini4_native',level:'high'}});
- await page.reload();await page.getByRole('button',{name:'设置',exact:true}).click();await expect(presetControl).toContainText('Gemini 4 · Native');await expect(ordinaryEffort).toContainText('high');
- await page.setViewportSize({width:900,height:650});await page.locator('.model-choice-box').scrollIntoViewIfNeeded();expect(await page.evaluate(()=>document.documentElement.scrollWidth>innerWidth)).toBe(false);
  await page.screenshot({path:path.join(app,'thinking-native-compact.png'),fullPage:true});
- await presetControl.click();await page.getByRole('option',{name:'DeepSeek · OpenAI Compatible',exact:true}).click();await ordinaryEffort.click();await expect(page.getByRole('listbox').getByRole('option')).toHaveText(['low','high','max']);await page.getByRole('option',{name:'max',exact:true}).click();
- await presetControl.click();await page.getByRole('option',{name:'服务端默认',exact:true}).click();await expect(ordinaryEffort).toHaveCount(0);await page.getByRole('button',{name:'保存配置',exact:true}).click();await expect(page.getByText('当前配置已保存',{exact:true})).toBeVisible();
+ await applyThinking();await expect(presetControl).toHaveCount(0);
+ await page.getByRole('button',{name:'保存配置',exact:true}).click();await expect(page.getByText('当前配置已保存',{exact:true})).toBeVisible();
+ expect(rpc('profile.list').profiles.find(p=>p.id==='ordinary').thinkingByModel).toEqual({ordinary:{preset:'gemini4_openai',level:'high',output:'summary'}});
+ await page.reload();await page.getByRole('button',{name:'设置',exact:true}).click();
+ await expect(page.getByRole('button',{name:'ordinary 思考设置',exact:true})).toContainText('high');
+ await openThinking('ordinary');await expect(output).toContainText('请求思考摘要');
+ // Cancel a modified dialog through the draft guard; the saved value survives.
+ await ordinaryEffort.click();await page.getByRole('option',{name:'low',exact:true}).click();
+ await page.getByRole('dialog',{name:'思考设置',exact:true}).getByRole('button',{name:'取消',exact:true}).click();
+ await page.getByRole('button',{name:'不保存并离开',exact:true}).click();
+ await expect(page.getByRole('button',{name:'ordinary 思考设置',exact:true})).toContainText('high');
+ await openThinking('ordinary');await presetControl.click();await page.getByRole('option',{name:'DeepSeek · OpenAI Compatible',exact:true}).click();await ordinaryEffort.click();await expect(page.getByRole('listbox').getByRole('option')).toHaveText(['low','high','max']);await page.getByRole('option',{name:'max',exact:true}).click();
+ await presetControl.click();await page.getByRole('option',{name:'服务端默认',exact:true}).click();await expect(ordinaryEffort).toHaveCount(0);await applyThinking();
+ await page.getByRole('button',{name:'保存配置',exact:true}).click();await expect(page.getByText('当前配置已保存',{exact:true})).toBeVisible();
  expect(rpc('profile.list').profiles.find(p=>p.id==='ordinary').thinkingByModel).toEqual({});
  await page.reload();await page.getByRole('button',{name:'设置',exact:true}).click();await expect(ordinaryButton).toHaveAttribute('aria-pressed','true');
- await page.setViewportSize({width:900,height:650});await goButton.click();expect(await page.evaluate(()=>document.documentElement.scrollWidth>innerWidth)).toBe(false);await expect(page.getByRole('combobox',{name:'deepseek-v4.1-flash 思考强度',exact:true})).toContainText('max');await expect(page.getByRole('combobox',{name:'gemini-4-argon-contributor 思考强度',exact:true})).toContainText('medium');
- await effort('deepseek-v4.1-flash',['low','high','max'],'服务端默认');await page.getByRole('button',{name:'保存配置',exact:true}).click();await expect(page.getByText('当前配置已保存',{exact:true})).toBeVisible();expect(rpc('profile.list').profiles.find(p=>p.provider==='opencode_go').reasoningByModel).toEqual({'gemini-4-argon-contributor':'medium','deepseek-v4-pro':'high','qwen3.8-max':'budget'});expect(go.reasoningBudgetByModel).toEqual({'qwen3.8-max':262144});
+ await goButton.click();expect(await page.evaluate(()=>document.documentElement.scrollWidth>innerWidth)).toBe(false);
+ await expect(page.getByRole('button',{name:'deepseek-v4.1-flash 思考设置',exact:true})).toContainText('max');await expect(page.getByRole('button',{name:'gemini-4-argon-contributor 思考设置',exact:true})).toContainText('medium');
+ await effort('deepseek-v4.1-flash',['low','high','max'],'服务端默认');await page.getByRole('button',{name:'保存配置',exact:true}).click();await expect(page.getByText('当前配置已保存',{exact:true})).toBeVisible();expect(rpc('profile.list').profiles.find(p=>p.provider==='opencode_go').reasoningByModel).toEqual({'gemini-4-argon-contributor':'medium','deepseek-v4-pro':'high','qwen3.8-max':'budget'});
  await page.screenshot({path:path.join(app,'provider-compact.png'),fullPage:true});
  await mkdir(path.join(root,'docs/screenshots'),{recursive:true});await page.evaluate(()=>document.documentElement.dataset.theme='dark');await page.screenshot({path:path.join(root,'docs/screenshots/provider-dark.png'),fullPage:true});await page.evaluate(()=>delete document.documentElement.dataset.theme);
 

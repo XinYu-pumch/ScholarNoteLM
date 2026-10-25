@@ -7,6 +7,25 @@ from network import system_proxy
 
 class Cancelled(Exception):pass
 
+class UpstreamFailure(ValueError):
+    """Keep only safe diagnostics; upstream bodies may echo credentials/prompts."""
+    def __init__(self,status,body):
+        import re
+        self.status=status
+        self.rejected_fields=set()
+        fields=('reasoning_effort','thinking_level','thinkingLevel','thinking.type','enable_thinking')
+        try:
+            data=json.loads(body);error=data.get('error',data)
+            param=error.get('param','') if isinstance(error,dict) else ''
+            message=error.get('message','') if isinstance(error,dict) else ''
+            for field in fields:
+                if isinstance(param,str) and (param==field or param.endswith('.'+field)):
+                    self.rejected_fields.add(field)
+                elif isinstance(message,str) and field in message and re.search(r'invalid|unsupported|not supported|must be|allowed|非法|无效|不支持',message,re.I):
+                    self.rejected_fields.add(field)
+        except (ValueError,TypeError,AttributeError):pass
+        super().__init__(f'模型请求失败（HTTP {status}）；请检查模型、密钥及上下文长度')
+
 class ConnectionFailure(ValueError):
     def __init__(self,exc,endpoint,phase,attempts,received,reasoning,network_mode='direct'):
         chain=[];current=exc
@@ -36,24 +55,11 @@ def endpoint(base):
     return base+('/v1' if not urlsplit(base).path.strip('/') else '')+'/chat/completions'
 
 async def test_connection(profile):
-    p={**profile,'endpoint':llm_provider.endpoint(profile,endpoint)};started=time.monotonic()
-    p=llm_provider.with_session(p,'connection-test',__import__('uuid').uuid4().hex)
-    if not p.get('model'):raise ValueError('请选择要测试的模型')
-    content='Reply only: connection OK';expected=None
-    if profile.get('testVision'):
-        import base64,secrets,struct,zlib
-        expected,rgb=secrets.choice([('red',(255,0,0)),('green',(0,180,0)),('blue',(0,0,255))])
-        def part(kind,data):return struct.pack('!I',len(data))+kind+data+struct.pack('!I',zlib.crc32(kind+data)&0xffffffff)
-        png=b'\x89PNG\r\n\x1a\n'+part(b'IHDR',struct.pack('!2I5B',64,64,8,2,0,0,0))+part(b'IDAT',zlib.compress((b'\0'+bytes(rgb)*64)*64))+part(b'IEND',b'')
-        content=[{'type':'text','text':'Name the solid color in this image. Reply with one English color word only.'},
-                 {'type':'image_url','image_url':{'url':'data:image/png;base64,'+base64.b64encode(png).decode()}}]
-    connection={}
-    reply=await chat(p,[{'role':'user','content':content}],lambda:False,progress=lambda **kw:connection.update(kw))
-    if expected and reply.strip().lower().strip('.。!')!=expected:raise ValueError('服务接受了图片，但识别结果未通过；请核对该模型是否支持图片')
-    return {'reply':reply[:200],'seconds':round(time.monotonic()-started,2),'model':p['model'],'client':'qa-stream','networkMode':connection.get('networkMode','direct'),'imageVerified':bool(expected)}
+    from llm_diagnostics import test_connection as diagnose
+    return await diagnose(profile)
 
 
-async def chat(profile,messages,cancelled,progress=lambda **kw:None,on_text=None,on_reasoning=None):
+async def chat(profile,messages,cancelled,progress=lambda **kw:None,on_text=None,on_reasoning=None,*,on_response=None,request_transform=None):
     output='';reasoning=0;reasoning_text='';last=0;phase='connecting';attempts=0;network_mode='direct'
     provider=llm_provider.adapter(profile);decode=lambda value:value
     def receive(value):
@@ -75,6 +81,9 @@ async def chat(profile,messages,cancelled,progress=lambda **kw:None,on_text=None
         if time.monotonic()-last>.5:
             progress(received=len(output),reasoningCharacters=reasoning);last=time.monotonic()
         return bool(choice.get('finish_reason'))
+    def receive_response(value):
+        if on_response is not None:on_response(value)
+        return receive(decode(value))
     async def request():
         nonlocal phase,network_mode,decode
         phase='connecting'
@@ -85,14 +94,20 @@ async def chat(profile,messages,cancelled,progress=lambda **kw:None,on_text=None
         url=profile['endpoint']
         if provider:
             url,body,headers,decoder=provider.prepare(profile,messages);decode=decoder.decode
+        if request_transform is not None:body=request_transform(body)
         proxy=system_proxy(url);network_mode='system_proxy' if proxy else 'direct'
         async with httpx.AsyncClient(timeout=httpx.Timeout(timeout,connect=min(25,timeout)),follow_redirects=False,trust_env=False,proxy=proxy) as client:
             async with client.stream('POST',url,json=body,headers=headers) as response:
                 phase='response'
                 progress(connectionStatus='connected',connectionAttempts=attempts,networkMode=network_mode)
-                if not response.is_success:raise ValueError(f'模型请求失败（HTTP {response.status_code}）；请检查模型、密钥及上下文长度')
+                if not response.is_success:
+                    data=b''
+                    async for part in response.aiter_bytes():
+                        data+=part[:max(0,16384-len(data))]
+                        if len(data)>=16384:break
+                    raise UpstreamFailure(response.status_code,data)
                 if 'application/json' in response.headers.get('content-type',''):
-                    receive(decode(json.loads(await response.aread())));return
+                    receive_response(json.loads(await response.aread()));return
                 phase='streaming'
                 payload=[];finished=False;done=False
                 async for line in response.aiter_lines():
@@ -100,11 +115,11 @@ async def chat(profile,messages,cancelled,progress=lambda **kw:None,on_text=None
                     elif not line.strip() and payload:
                         data='\n'.join(payload);payload=[]
                         if data=='[DONE]':done=True;break
-                        finished=receive(decode(json.loads(data))) or finished
+                        finished=receive_response(json.loads(data)) or finished
                 if payload:
                     data='\n'.join(payload)
                     if data=='[DONE]':done=True
-                    else:finished=receive(decode(json.loads(data))) or finished
+                    else:finished=receive_response(json.loads(data)) or finished
                 if not done and not finished:raise ValueError('模型连接中断，未收到完成标志，未发布正文')
     async def connect():
         nonlocal attempts

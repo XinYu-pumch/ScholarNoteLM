@@ -20,6 +20,16 @@
       "high": {
         "reasoning_effort": "high"
       }
+    },
+    "output": {
+      "modes": [
+        "default",
+        "summary",
+        "off"
+      ],
+      "note": "可显式请求思考摘要。使用 Google 的 Chat Completions 扩展字段；第三方中转站可能不支持。服务端默认保留原请求。",
+      "kind": "summary",
+      "defaultMode": "summary"
     }
   },
   {
@@ -32,7 +42,17 @@
       "high"
     ],
     "defaultLevel": "medium",
-    "source": "https://ai.google.dev/gemini-api/docs/generate-content/thinking"
+    "source": "https://ai.google.dev/gemini-api/docs/generate-content/thinking",
+    "output": {
+      "modes": [
+        "default",
+        "summary",
+        "off"
+      ],
+      "note": "此预设使用 Gemini 原生接口。原有默认行为会请求思考摘要；不请求摘要不等于关闭思考。",
+      "kind": "summary",
+      "defaultMode": "summary"
+    }
   },
   {
     "id": "deepseek_openai",
@@ -66,7 +86,15 @@
       }
     },
     "omitTemperature": true,
-    "note": "DeepSeek V4.1 Flash: low/high/max; V4 Pro: high/max. Choose only levels supported by your model."
+    "note": "DeepSeek V4.1 Flash: low/high/max; V4 Pro: high/max. Choose only levels supported by your model.",
+    "output": {
+      "modes": [
+        "default"
+      ],
+      "note": "思考模式通常自动通过 reasoning_content 返回推理文本，没有独立的摘要开关。不保证公开完整内部思维链。",
+      "kind": "reasoning_text",
+      "defaultMode": "default"
+    }
   },
   {
     "id": "generic_effort",
@@ -115,7 +143,15 @@
       "https://docs.x.ai/developers/model-capabilities/text/reasoning",
       "https://dev.meta.ai/docs/reasoning",
       "https://platform.moonshot.ai/docs/api/chat"
-    ]
+    ],
+    "output": {
+      "modes": [
+        "default"
+      ],
+      "note": "同一强度字段不代表同一输出能力：Kimi 通常返回推理文本；OpenAI 和 Meta 外部 Chat Completions 不公开内部推理；Grok 按模型和接口而定。不能把 Responses 的摘要参数用于此通用预设。",
+      "kind": "provider_defined",
+      "defaultMode": "default"
+    }
   },
   {
     "id": "generic_thinking_toggle",
@@ -146,7 +182,15 @@
       "https://mimo.mi.com/docs/en-US/api/chat/openai-api",
       "https://platform.moonshot.ai/docs/api/chat",
       "https://docs.z.ai/api-reference/llm/chat-completion"
-    ]
+    ],
+    "output": {
+      "modes": [
+        "default"
+      ],
+      "note": "MiMo、Kimi K2.6、GLM 的思考文本通常随思考模式自动返回；此通用预设没有独立摘要开关。",
+      "kind": "reasoning_text",
+      "defaultMode": "default"
+    }
   },
   {
     "id": "qwen_openai",
@@ -186,7 +230,15 @@
     "note": "Qwen 3.8: low/medium/xhigh. Earlier hybrid Qwen models may support only enabled/disabled. enable_thinking is sent at the top level, not inside extra_body. default follows the service.",
     "sources": [
       "https://help.aliyun.com/en/model-studio/qwen-api-via-openai-chat-completions"
-    ]
+    ],
+    "output": {
+      "modes": [
+        "default"
+      ],
+      "note": "思考模式通常自动通过 reasoning_content 返回推理文本；不额外发送摘要参数。",
+      "kind": "reasoning_text",
+      "defaultMode": "default"
+    }
   },
   {
     "id": "glm_openai",
@@ -224,6 +276,14 @@
     "note": "GLM 5.3 / 5.3 Flash: low/high/max; GLM 5.2: high/max. Default effort: max. GLM 5.3 cannot disable thinking. Same thinking fields as DeepSeek, but temperature and defaults differ.",
     "sources": [
       "https://docs.z.ai/api-reference/llm/chat-completion"
-    ]
+    ],
+    "output": {
+      "modes": [
+        "default"
+      ],
+      "note": "思考模式通常自动通过 reasoning_content 返回推理文本；不额外发送摘要参数。",
+      "kind": "reasoning_text",
+      "defaultMode": "default"
+    }
   }
 ]

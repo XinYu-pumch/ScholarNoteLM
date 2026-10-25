@@ -14,6 +14,8 @@ class Handler(BaseHTTPRequestHandler):
   self.send_response(200);self.send_header('Content-Type','application/json');self.end_headers();self.wfile.write(json.dumps({'data':[{'id':m} for m in [*MODELS,'deepseek-flash','future-unknown']]}).encode())
  def do_POST(self):
   body=json.loads(self.rfile.read(int(self.headers['Content-Length'])));requests.append({'path':self.path,'body':body,'headers':dict(self.headers)})
+  if '__invalid_probe__' in json.dumps(body):
+   self.send_response(422);self.send_header('Content-Type','application/json');self.end_headers();self.wfile.write(json.dumps({'error':{'param':'thinking_level','message':'invalid thinking_level'}}).encode());return
   text='### 基础检索\n\n```pubmed\nPLA2R[tiab]\n```'
   self.send_response(200);self.send_header('Content-Type','text/event-stream');self.end_headers()
   if 'CANCEL_FIXTURE' in json.dumps(body):slow_started.set();time.sleep(3)
@@ -116,6 +118,19 @@ try:
     if preset=='qwen_openai':assert observed['body']['enable_thinking'] is True and 'extra_body' not in observed['body']
     if preset=='deepseek_openai':assert observed['body']['thinking']=={'type':'enabled'} and 'temperature' not in observed['body']
    invalid={**custom,'thinkingByModel':{'normal':{'preset':preset,'level':'invalid'}}}
+   failed=subprocess.run([exe],input=json.dumps({'action':'profile.save','args':{'profile':invalid}}),text=True,capture_output=True,env=env,timeout=10)
+   assert not json.loads(failed.stdout)['ok']
+  output_profile={**normal,'id':'summary-test','name':'Summary fixture','thinkingByModel':{'normal':{'preset':'gemini4_openai','level':'high','output':'summary'}}}
+  saved_output=rpc('profile.save',profile=output_profile)
+  assert saved_output['thinkingByModel']==output_profile['thinkingByModel']
+  count=len(requests)
+  report=rpc('llm.test',profile={**saved_output,'testThinkingProbe':True})
+  assert len(requests)==count+2 and report['thinking']['probe']['status']=='rejected'
+  assert requests[-2]['body']['extra_body']=={'google':{'thinking_config':{'thinking_level':'high','include_thoughts':True}}}
+  assert 'reasoning_effort' not in requests[-2]['body']
+  assert rpc('profile.list')['profiles'][-1]['thinkingByModel']==output_profile['thinkingByModel']
+  for mode in ['invalid',None,True]:
+   invalid={**output_profile,'thinkingByModel':{'normal':{'preset':'gemini4_openai','level':'high','output':mode}}}
    failed=subprocess.run([exe],input=json.dumps({'action':'profile.save','args':{'profile':invalid}}),text=True,capture_output=True,env=env,timeout=10)
    assert not json.loads(failed.stdout)['ok']
   print(json.dumps({'passed':True,'protocols':4,'checks':['Rust profile persistence and public redaction','known model catalog filtering','Python connection tests','Rust multi-turn search through private worker','stable sessions and independent conversations','silent stream cancellation','ordinary profile named opencode_go has no special headers','physical adapter removal leaves ordinary Python and Rust calls working']},ensure_ascii=False))

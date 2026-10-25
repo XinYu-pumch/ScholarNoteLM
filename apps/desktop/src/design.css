@@ -978,9 +978,14 @@ input[type='checkbox'], input[type='radio'] { accent-color: var(--accent); }
 .model-unified-row { display:grid; grid-template-columns:minmax(0,1fr); gap:var(--space-2); padding:var(--space-3); border:1px solid var(--line); border-radius:var(--radius-md); background:var(--surface); }
 .model-unified-row:last-child { border-bottom:1px solid var(--line); }
 .model-unified-row .model-unified-name { font-weight:var(--fw-medium); font-size:var(--fs-subhead); }
-.model-row-controls { gap:var(--space-2) var(--space-4); }
+.model-row-heading { display:flex; align-items:center; justify-content:space-between; gap:var(--space-3); }
+.model-row-heading .model-unified-name { min-width:0; overflow-wrap:anywhere; }
+.model-row-heading .icon-button { flex-shrink:0; color:var(--muted); }
+.model-row-controls { display:flex; flex-wrap:wrap; align-items:center; gap:var(--space-2); }
 .model-row-options,.model-row-actions { display:flex; align-items:center; gap:var(--space-3); }
-.model-row-controls>.model-row-options { flex:0 1 auto; flex-wrap:wrap; }
+.model-row-controls>.model-row-options,.model-row-controls>.model-row-actions { display:contents; }
+.model-row-controls .wb-check,.model-row-controls .text-button { white-space:nowrap; }
+.model-thinking-button { font-size:var(--fs-footnote); }
 .model-row-actions { margin-left:auto; }
 .model-row-controls .model-reasoning-control { flex:0 1 auto; gap:var(--space-2); }
 .research-settings .wb-form .model-reasoning-control>label { gap:var(--space-2); font-size:var(--fs-footnote); font-weight:var(--fw-regular); }
@@ -995,6 +1000,14 @@ input[type='checkbox'], input[type='radio'] { accent-color: var(--accent); }
 .model-reasoning-control input[type="number"] { width:calc(var(--space-8) * 3); min-width:0; }
 .model-test-feedback { min-height:var(--space-4); max-height:var(--space-4); line-height:var(--space-4); overflow:auto; display:flex; gap:var(--space-3); }
 .model-test-feedback .model-row-result { flex:1; font-size:var(--fs-footnote); margin:0; }
+.model-test-feedback button.model-row-result { min-height:0; padding:0; line-height:inherit; justify-content:flex-start; text-align:left; }
+.model-thinking-dialog { width:min(var(--reading-width),calc(100vw - var(--space-8) * 2)); }
+.model-thinking-dialog .wb-form { display:grid; gap:var(--space-3); }
+.model-thinking-dialog .wb-form>label { display:grid; gap:var(--space-2); }
+.model-thinking-dialog .wb-form>p,.thinking-test-details p { margin:0; }
+.thinking-test-actions { display:flex; flex-wrap:wrap; gap:var(--space-2); }
+.thinking-test-details { display:grid; gap:var(--space-2); padding:var(--space-3); border:1px solid var(--line); border-radius:var(--radius-md); font-size:var(--fs-footnote); }
+.thinking-test-details pre { overflow:auto; max-height:calc(var(--space-10) * 5); white-space:pre-wrap; overflow-wrap:anywhere; font-family:var(--font-mono); }
 
 /* Outline reading density; editing keeps its existing textarea affordances. */
 .review-studio .review-outline-row { min-height:var(--control-height); padding-top:0; padding-bottom:0; }

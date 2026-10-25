@@ -104,10 +104,10 @@ TEST_LLM_PROVIDER=opencode_go runtimes/downloader/bin/python scripts/test-reader
 
 每个普通供应商的模型可单独选择 `Gemini 4 · OpenAI Compatible`、`Gemini 4 · Native` 、`DeepSeek · OpenAI Compatible` 或下表中的新增预设，也可保留“服务端默认”（不发送额外参数）。选中预设时初始化档位：Gemini 为 medium，DeepSeek 为 high；随后可独立修改并保存。Gemini 支持 low / medium / high，DeepSeek 可选 low / high / max，具体模型以官方支持范围为准。预设不凭模型名字自动启用，旧配置不迁移。
 
-配置存储为 `thinkingByModel[model] = {preset, level}`。目录和官方来源在 `services/downloader/thinking_presets.json`，请求与响应处理在 `llm_thinking.py`，不依赖 Go 或 DeepSeek 专用模块。Rust 的检索助手与 Python 的大纲、正文、问答、阅读和连接测试共用此实现。未选择预设的普通请求保持原路径。只有当前调用模型的有效预设和档位进入签名，其他模型改动不影响已有材料。
+配置存储为 `thinkingByModel[model] = {preset, level, output?}`。目录和官方来源在 `services/downloader/thinking_presets.json`，请求与响应处理在 `llm_thinking.py`，不依赖 Go 或 DeepSeek 专用模块。Rust 的检索助手与 Python 的大纲、正文、问答、阅读和连接测试共用此实现。未选择预设的普通请求保持原路径。只有当前调用模型的有效预设、档位及显式非默认输出方式进入签名，其他模型改动不影响已有材料。
 
-- Gemini OpenAI Compatible：发送 `reasoning_effort`，不假定所有中转站都会执行。接口接受请求不等于档位生效；此预设不强制发送 Google 专属思考摘要扩展字段。
-- Gemini Native：将配置地址的尾部 `/v1` 转为 `/v1beta`（保留主机及中转前缀），也接受 `/v1beta` 或 `/v1beta/openai`；调用 `/models/{model}:streamGenerateContent?alt=sse`。转换文本、内嵌图片和系统消息；发送 `generationConfig.thinkingConfig.thinkingLevel` 及 `includeThoughts:true`。返回摘要单独解析，不混入正文。不携带 Go 请求头。模型目录仍走配置地址的 `/models`，建议 4router 保留其 `/v1` Base URL。
+- Gemini OpenAI Compatible：旧配置或输出选择“预设默认”时仍发送 `reasoning_effort`。显式选择请求／不请求摘要时，发送 `extra_body.google.thinking_config`，其中含 `thinking_level` 和 `include_thoughts`；不同时发送 `reasoning_effort`，避免重叠。这里的 extra_body 是 Google REST 请求本身的字段，不是 Python SDK 的展开语法。第三方中转站须支持这一扩展。
+- Gemini Native：将配置地址的尾部 `/v1` 转为 `/v1beta`（保留主机及中转前缀），也接受 `/v1beta` 或 `/v1beta/openai`；调用 `/models/{model}:streamGenerateContent?alt=sse`。转换文本、内嵌图片和系统消息；发送 `generationConfig.thinkingConfig.thinkingLevel` 及 `includeThoughts`（默认 true，可显式关闭）。返回摘要单独解析，不混入正文。不携带 Go 请求头。模型目录仍走配置地址的 `/models`，建议 4router 保留其 `/v1` Base URL。
 - DeepSeek OpenAI Compatible：发送 `thinking.type=enabled` 与 `reasoning_effort`；思考模式不发送无效的 temperature。面向当前 DeepSeek V4 系列，其他模型是否接受由服务端决定。
 
 不增加输出 token 限制，不改变全局网络或用户研究数据。非法预设/档位拒绝保存或调用；原生响应过滤、截断、工具调用明确失败，不静默切换协议。新版构建会包含预设目录。官方资料：Google [OpenAI兼容](https://ai.google.dev/gemini-api/docs/openai#thinking)、[原生思考](https://ai.google.dev/gemini-api/docs/generate-content/thinking)，[DeepSeek思考模式](https://api-docs.deepseek.com/guides/thinking_mode/)。
@@ -139,3 +139,24 @@ TEST_LLM_PROVIDER=opencode_go runtimes/downloader/bin/python scripts/test-reader
 - [Go 模型范围](https://opencode.ai/v2/docs/console/go/)、[models.dev 参数目录](https://models.dev/api.json)、[LongCat Chat 开关](https://longcat.chat/platform/docs/api/chat.html)
 
 测试以隔离模拟服务核对保存、实际请求字段、流式响应和模块隔离。HTTP 成功不能单独证明中转站执行了思考参数，未实测的模型不宣称已完成线上验证。
+
+### 思考输出与连接诊断
+
+每个模型的“思考”按钮打开弹窗，集中编辑预设、强度／开关／预算、输出方式。主列表保留图片支持、默认模型与测试按钮，长说明移进弹窗。应用只更新设置草稿，仍需“保存配置”；取消和离开沿用未保存保护。
+
+- 新选择 Gemini 预设时，输出初始化为“请求思考摘要”。已有配置没有 `output` 字段时不迁移：Chat 保留原 `reasoning_effort` 请求，Native 保留原请求摘要行为。`output=default` 与缺少字段具有相同签名。
+- `output=summary/off` 仅在 Gemini 预设中有效：Chat 使用 Google 扩展字段，Native 使用 `generationConfig.thinkingConfig.includeThoughts`。不请求摘要不等于停止思考；若服务端仍返回思考内容，App 仍单独接收，不拼入正文。
+- DeepSeek、Qwen、GLM、MiMo、Kimi 的推理文本通常自动放在 `reasoning_content`；这些预设不伪造摘要开关。通用 effort 中，OpenAI 和外部 Meta Chat Completions 的内部推理不公开；Grok 按模型及协议区分。Responses 的 summary 不能照搬到 Chat。
+- 不将 `reasoning_content` 的存在等同于完整内部思维链；原生 Gemini 的摘要和服务端推理文本采用不同提示文字。
+
+连接测试走与实际研究相同的 adapter 和 stream client，采用合成问题，不读取项目材料。正常请求仅一次（沿用原有连接失败重试）；报告发送的思考字段、实际思考字符数，以及服务端确实报告的 reasoning token。缺少用量显示“未报告”，不记为零；不为了采集用量额外向所有中转站发送 `stream_options`。用量观察发生在协议转换前，能读取末尾 `choices:[]` 的 usage 和原生 Gemini usageMetadata。测试结果中的请求参数不包含密钥、消息、完整请求头或原始上游错误正文。
+
+“深入验证参数”仅面向显式配置了思考参数的普通模型：先发送正常请求，成功后复制请求，只将一个实际存在的强度／模式字段替换为非法值，再发送一次对照请求。检查的具体字段会展示；这不声称验证了其余所有字段。默认没有显式参数时不发送第二次请求，图片测试也不作负例探测。
+
+- 错误值返回完整正文：显示“可能忽略、移除或替换参数”，不能认定参数生效。
+- HTTP 400/422 且安全解析出的错误明确指出被测参数：显示“该参数被校验”，仍不保证合法档位的实际推理强度。
+- 认证、限流、超时、其他错误，或未指出被测字段的 400：显示“无法判断”。正常请求失败时不继续探测。
+
+错误值从不存入配置或研究签名；不静默降档或切换协议。测试状态绑定当前草稿，修改连接、模型或思考设置后清除结果；迟到的旧响应不会覆盖新状态。详细诊断通过结果弹窗查看，列表反馈区域保留高度。
+
+官方输出依据：[Google Chat 扩展](https://ai.google.dev/gemini-api/docs/openai#thinking)、[Google 原生摘要](https://ai.google.dev/gemini-api/docs/generate-content/thinking#thought-summaries)、[OpenAI reasoning / summaries](https://developers.openai.com/api/docs/guides/reasoning)、[Meta reasoning](https://dev.meta.ai/docs/reasoning)，其余厂商来源见上表。Go Gemini 的原生摘要策略保留在 Go adapter，本次没有把其请求头、端点或其他专属逻辑带入普通预设。

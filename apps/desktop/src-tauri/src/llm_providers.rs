@@ -22,6 +22,11 @@ fn validate_thinking(root:&Path,profile:&Value)->R<()> {
             if !preset["levels"].as_array().is_some_and(|levels|levels.contains(level)) {
                 return Err("此思考预设不支持所选档位，请重新选择".into());
             }
+            if let Some(output)=selected.get("output") {
+                if output!="default" && !preset["output"]["modes"].as_array().is_some_and(|modes|modes.contains(output)) {
+                    return Err("此思考预设不支持所选输出方式".into());
+                }
+            }
         }
     }
     Ok(())
