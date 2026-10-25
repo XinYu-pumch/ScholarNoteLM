@@ -5,6 +5,27 @@ use serde_json::{json,Value};
 use std::{fs,io::{BufRead,BufReader,Write},path::Path,process::{Command,Stdio,Child},time::Duration};
 
 pub fn id(profile:&Value)->&str {match s(profile,"provider") {""=>"openai",id=>id}}
+pub fn thinking_catalog(root:&Path)->Vec<Value> {
+    fs::read(root.join("services/downloader/thinking_presets.json")).ok()
+        .and_then(|b|serde_json::from_slice(&b).ok()).unwrap_or_default()
+}
+pub fn needs_worker(profile:&Value)->bool {
+    id(profile)!="openai" || profile["thinkingByModel"].get(s(profile,"model")).is_some()
+}
+fn validate_thinking(root:&Path,profile:&Value)->R<()> {
+    if id(profile)!="openai" {return Ok(());}
+    if let Some(settings)=profile.get("thinkingByModel") {
+        let presets=thinking_catalog(root);
+        for (_,selected) in settings.as_object().ok_or("模型思考预设格式无效")? {
+            let preset=presets.iter().find(|p|p["id"]==selected["preset"] && selected["preset"].is_string()).ok_or("模型思考预设无效，请重新选择")?;
+            let level=selected.get("level").unwrap_or(&preset["defaultLevel"]);
+            if !preset["levels"].as_array().is_some_and(|levels|levels.contains(level)) {
+                return Err("此思考预设不支持所选档位，请重新选择".into());
+            }
+        }
+    }
+    Ok(())
+}
 pub fn catalog(root:&Path)->Vec<Value> {
     let folder=root.join("services/llm_providers");
     let registered:Value=fs::read(folder.join("registry.json")).ok().and_then(|b|serde_json::from_slice(&b).ok()).unwrap_or(json!({}));
@@ -22,6 +43,7 @@ pub fn manifest(root:&Path,profile:&Value)->R<Option<Value>> {
     catalog(root).into_iter().find(|v|s(v,"id")==id(profile)).map(Some).ok_or_else(||"此模型供应商已停用或未安装，请选择其他模型配置".into())
 }
 pub fn validate(root:&Path,profile:&Value)->R<Option<Value>> {
+    validate_thinking(root,profile)?;
     let meta=manifest(root,profile)?;
     if let Some(ref m)=meta {
         if s(profile,"baseUrl").trim().trim_end_matches('/')!=s(m,"baseUrl") {return Err("此供应商使用固定的官方地址，请从供应商面板重新创建配置".into());}

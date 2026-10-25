@@ -1650,5 +1650,8 @@
   "研究工作台": "Research workspace",
   "默认开启思考，默认 high；思考模式下温度不生效。": "Thinking is enabled by default at high effort; temperature has no effect in thinking mode.",
   "Gemini 使用 low / medium / high，不使用 DeepSeek 的 max 档位。": "Gemini supports low / medium / high; DeepSeek’s max level does not apply.",
-  "{p0} · 当前列表未返回，已保留配置": "{p0} · Not in the current model list; saved configuration retained"
+  "{p0} · 当前列表未返回，已保留配置": "{p0} · Not in the current model list; saved configuration retained",
+  "思考预设": "Thinking preset",
+  "{p0} 思考预设": "{p0} thinking preset",
+  "预设不可用": "Preset unavailable"
 }

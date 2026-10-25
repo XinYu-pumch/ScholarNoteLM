@@ -1767,7 +1767,7 @@ fn chat_stream(
                 .map_err(|_| "请求已停止".to_string())?;
             Ok(true)
         };
-        let r=if llm_providers::id(&cfg)=="openai" {llm_stream(&cfg,json!(messages),&mut emit_delta)} else {llm_providers::stream(&provider_root,&cfg,json!(messages),provider_session,&mut emit_delta)};
+        let r=if !llm_providers::needs_worker(&cfg) {llm_stream(&cfg,json!(messages),&mut emit_delta)} else {llm_providers::stream(&provider_root,&cfg,json!(messages),provider_session,&mut emit_delta)};
         let _ = tx.send(match r {
             Ok(()) => json!({"type":"end"}),
             Err(e) => json!({"type":"error","error":e}),
@@ -2265,7 +2265,7 @@ pub fn dispatch(root: &Path, request: Value) -> R<Value> {
             let profiles = setting(&c, "profiles", json!([]))?;
             let pubmed = setting(&c, "pubmed", json!({}))?;
             Ok(
-                json!({"providers":llm_providers::catalog(root),"profiles":profiles.as_array().unwrap().iter().cloned().map(public_profile).collect::<Vec<_>>(),"activeProfile":setting(&c,"activeProfile",json!(""))?,"jcr":ensure_jcr(root,&c)?,"mesh":mesh_status(root,&c)?,"pubmed":{"email":pubmed["email"],"hasKey":!s(&pubmed,"apiKey").is_empty()}}),
+                json!({"thinkingPresets":llm_providers::thinking_catalog(root),"providers":llm_providers::catalog(root),"profiles":profiles.as_array().unwrap().iter().cloned().map(public_profile).collect::<Vec<_>>(),"activeProfile":setting(&c,"activeProfile",json!(""))?,"jcr":ensure_jcr(root,&c)?,"mesh":mesh_status(root,&c)?,"pubmed":{"email":pubmed["email"],"hasKey":!s(&pubmed,"apiKey").is_empty()}}),
             )
         }
         "profile.list" => {

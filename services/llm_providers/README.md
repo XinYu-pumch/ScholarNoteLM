@@ -1,6 +1,6 @@
 # 可选 LLM 供应商
 
-默认 OpenAI 兼容调用不依赖任何可选模块。`registry.json` 只登记启用的供应商目录名；每个目录包含 `manifest.json` 和 `adapter.py`。目前登记 `deepseek` 和 `opencode_go`，两者互不依赖。
+默认 OpenAI 兼容调用不依赖任何可选模块。普通配置可按模型显式选择下述思考预设。`registry.json` 只登记启用的供应商目录名；每个目录包含 `manifest.json` 和 `adapter.py`。目前登记 `deepseek` 和 `opencode_go`，两者互不依赖。
 
 ## 边界
 
@@ -43,7 +43,7 @@ Messages 协议强制要求 `max_tokens`，因此专用模块使用 models.dev �
 
 ## 逐模型思考强度
 
-Go 配置的 `reasoningByModel` 按模型 ID 保存选择。每行独立选择“服务端默认”或该模型的已登记档位；默认不发送思考强度参数，不将原厂默认值冒充 Go 的实际默认值。测试连接和各研究工作流使用同一选择。普通配置忽略此字段。
+Go 配置的 `reasoningByModel` 按模型 ID 保存选择。每行独立选择“服务端默认”或该模型的已登记档位；默认不发送思考强度参数，不将原厂默认值冒充 Go 的实际默认值。测试连接和各研究工作流使用同一选择。普通配置忽略此字段；自定义思考预设使用独立的 `thinkingByModel`。
 
 Go 的 Gemini 请求始终发送 `generationConfig.thinkingConfig.includeThoughts: true`，包括强度为“服务端默认”时，以接收流式思考摘要。摘要通过已有推理字段传递，不混入大纲 CSV 或回答正文；所选强度和温度保持不变。此行为仅在 Go 的 `adapter.py` 中实现，不修改共用客户端、超时或缓存签名。摘要不保证固定发送间隔，服务端连续无数据仍可能触发已有超时。协议说明见 [Gemini 思考摘要](https://ai.google.dev/gemini-api/docs/generate-content/thinking#thought-summaries)。
 
@@ -94,3 +94,15 @@ TEST_LLM_PROVIDER=opencode_go runtimes/downloader/bin/python scripts/test-reader
 集成测试在 `tmp/` 复制代码，只将副本 manifest 的 Base URL 改成本机模拟服务；覆盖四种协议、普通模型隔离、私有进程取消和模块物理删除。UI 测试启动独立端口和隔离根目录，验证供应商列表、Embedding 内置预设、组合保存操作、固定地址、保存、未保存保护、窄窗口与停用后的管理入口。真实服务探测不能替代这些回归测试。
 
 四个研究工作流脚本默认仍验证普通模型；设置 `TEST_LLM_PROVIDER=opencode_go` 后改用隔离副本中的 Go 适配器和模拟模型 ID，覆盖大纲、写作、问答、阅读的真实 worker，检查专属请求头、会话范围、重试与取消，并确认 Embedding 请求不携带 Go 请求头。
+
+## 自定义模型思考预设
+
+每个普通供应商的模型可单独选择 `Gemini 4 · OpenAI Compatible`、`Gemini 4 · Native` 或 `DeepSeek · OpenAI Compatible`，也可保留“服务端默认”（不发送额外参数）。选中预设时初始化档位：Gemini 为 medium，DeepSeek 为 high；随后可独立修改并保存。Gemini 支持 low / medium / high，DeepSeek 当前 V4 系列支持 low / high / max。预设不凭模型名字自动启用，旧配置不迁移。
+
+配置存储为 `thinkingByModel[model] = {preset, level}`。目录和官方来源在 `services/downloader/thinking_presets.json`，请求与响应处理在 `llm_thinking.py`，不依赖 Go 或 DeepSeek 专用模块。Rust 的检索助手与 Python 的大纲、正文、问答、阅读和连接测试共用此实现。未选择预设的普通请求保持原路径。只有当前调用模型的有效预设和档位进入签名，其他模型改动不影响已有材料。
+
+- Gemini OpenAI Compatible：发送 `reasoning_effort`，不假定所有中转站都会执行。接口接受请求不等于档位生效；此预设不强制发送 Google 专属思考摘要扩展字段。
+- Gemini Native：将配置地址的尾部 `/v1` 转为 `/v1beta`（保留主机及中转前缀），也接受 `/v1beta` 或 `/v1beta/openai`；调用 `/models/{model}:streamGenerateContent?alt=sse`。转换文本、内嵌图片和系统消息；发送 `generationConfig.thinkingConfig.thinkingLevel` 及 `includeThoughts:true`。返回摘要单独解析，不混入正文。不携带 Go 请求头。模型目录仍走配置地址的 `/models`，建议 4router 保留其 `/v1` Base URL。
+- DeepSeek OpenAI Compatible：发送 `thinking.type=enabled` 与 `reasoning_effort`；思考模式不发送无效的 temperature。面向当前 DeepSeek V4 系列，其他模型是否接受由服务端决定。
+
+不增加输出 token 限制，不改变全局网络或用户研究数据。非法预设/档位拒绝保存或调用；原生响应过滤、截断、工具调用明确失败，不静默切换协议。新版构建会包含预设目录。官方资料：Google [OpenAI兼容](https://ai.google.dev/gemini-api/docs/openai#thinking)、[原生思考](https://ai.google.dev/gemini-api/docs/generate-content/thinking)，[DeepSeek思考模式](https://api-docs.deepseek.com/guides/thinking_mode/)。

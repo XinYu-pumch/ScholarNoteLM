@@ -27,7 +27,7 @@ class Handler(BaseHTTPRequestHandler):
 server=ThreadingHTTPServer(('127.0.0.1',0),Handler);threading.Thread(target=server.serve_forever,daemon=True).start()
 try:
  with tempfile.TemporaryDirectory(prefix='review-integration-',dir=ROOT/'tmp') as temp:
-  app=Path(temp);(app/'runtimes').mkdir();(app/'runtimes/downloader').symlink_to(ROOT/'runtimes/downloader',target_is_directory=True);(app/'services').symlink_to(ROOT/'services',target_is_directory=True);(app/'tmp').mkdir()
+  app=Path(temp);(app/'runtimes').symlink_to(ROOT/'runtimes',target_is_directory=True);(app/'services').symlink_to(ROOT/'services',target_is_directory=True);(app/'tmp').mkdir()
   pf.setup(app,ROOT,f'http://127.0.0.1:{server.server_port}/v1',['outline', 'slow', 'invalid', 'truncated', 'large'])
   e.ROOT,e.PROJECT=app,'test';base=storage.project_dir(app,'test');e.atomic(base/'pubmed/current.xml','<PubmedArticleSet><PubmedArticle><MedlineCitation><PMID>123</PMID><Article><ArticleTitle>Fixture study</ArticleTitle><Abstract><AbstractText>All of the fixture abstract.</AbstractText></Abstract></Article></MedlineCitation></PubmedArticle></PubmedArticleSet>')
   cfg=app/'data/research/research.sqlite3';cfg.parent.mkdir(parents=True)

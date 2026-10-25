@@ -38,7 +38,7 @@ export default function ResearchSettings(){
  async function persistProfile(candidate=profile){
   const pending=modelDraft.trim();
   const draft=pending?{...candidate,models:[...new Set([...(candidate.models||[]),pending])],model:candidate.model||pending}:candidate;
-  const payload={...draft,...(draft.provider&&draft.provider!=='openai'?{reasoningByModel:Object.fromEntries(Object.entries(draft.reasoningByModel||{}).filter(([model,level])=>level&&(draft.models||[]).includes(model)))}:{})};
+  const payload={...draft,thinkingByModel:Object.fromEntries(Object.entries(draft.thinkingByModel||{}).filter(([model])=>(draft.models||[]).includes(model))),...(draft.provider&&draft.provider!=='openai'?{reasoningByModel:Object.fromEntries(Object.entries(draft.reasoningByModel||{}).filter(([model,level])=>level&&(draft.models||[]).includes(model)))}:{})};
   if(!profile.name.trim()||!profile.baseUrl.trim())throw new Error('请填写配置名称和 API 地址。');
   const saved=await rpc<Profile>('profile.save',{profile:payload,makeDefault});
   setProfile({...saved,apiKey:'',clearKey:false});setModelDraft('');setMakeDefault(false);setShowKey(false);setKeyEdited(false);setProfileDirty(false);
@@ -55,12 +55,18 @@ export default function ResearchSettings(){
  const ncbiDialog=useUnsavedChanges({label:'PubMed / NCBI 配置',dirty:!!data&&(email!==(data.pubmed.email||'')||ncbiEdited||clearNcbi),busy:!!busy||ncbiBusy,save:persistNcbi,discard:()=>{setEmail(data?.pubmed.email||'');setNcbiKey('');setNcbiEdited(false);setClearNcbi(false);setShowNcbi(false);}});
  const meshDialog=useUnsavedChanges({label:'MeSH 更新偏好',dirty:!!data&&(auto!==data.mesh.autoUpdate||scr!==!!data.mesh.includeScrPreference),busy:!!busy,save:persistMesh,discard:()=>{setAuto(data?.mesh.autoUpdate??true);setScr(!!data?.mesh.includeScrPreference);}});
  if(!data)return <div className="page"><h1>{tr("设置")}</h1><p>{tr(error)||tr("正在读取设置…")}</p></div>;
- const set=(patch:Partial<Profile>)=>{if(['baseUrl','apiKey','clearKey','timeout','temperature','reasoningByModel'].some(k=>k in patch))setModelTests({});setProfileDirty(true);setResult('');setProfile(p=>({...p,...patch}));};
+ const set=(patch:Partial<Profile>)=>{if(['baseUrl','apiKey','clearKey','timeout','temperature','reasoningByModel','thinkingByModel'].some(k=>k in patch))setModelTests({});setProfileDirty(true);setResult('');setProfile(p=>({...p,...patch}));};
  const providerPanels=[...(data.providers||[]),...data.profiles.filter(p=>p.provider&&p.provider!=='openai'&&!data.providers?.some(v=>v.id===p.provider)).filter((p,i,all)=>all.findIndex(v=>v.provider===p.provider)===i).map(p=>({id:p.provider!,name:p.provider!,baseUrl:p.baseUrl}))];
  const providerMeta=data.providers?.find(p=>p.id===profile.provider);
  const singleProfile=!!providerMeta?.singleProfile;
  const siblingProfiles=data.profiles.filter(p=>(p.provider||'openai')===(profile.provider||'openai'));
  const reasoningControl=(model:string)=>{
+  if(!profile.provider||profile.provider==='openai'){
+   const selected=profile.thinkingByModel?.[model];
+   const preset=data.thinkingPresets?.find(p=>p.id===selected?.preset);
+   const update=(value:{preset:string;level:string}|null)=>{const next={...profile.thinkingByModel};if(value)next[model]=value;else delete next[model];set({thinkingByModel:next});};
+   return <div className="model-reasoning-control model-thinking-presets"><label>{tr('思考预设')}<Select aria-label={tr('{p0} 思考预设',{p0:model})} value={selected?.preset||''} onChange={e=>{const next=data.thinkingPresets?.find(p=>p.id===e.target.value);update(next?{preset:next.id,level:next.defaultLevel}:null);}}><option value="">{tr('服务端默认')}</option>{data.thinkingPresets?.map(p=><option key={p.id} value={p.id}>{p.name}</option>)}{selected&&!preset&&<option value={selected.preset}>{tr('预设不可用')}</option>}</Select></label>{preset&&<label>{tr('思考强度')}<Select aria-label={tr('{p0} 思考强度',{p0:model})} value={selected?.level||preset.defaultLevel} onChange={e=>update({preset:preset.id,level:e.target.value})}>{preset.levels.map(level=><option key={level} value={level}>{level}</option>)}</Select></label>}</div>;
+  }
   if(!providerMeta)return null;
   const levels=providerMeta.models?.[model]?.reasoning?.levels||[];
   return <div className="model-reasoning-control" title={!levels.length?tr('此模型未提供可核实的强度档位，保持服务端默认。'):undefined}><label>{tr('思考强度')}<Select aria-label={tr('{p0} 思考强度',{p0:model})} disabled={!levels.length} value={profile.reasoningByModel?.[model]||''} onChange={e=>{const next={...profile.reasoningByModel};if(e.target.value)next[model]=e.target.value;else delete next[model];set({reasoningByModel:next});}}><option value="">{tr('服务端默认')}</option>{levels.map(level=><option key={level} value={level}>{level}</option>)}</Select></label></div>;

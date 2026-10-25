@@ -6,6 +6,7 @@ that copy's manifest to the local mock endpoint and fixture model IDs.
 import json,os,re,shutil
 
 ENABLED=os.environ.get('TEST_LLM_PROVIDER')=='opencode_go'
+THINKING=os.environ.get('TEST_THINKING_PRESET','')
 requests=[]
 
 def setup(app,root,base,models):
@@ -25,7 +26,11 @@ def setup(app,root,base,models):
     import llm_provider
     llm_provider.DIRECTORY=services/'llm_providers';llm_provider._load.cache_clear()
 
-def profile(value):return {**value,'provider':'opencode_go','reasoningByModel':{model:'max' for model in value.get('models',[value['model']])}} if ENABLED else value
+def profile(value):
+    if THINKING:
+        assert THINKING in ('deepseek_openai','gemini4_openai')
+        return {**value,'thinkingByModel':{model:{'preset':THINKING,'level':'high'} for model in value.get('models',[value['model']])}}
+    return {**value,'provider':'opencode_go','reasoningByModel':{model:'max' for model in value.get('models',[value['model']])}} if ENABLED else value
 
 def capture(headers,body):
     requests.append((body,headers.get('x-opencode-session'),headers.get('User-Agent')))
@@ -34,6 +39,11 @@ def sessions():return [session for body,session,_ in requests if 'messages' in b
 
 def verify():
     for body,session,agent in requests:
+        if THINKING and 'messages' in body:
+            assert body.get('reasoning_effort')=='high','Workflow lost its thinking preset'
+            if THINKING=='deepseek_openai':
+                assert body.get('thinking')=={'type':'enabled'}
+                assert 'temperature' not in body
         if ENABLED and 'messages' in body:
             assert re.fullmatch('snlm-[a-f0-9]{64}',session or ''),'Missing Go conversation identity'
             assert agent=='ScholarNoteLM/0.6.0'

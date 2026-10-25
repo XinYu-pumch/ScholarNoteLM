@@ -86,5 +86,25 @@ try:
   assert rpc('llm.test',profile=saved_ds)['reply'];assert 'x-opencode-session' not in headers(requests[-1])
   assert rpc('llm.test',profile=normal)['reply'];assert 'x-opencode-session' not in headers(requests[-1])
   thread=rpc('chat.new',name='ordinary');h=rpc('chat',stream=True,chatId=thread['id'],streamId=uuid.uuid4().hex,profileId='ordinary',message='Still works');assert not h[-1]['error']
+  # Explicit presets remain usable after the Go module is physically removed.
+  assert len(rpc('settings')['thinkingPresets'])==3
+  for preset,level in [('gemini4_openai','medium'),('gemini4_native','high'),('deepseek_openai','max')]:
+   custom={**normal,'id':'preset-'+preset,'name':preset,'thinkingByModel':{'normal':{'preset':preset,'level':level}},'temperature':0.2}
+   saved_custom=rpc('profile.save',profile=custom)
+   assert saved_custom['thinkingByModel']==custom['thinkingByModel']
+   assert rpc('llm.test',profileId=custom['id'])['reply']
+   thread=rpc('chat.new',name=preset)
+   h=rpc('chat',stream=True,chatId=thread['id'],streamId=uuid.uuid4().hex,profileId=custom['id'],message='Search PLA2R')
+   assert not h[-1]['error'] and h[-1]['result']['queries']
+   observed=requests[-1];assert 'x-opencode-session' not in headers(observed)
+   if preset=='gemini4_native':
+    assert observed['path']=='/v1beta/models/normal:streamGenerateContent?alt=sse'
+    assert observed['body']['generationConfig']['thinkingConfig']=={'thinkingLevel':level,'includeThoughts':True}
+   else:
+    assert observed['body']['reasoning_effort']==level
+    if preset=='deepseek_openai':assert observed['body']['thinking']=={'type':'enabled'} and 'temperature' not in observed['body']
+   invalid={**custom,'thinkingByModel':{'normal':{'preset':preset,'level':'invalid'}}}
+   failed=subprocess.run([exe],input=json.dumps({'action':'profile.save','args':{'profile':invalid}}),text=True,capture_output=True,env=env,timeout=10)
+   assert not json.loads(failed.stdout)['ok']
   print(json.dumps({'passed':True,'protocols':4,'checks':['Rust profile persistence and public redaction','known model catalog filtering','Python connection tests','Rust multi-turn search through private worker','stable sessions and independent conversations','silent stream cancellation','ordinary profile named opencode_go has no special headers','physical adapter removal leaves ordinary Python and Rust calls working']},ensure_ascii=False))
 finally:server.shutdown();server.server_close()

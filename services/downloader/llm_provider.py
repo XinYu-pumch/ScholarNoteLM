@@ -28,6 +28,9 @@ def _load(ident):
     module=importlib.util.module_from_spec(spec);spec.loader.exec_module(module);return module
 
 def adapter(profile):
+    if provider_id(profile)=='openai':
+        import llm_thinking
+        return llm_thinking if llm_thinking.selection(profile) else None
     data=manifest(profile)
     return _load(data['id']) if data else None
 
@@ -43,6 +46,10 @@ def with_session(profile,scope,*identifiers):
 def signature_fields(profile,fields):
     """Keep legacy signature dictionaries byte-for-byte compatible."""
     result={k:profile.get(k) for k in fields}
+    if provider_id(profile)=='openai':
+        import llm_thinking
+        selected=llm_thinking.selection(profile)
+        if selected:result['thinkingPreset']=selected
     if provider_id(profile)!='openai':
         result['provider']=provider_id(profile)
         # Only the selected model affects this run. Absent/default preserves

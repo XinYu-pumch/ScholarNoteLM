@@ -1,0 +1,5 @@
+[
+  {"id":"gemini4_openai","name":"Gemini 4 · OpenAI Compatible","protocol":"chat","levels":["low","medium","high"],"defaultLevel":"medium","source":"https://ai.google.dev/gemini-api/docs/openai#thinking"},
+  {"id":"gemini4_native","name":"Gemini 4 · Native","protocol":"google","levels":["low","medium","high"],"defaultLevel":"medium","source":"https://ai.google.dev/gemini-api/docs/generate-content/thinking"},
+  {"id":"deepseek_openai","name":"DeepSeek · OpenAI Compatible","protocol":"chat","levels":["low","high","max"],"defaultLevel":"high","source":"https://api-docs.deepseek.com/guides/thinking_mode/"}
+]
