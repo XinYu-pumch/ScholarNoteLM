@@ -91,6 +91,15 @@ try{
  await page.getByRole('button',{name:'不保存并离开',exact:true}).click();
  await expect(page.getByRole('button',{name:'ordinary 思考设置',exact:true})).toContainText('high');
  await openThinking('ordinary');await presetControl.click();await page.getByRole('option',{name:'DeepSeek · OpenAI Compatible',exact:true}).click();await ordinaryEffort.click();await expect(page.getByRole('listbox').getByRole('option')).toHaveText(['low','high','max']);await page.getByRole('option',{name:'max',exact:true}).click();
+ await presetControl.click();await page.getByRole('option',{name:'Qwen 3.8 · OpenAI Compatible',exact:true}).click();
+ await ordinaryEffort.click();await page.getByRole('option',{name:'budget',exact:true}).click();
+ const ordinaryBudget=page.getByRole('spinbutton',{name:'ordinary 思考 token 预算',exact:true});
+ await expect(ordinaryBudget).toHaveValue('131072');await ordinaryBudget.fill('0');await applyThinking();
+ await page.getByRole('button',{name:'保存配置',exact:true}).click();await expect(page.getByText('当前配置已保存',{exact:true})).toBeVisible();
+ expect(rpc('profile.list').profiles.find(p=>p.id==='ordinary').thinkingByModel).toEqual({ordinary:{preset:'qwen_openai',level:'budget',budget:0}});
+ await openThinking('ordinary');await expect(ordinaryBudget).toHaveValue('0');
+ await ordinaryEffort.click();await page.getByRole('option',{name:'low',exact:true}).click();await expect(ordinaryBudget).toHaveCount(0);
+ await presetControl.click();await page.getByRole('option',{name:'Claude Opus 5.5 · Messages',exact:true}).click();await expect(output).toContainText('请求思考摘要');await expect(ordinaryEffort).toContainText('medium');
  await presetControl.click();await page.getByRole('option',{name:'服务端默认',exact:true}).click();await expect(ordinaryEffort).toHaveCount(0);await applyThinking();
  await page.getByRole('button',{name:'保存配置',exact:true}).click();await expect(page.getByText('当前配置已保存',{exact:true})).toBeVisible();
  expect(rpc('profile.list').profiles.find(p=>p.id==='ordinary').thinkingByModel).toEqual({});

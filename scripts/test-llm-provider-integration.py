@@ -98,8 +98,8 @@ try:
   assert rpc('llm.test',profile=normal)['reply'];assert 'x-opencode-session' not in headers(requests[-1])
   thread=rpc('chat.new',name='ordinary');h=rpc('chat',stream=True,chatId=thread['id'],streamId=uuid.uuid4().hex,profileId='ordinary',message='Still works');assert not h[-1]['error']
   # Explicit presets remain usable after the Go module is physically removed.
-  assert len(rpc('settings')['thinkingPresets'])==7
-  for preset,level in [('gemini4_openai','medium'),('gemini4_native','high'),('deepseek_openai','max'),('generic_effort','xhigh'),('generic_thinking_toggle','disabled'),('qwen_openai','medium'),('glm_openai','max')]:
+  assert {p['id'] for p in rpc('settings')['thinkingPresets']}=={p['id'] for p in json.loads((ROOT/'services/downloader/thinking_presets.json').read_text())}
+  for preset,level in [('gemini4_openai','medium'),('gemini4_native','high'),('deepseek_openai','max'),('generic_effort','xhigh'),('generic_thinking_toggle','disabled'),('qwen_openai','medium'),('glm_openai','max'),('claude55_messages','medium'),('grok47_responses','high'),('grok47_chat','high'),('kimi_k3_openai','max'),('mimo_v26_openai','enabled'),('minimax_m31_openai','max')]:
    custom={**normal,'id':'preset-'+preset,'name':preset,'thinkingByModel':{'normal':{'preset':preset,'level':level}},'temperature':0.2}
    saved_custom=rpc('profile.save',profile=custom)
    assert saved_custom['thinkingByModel']==custom['thinkingByModel']
@@ -111,8 +111,12 @@ try:
    if preset=='gemini4_native':
     assert observed['path']=='/v1beta/models/normal:streamGenerateContent?alt=sse'
     assert observed['body']['generationConfig']['thinkingConfig']=={'thinkingLevel':level,'includeThoughts':True}
-   elif preset=='generic_thinking_toggle':
-    assert observed['body']['thinking']=={'type':'disabled'} and 'reasoning_effort' not in observed['body']
+   elif preset=='claude55_messages':
+    assert observed['path']=='/v1/messages' and observed['body']['output_config']['effort']==level
+   elif preset=='grok47_responses':
+    assert observed['path']=='/v1/responses' and observed['body']['reasoning']['effort']==level
+   elif preset in ('generic_thinking_toggle','mimo_v26_openai'):
+    assert observed['body']['thinking']=={'type':level} and 'reasoning_effort' not in observed['body']
    else:
     assert observed['body']['reasoning_effort']==level
     if preset=='qwen_openai':assert observed['body']['enable_thinking'] is True and 'extra_body' not in observed['body']

@@ -27,6 +27,14 @@ fn validate_thinking(root:&Path,profile:&Value)->R<()> {
                     return Err("此思考预设不支持所选输出方式".into());
                 }
             }
+            if level=="budget" {
+                let budget=selected["budget"].as_i64();
+                let min=preset["budget"]["min"].as_i64();
+                let max=preset["budget"]["max"].as_i64();
+                if !matches!((budget,min,max),(Some(n),Some(lo),Some(hi)) if n>=lo && n<=hi) {
+                    return Err("请填写此预设支持的整数思考 token 预算".into());
+                }
+            }
         }
     }
     Ok(())
@@ -132,6 +140,23 @@ pub fn stream(root:&Path,profile:&Value,messages:Value,session:Value,emit:&mut d
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn ordinary_vendor_presets_validate_budget_and_levels() {
+        let root=std::env::temp_dir().join(format!("scholarnotelm-thinking-{}",super::super::uid()));
+        fs::create_dir_all(root.join("services/downloader")).unwrap();
+        fs::write(root.join("services/downloader/thinking_presets.json"),include_str!("../../../../services/downloader/thinking_presets.json")).unwrap();
+        let mut p=json!({"model":"qwen","thinkingByModel":{"qwen":{"preset":"qwen_openai","level":"budget","budget":0}}});
+        assert!(validate_thinking(&root,&p).is_ok());
+        for value in [json!(-1),json!(262145),json!(false),json!(1.5),json!("4096"),Value::Null] {
+            p["thinkingByModel"]["qwen"]["budget"]=value;
+            assert!(validate_thinking(&root,&p).is_err());
+        }
+        p["thinkingByModel"]=json!({"m":{"preset":"mimo_v26_openai","level":"high"}});
+        assert!(validate_thinking(&root,&p).is_err());
+        p["thinkingByModel"]=json!({"m":{"preset":"claude55_messages","level":"medium","output":"summary"}});
+        assert!(validate_thinking(&root,&p).is_ok());
+        fs::remove_dir_all(root).unwrap();
+    }
     #[test]
     fn removed_provider_never_intercepts_default_profiles() {
         let root=std::env::temp_dir().join(format!("scholarnotelm-provider-{}",super::super::uid()));

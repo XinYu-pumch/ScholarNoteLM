@@ -17,6 +17,9 @@ FIELDS = ('reasoning_effort', 'thinking', 'enable_thinking', 'reasoning',
 def thinking_fields(body):
     """Expose only thinking fields, never messages, headers, keys or whole bodies."""
     result = {k: copy.deepcopy(body[k]) for k in FIELDS[:4] if k in body}
+    for key in ('thinking_budget', 'reasoning_split'):
+        if key in body:
+            result[key] = body[key]
     if isinstance(body.get('output_config'),dict) and 'effort' in body['output_config']:
         result['output_config.effort'] = body['output_config']['effort']
     for key, path in [('generationConfig', ('thinkingConfig',)), ('extra_body', ('google', 'thinking_config'))]:
@@ -31,6 +34,7 @@ def thinking_fields(body):
 def probe_path(body):
     for path in [('reasoning_effort',), ('extra_body','google','thinking_config','thinking_level'),
                  ('generationConfig','thinkingConfig','thinkingLevel'),
+                 ('output_config','effort'), ('reasoning','effort'), ('thinking_budget',),
                  ('thinking','type'), ('enable_thinking',)]:
         value = body
         for part in path:

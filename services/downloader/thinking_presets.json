@@ -202,7 +202,8 @@
       "disabled",
       "low",
       "medium",
-      "xhigh"
+      "xhigh",
+      "budget"
     ],
     "defaultLevel": "default",
     "options": {
@@ -224,10 +225,13 @@
       "xhigh": {
         "enable_thinking": true,
         "reasoning_effort": "xhigh"
+      },
+      "budget": {
+        "enable_thinking": true
       }
     },
     "omitTemperature": false,
-    "note": "Qwen 3.8: low/medium/xhigh. Earlier hybrid Qwen models may support only enabled/disabled. enable_thinking is sent at the top level, not inside extra_body. default follows the service.",
+    "note": "Qwen 3.8: low/medium/xhigh, or an exclusive thinking token budget (0–262144). Never send effort and budget together. Server defaults: xhigh / 131072 tokens; 0 budget is not the disabled switch. Existing default mode follows the service.",
     "sources": [
       "https://help.aliyun.com/en/model-studio/qwen-api-via-openai-chat-completions"
     ],
@@ -238,6 +242,12 @@
       "note": "思考模式通常自动通过 reasoning_content 返回推理文本；不额外发送摘要参数。",
       "kind": "reasoning_text",
       "defaultMode": "default"
+    },
+    "budget": {
+      "min": 0,
+      "max": 262144,
+      "default": 131072,
+      "field": "thinking_budget"
     }
   },
   {
@@ -284,6 +294,286 @@
       "note": "思考模式通常自动通过 reasoning_content 返回推理文本；不额外发送摘要参数。",
       "kind": "reasoning_text",
       "defaultMode": "default"
+    }
+  },
+  {
+    "id": "claude55_messages",
+    "name": "Claude Opus 5.5 · Messages",
+    "protocol": "messages",
+    "levels": [
+      "low",
+      "medium",
+      "high",
+      "xhigh",
+      "max"
+    ],
+    "defaultLevel": "medium",
+    "options": {
+      "low": {
+        "thinking": {
+          "type": "adaptive"
+        },
+        "output_config": {
+          "effort": "low"
+        }
+      },
+      "medium": {
+        "thinking": {
+          "type": "adaptive"
+        },
+        "output_config": {
+          "effort": "medium"
+        }
+      },
+      "high": {
+        "thinking": {
+          "type": "adaptive"
+        },
+        "output_config": {
+          "effort": "high"
+        }
+      },
+      "xhigh": {
+        "thinking": {
+          "type": "adaptive"
+        },
+        "output_config": {
+          "effort": "xhigh"
+        }
+      },
+      "max": {
+        "thinking": {
+          "type": "adaptive"
+        },
+        "output_config": {
+          "effort": "max"
+        }
+      }
+    },
+    "omitTemperature": true,
+    "sources": [
+      "https://platform.claude.com/docs/en/build-with-claude/effort",
+      "https://platform.claude.com/docs/en/build-with-claude/thinking",
+      "https://platform.claude.com/docs/en/models/overview"
+    ],
+    "note": "Uses /messages, not Chat Completions. Opus 5.5 always thinks; default effort: medium. The required max_tokens uses the published 128,000 output ceiling. Relays must support Messages.",
+    "output": {
+      "modes": [
+        "default",
+        "summary",
+        "off"
+      ],
+      "defaultMode": "summary",
+      "kind": "summary",
+      "note": "显式请求摘要使用 thinking.display=summarized；不请求摘要使用 omitted，不会关闭思考。服务端默认不发送 display。"
+    },
+    "maxOutputTokens": 128000
+  },
+  {
+    "id": "grok47_chat",
+    "name": "Grok 4.6 / 4.7 · Chat Completions",
+    "protocol": "chat",
+    "levels": [
+      "low",
+      "medium",
+      "high",
+      "xhigh"
+    ],
+    "defaultLevel": "high",
+    "options": {
+      "low": {
+        "reasoning_effort": "low"
+      },
+      "medium": {
+        "reasoning_effort": "medium"
+      },
+      "high": {
+        "reasoning_effort": "high"
+      },
+      "xhigh": {
+        "reasoning_effort": "xhigh"
+      }
+    },
+    "omitTemperature": true,
+    "sources": [
+      "https://docs.x.ai/developers/model-capabilities/text/reasoning",
+      "https://docs.x.ai/developers/migration-guides/chat-completions"
+    ],
+    "note": "Thinking cannot be disabled. Default: high. Use Responses for documented Grok 4.7 reasoning summaries; a relay may omit them.",
+    "output": {
+      "modes": [
+        "default"
+      ],
+      "defaultMode": "default",
+      "kind": "provider_defined",
+      "note": "Chat 接收服务端返回的 reasoning_content；官方 Grok 4.7 摘要示例使用 Responses，第三方 Chat 路由不保证返回摘要。"
+    }
+  },
+  {
+    "id": "grok47_responses",
+    "name": "Grok 4.6 / 4.7 · Responses",
+    "protocol": "responses",
+    "levels": [
+      "low",
+      "medium",
+      "high",
+      "xhigh"
+    ],
+    "defaultLevel": "high",
+    "options": {
+      "low": {
+        "reasoning": {
+          "effort": "low"
+        }
+      },
+      "medium": {
+        "reasoning": {
+          "effort": "medium"
+        }
+      },
+      "high": {
+        "reasoning": {
+          "effort": "high"
+        }
+      },
+      "xhigh": {
+        "reasoning": {
+          "effort": "xhigh"
+        }
+      }
+    },
+    "omitTemperature": true,
+    "sources": [
+      "https://docs.x.ai/developers/model-capabilities/text/reasoning",
+      "https://docs.x.ai/developers/migration-guides/chat-completions"
+    ],
+    "note": "Thinking cannot be disabled. Default: high. Use Responses for documented Grok 4.7 reasoning summaries; a relay may omit them.",
+    "output": {
+      "modes": [
+        "default"
+      ],
+      "defaultMode": "default",
+      "kind": "summary",
+      "note": "Responses 接收 reasoning_text / reasoning_summary_text 事件；不发送未经文档确认的 summary 开关。加密思考不显示为正文。"
+    }
+  },
+  {
+    "id": "kimi_k3_openai",
+    "name": "Kimi K3 · OpenAI Compatible",
+    "protocol": "chat",
+    "levels": [
+      "low",
+      "high",
+      "max"
+    ],
+    "defaultLevel": "max",
+    "options": {
+      "low": {
+        "reasoning_effort": "low"
+      },
+      "high": {
+        "reasoning_effort": "high"
+      },
+      "max": {
+        "reasoning_effort": "max"
+      }
+    },
+    "omitTemperature": true,
+    "sources": [
+      "https://platform.moonshot.ai/docs/api/chat",
+      "https://platform.kimi.ai/docs/guide/use-thinking-effort"
+    ],
+    "note": "Current K3-series API supports low/high/max (default max). Always thinking; do not send K2 thinking toggles. Earlier or third-party deployments may support only max.",
+    "output": {
+      "modes": [
+        "default"
+      ],
+      "defaultMode": "default",
+      "kind": "reasoning_text",
+      "note": "思考文本由服务端返回，应用分别接收思考与正文；没有独立摘要开关。"
+    }
+  },
+  {
+    "id": "mimo_v26_openai",
+    "name": "MiMo V2.6 · OpenAI Compatible",
+    "protocol": "chat",
+    "levels": [
+      "enabled",
+      "disabled"
+    ],
+    "defaultLevel": "enabled",
+    "options": {
+      "enabled": {
+        "thinking": {
+          "type": "enabled"
+        }
+      },
+      "disabled": {
+        "thinking": {
+          "type": "disabled"
+        }
+      }
+    },
+    "omitTemperature": true,
+    "sources": [
+      "https://mimo.mi.com/docs/en-US/api/chat/openai-api"
+    ],
+    "note": "Official Chat API has enabled/disabled only, not effort levels. Thinking defaults to enabled and returns reasoning_content. Temperature is left to the service.",
+    "output": {
+      "modes": [
+        "default"
+      ],
+      "defaultMode": "default",
+      "kind": "reasoning_text",
+      "note": "思考文本由服务端返回，应用分别接收思考与正文；没有独立摘要开关。"
+    }
+  },
+  {
+    "id": "minimax_m31_openai",
+    "name": "MiniMax M3.1 Flash · OpenAI Compatible",
+    "protocol": "chat",
+    "levels": [
+      "low",
+      "medium",
+      "high",
+      "xhigh",
+      "max"
+    ],
+    "defaultLevel": "max",
+    "options": {
+      "low": {
+        "reasoning_effort": "low",
+        "reasoning_split": true
+      },
+      "medium": {
+        "reasoning_effort": "medium",
+        "reasoning_split": true
+      },
+      "high": {
+        "reasoning_effort": "high",
+        "reasoning_split": true
+      },
+      "xhigh": {
+        "reasoning_effort": "xhigh",
+        "reasoning_split": true
+      },
+      "max": {
+        "reasoning_effort": "max",
+        "reasoning_split": true
+      }
+    },
+    "omitTemperature": true,
+    "sources": [
+      "https://platform.minimax.io/docs/api-reference/text-openai-api"
+    ],
+    "note": "M3.1 Flash always thinks. Default effort: max. reasoning_split=true keeps thinking out of answer content. Not an effort preset for M2.x or M3.",
+    "output": {
+      "modes": [
+        "default"
+      ],
+      "defaultMode": "default",
+      "kind": "reasoning_text",
+      "note": "显式发送 reasoning_split=true，通过 reasoning_content 接收推理文本，正文独立；M3.1 Flash 不支持关闭此分离开关。"
     }
   }
 ]

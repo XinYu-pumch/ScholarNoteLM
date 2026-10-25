@@ -30,18 +30,29 @@ def selection(profile):
     output = value.get('output', 'default')
     if not isinstance(output, str) or output not in preset.get('output', {}).get('modes', ['default']):
         raise ValueError('此思考预设不支持所选输出方式')
-    # Missing/default preserves historic signatures exactly.
-    return {'preset': preset['id'], 'level': level, **({'output': output} if output != 'default' else {})}
+    result = {'preset': preset['id'], 'level': level, **({'output': output} if output != 'default' else {})}
+    if level == 'budget':
+        spec = preset.get('budget', {})
+        budget = value.get('budget')
+        if type(budget) is not int or not spec or not spec['min'] <= budget <= spec['max']:
+            raise ValueError('请填写此预设支持的整数思考 token 预算')
+        result['budget'] = budget
+    # Missing/default and inactive budgets preserve historic signatures exactly.
+    return result
 
 
 def endpoint(profile):
     from review_llm import endpoint as chat_endpoint
     selected = selection(profile)
     url = chat_endpoint(profile.get('baseUrl', ''))  # shared HTTPS / local validation
-    if not selected or selected['preset'] != 'gemini4_native':
+    protocol = PRESETS[selected['preset']]['protocol'] if selected else 'chat'
+    if protocol == 'chat':
         return url
     parts = urlsplit(url)
     path = parts.path.removesuffix('/chat/completions').rstrip('/')
+    if protocol in ('messages', 'responses'):
+        path = path.removesuffix('/messages').removesuffix('/responses')
+        return urlunsplit((parts.scheme, parts.netloc, path + '/' + protocol, '', ''))
     # Accept standard /v1, native /v1beta, or Google's /v1beta/openai base.
     if path.endswith('/v1beta/openai'):
         path = path.removesuffix('/openai')
@@ -81,6 +92,9 @@ def prepare(profile, messages):
         raise ValueError('未选择模型思考预设')
     native = selected['preset'] == 'gemini4_native'
     preset = PRESETS[selected['preset']]
+    if preset['protocol'] in ('messages', 'responses'):
+        from llm_native import prepare as prepare_native
+        return prepare_native(profile, messages, selected, preset, endpoint(profile))
     if native:
         body = {'contents': [], 'generationConfig': {'thinkingConfig': {
             'thinkingLevel': selected['level'], 'includeThoughts': True}}}
@@ -104,6 +118,8 @@ def prepare(profile, messages):
         body = {'model': profile['model'], 'messages': messages, 'stream': True}
         # Only reviewed local presets can supply request fields.
         body.update(copy.deepcopy(preset['options'][selected['level']]))
+        if selected['level'] == 'budget':
+            body[preset['budget']['field']] = selected['budget']
     output = selected.get('output', 'default')
     if output != 'default':
         if native:

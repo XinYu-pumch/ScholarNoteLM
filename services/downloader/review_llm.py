@@ -13,7 +13,8 @@ class UpstreamFailure(ValueError):
         import re
         self.status=status
         self.rejected_fields=set()
-        fields=('reasoning_effort','thinking_level','thinkingLevel','thinking.type','enable_thinking')
+        fields=('reasoning_effort','thinking_level','thinkingLevel','thinking.type','enable_thinking',
+                'thinking_budget','output_config.effort','reasoning.effort')
         try:
             data=json.loads(body);error=data.get('error',data)
             param=error.get('param','') if isinstance(error,dict) else ''
@@ -107,7 +108,9 @@ async def chat(profile,messages,cancelled,progress=lambda **kw:None,on_text=None
                         if len(data)>=16384:break
                     raise UpstreamFailure(response.status_code,data)
                 if 'application/json' in response.headers.get('content-type',''):
-                    receive_response(json.loads(await response.aread()));return
+                    receive_response(json.loads(await response.aread()))
+                    if provider and hasattr(decoder,'finalize'):decoder.finalize()
+                    return
                 phase='streaming'
                 payload=[];finished=False;done=False
                 async for line in response.aiter_lines():
@@ -121,6 +124,7 @@ async def chat(profile,messages,cancelled,progress=lambda **kw:None,on_text=None
                     if data=='[DONE]':done=True
                     else:finished=receive_response(json.loads(data)) or finished
                 if not done and not finished:raise ValueError('模型连接中断，未收到完成标志，未发布正文')
+                if provider and hasattr(decoder,'finalize'):decoder.finalize()
     async def connect():
         nonlocal attempts
         for attempt in range(2):
