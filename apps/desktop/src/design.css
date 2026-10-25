@@ -1074,3 +1074,15 @@ input[type='checkbox'], input[type='radio'] { accent-color: var(--accent); }
  .provider-sidebar { position:static; border-right:0; padding-right:0; grid-template-columns:repeat(2,minmax(0,1fr)); }
  .provider-sidebar-heading { grid-column:1 / -1; }
 }
+
+/* Download sections share title hierarchy and explicit, independent editors. */
+.download-settings :is(.pdf-source-card h3,.pdf-mirrors>summary,.pdf-request-settings>summary) { font-family:var(--font-ui); font-size:var(--fs-callout); font-weight:var(--fw-semibold); color:var(--text); }
+.download-settings .pdf-request-settings { margin-top:var(--space-4); }
+.download-settings .pdf-request-settings>summary { display:flex; align-items:center; gap:var(--space-2); cursor:pointer; list-style:none; }
+.download-settings .pdf-request-settings>summary::-webkit-details-marker { display:none; }
+.pdf-setting-actions { display:flex; align-items:center; justify-content:flex-end; flex-wrap:wrap; gap:var(--space-2); }
+.download-settings .pdf-connection-card { grid-template-rows:auto minmax(var(--space-8),auto) auto 1fr; }
+.pdf-connection-card .pdf-setting-actions { grid-row:2; }
+.pdf-request-settings>.pdf-setting-actions { margin-top:var(--space-4); }
+.download-settings :is(.pdf-zotero,.pdf-request-settings) input[readonly] { color:var(--muted); background:var(--bg); }
+@media(max-width:700px) { .download-settings .pdf-connection-card { grid-template-rows:none; } .pdf-connection-card .pdf-setting-actions { grid-row:auto; } }

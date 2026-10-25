@@ -43,7 +43,7 @@ Mac 用户也可使用 [完整独立 App](docs/MACOS_STANDALONE.md)：包内包�
 - 系统有 HTTP(S) 代理时跟随系统，没有时直连；分流由代理软件决定，不绑定 Clash。新请求适应代理变化，本机回环保持直连，已建立连接不强行迁移。
 - 模型设置采用“设置分类 / 模型供应商 / 配置详情”布局，内置 DeepSeek、`opencode_go`、`z.ai`、`moonshot`、`mimo`、`qwen` 和 `grok`，各保留一份配置。新增五家在添加模型时自动载入对应思维预设，z.ai 和 moonshot 可在国内/国际官方地址间选择。DeepSeek 官方模型的思考参数在独立模块中实现。特殊请求头、端点、思考档位和各模型的思考输出策略在独立模块内实现（Go 的 Gemini、GPT、Muse、Claude 显式请求摘要）；普通 OpenAI 兼容配置不按名称自动转换；可逐模型手动选择 Gemini / DeepSeek / Qwen / GLM 以及 Claude / Grok / Kimi / MiMo / MiniMax 专用预设，或通用思考预设；Gemini、Grok、Claude 各只保留 `Gemini· Native`、`Grok· Native`、`Claude· Native`，分别使用 Google 原生、Responses、Messages 协议，其余预设沿用 Chat Completions；“服务端默认”不添加思考参数，由服务商决定默认行为，Generic Reasoning Effort 已删除。已删除的预设须手动重选，不自动迁移配置或切换协议。逐模型思考按钮打开弹窗，可设置强度和接口支持的思考输出；测试连接报告实际参数、思考文本及已报告用量，另可主动进行错误参数对照检查。见 [供应商维护说明](services/llm_providers/README.md)。
 - 界面语言与内容语言独立；切换中文 / EN 不翻译已有研究内容。新内容默认语言只初始化新综述/对话；已有大纲另建另一语言综述，重试和分支沿用原轮次语言。
-- UI 视觉与交互按 [Design System](docs/UI_DESIGN.md) 维护：聊天输入可达、状态反馈不挤动列表、设置分类固定、未保存草稿有离开保护。纯视觉修改只改样式。
+- UI 视觉与交互按 [Design System](docs/UI_DESIGN.md) 维护：聊天输入可达、状态反馈不挤动列表、设置分类固定、未保存草稿有离开保护。Zotero 下载地址及下载速度/超时默认只读，支持分组编辑、保存、取消和恢复默认。纯视觉修改只改样式。
 
 ### 输入、数量与质量边界
 

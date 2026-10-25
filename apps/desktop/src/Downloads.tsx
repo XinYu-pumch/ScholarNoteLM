@@ -29,27 +29,59 @@ export function PdfDetails({pmid,asset,item}:{pmid:string;asset?:PdfAsset;item?:
 }
 export {default} from './TaskCenter';
 const DEFAULT_MIRRORS=['https://sci-hub.ru','https://sci-hub.su','https://sci-hub.st','https://sci-hub.red','https://sci-hub.box'];
+const DEFAULT_ZOTERO_ADDRESS='localhost:23119';
+const REQUEST_FIELDS=[
+ ['unpaywallConcurrency','Unpaywall 并发',1,30,10],['pmcConcurrency','PMC 并发',1,10,5],
+ ['europePmcConcurrency','Europe PMC 并发',1,4,4],['timeout','请求超时 · 秒',5,180,20],
+ ['europePmcTimeout','Europe PMC 超时 · 秒',5,300,60],['europePmcAttempts','Europe PMC 尝试次数',1,3,3],
+ ['attempts','PMC 尝试次数',1,5,3],['oaFileTimeout','单文件下载超时 · 秒',5,300,45],
+ ['oaArticleTimeout','单篇查找超时 · 秒',5,600,60],['s3ArticleTimeout','PMC 单篇超时 · 秒',5,300,60]
+] as const;
+type RequestSettings=Pick<DownloadConfig,(typeof REQUEST_FIELDS)[number][0]>;
+const DEFAULT_REQUEST_SETTINGS=Object.fromEntries(REQUEST_FIELDS.map(([key,,,,value])=>[key,value])) as RequestSettings;
+function requestSettings(cfg:DownloadConfig):RequestSettings{return Object.fromEntries(REQUEST_FIELDS.map(([key])=>[key,cfg[key]])) as RequestSettings;}
+function DownloadEditActions({editing,onEdit,onCancel,onSave,onReset}:{editing:boolean;onEdit:()=>void;onCancel:()=>void;onSave:()=>void;onReset:()=>void}){
+ return <div className="pdf-setting-actions">
+  {editing?<><button type="button" className="button secondary compact" onClick={onCancel}>{tr('取消')}</button><button type="button" className="button primary compact" onClick={onSave}><Save size={14}/>{tr('保存')}</button></>:<button type="button" className="button secondary compact" onClick={onEdit}><Pencil size={14}/>{tr('编辑')}</button>}
+  <button type="button" className="button secondary compact" onClick={onReset}><RotateCcw size={14}/>{tr('恢复默认')}</button>
+ </div>;
+}
 export function DownloadSettings(){
  const [cfg,setCfg]=useState<DownloadConfig|null>(null);const [baseline,setBaseline]=useState<DownloadConfig|null>(null);const [error,setError]=useState('');const [busy,setBusy]=useState(false);const [saved,setSaved]=useState('');const [mirrors,setMirrors]=useState('');const [editingMirrors,setEditingMirrors]=useState(false);
+ const [zoteroDraft,setZoteroDraft]=useState<string|null>(null);const [requestDraft,setRequestDraft]=useState<RequestSettings|null>(null);
  useEffect(()=>{void rpc<DownloadConfig>('download.settings').then(v=>{setCfg(v);setBaseline(v);setMirrors(v.mirrors.join('\n'));}).catch(e=>setError(message(e)));},[]);
- async function persist(){if(!cfg)return;const value=await rpc<DownloadConfig>('download.settings.save',cfg);setCfg(value);setBaseline(value);setSaved('下载设置已保存');}
+ async function persistPatch(patch:Partial<DownloadConfig>,success:string){
+  const value=await rpc<DownloadConfig>('download.settings.save',patch);
+  const savedPatch=Object.fromEntries((Object.keys(patch) as (keyof DownloadConfig)[]).map(key=>[key,value[key]]));
+  setCfg(v=>v?{...v,...savedPatch}:v);setBaseline(v=>v?{...v,...savedPatch}:v);setSaved(success);
+ }
+ async function persist(){if(cfg)await persistPatch({email:cfg.email,fastOa:cfg.fastOa},'下载设置已保存');}
+ async function persistZotero(value=zoteroDraft){if(value===null)return;await persistPatch({zoteroAddress:value},'Zotero 地址已保存');setZoteroDraft(null);}
+ async function persistRequests(value=requestDraft){if(!value)return;await persistPatch(value,'下载速度与超时已保存');setRequestDraft(null);}
+ async function runSave(action:()=>Promise<void>){setBusy(true);setError('');setSaved('');try{await action();}catch(e){setError(message(e));}finally{setBusy(false);}}
+ function clearFeedback(){setError('');setSaved('');}
  async function persistMirrors(){const value=await rpc<DownloadConfig>('download.settings.save',{mirrors:mirrors.split('\n').map(v=>v.trim()).filter(Boolean)});setCfg(v=>v?{...v,mirrors:value.mirrors}:v);setBaseline(v=>v?{...v,mirrors:value.mirrors}:v);setMirrors(value.mirrors.join('\n'));setEditingMirrors(false);setSaved('Sci-Hub 镜像已保存');}
  const mirrorGuard=useDraftGuard({label:'Sci-Hub 镜像',dirty:editingMirrors&&mirrors!==(cfg?.mirrors.join('\n')||''),busy,save:persistMirrors,discard:()=>{setMirrors(cfg?.mirrors.join('\n')||'');setEditingMirrors(false);}});
+ const zoteroGuard=useDraftGuard({label:'Zotero 本地地址',dirty:zoteroDraft!==null&&zoteroDraft!==cfg?.zoteroAddress,busy,save:()=>persistZotero(),discard:()=>setZoteroDraft(null)});
+ const requestGuard=useDraftGuard({label:'下载速度与超时',dirty:!!requestDraft&&!!cfg&&JSON.stringify(requestDraft)!==JSON.stringify(requestSettings(cfg)),busy,save:()=>persistRequests(),discard:()=>setRequestDraft(null)});
  const draftDialog=useUnsavedChanges({label:'PDF 下载设置',dirty:!!baseline&&JSON.stringify(cfg)!==JSON.stringify(baseline),busy,save:persist,discard:()=>setCfg(baseline)});
  if(!cfg)return <p className="quiet">{tr(error)||tr("正在读取下载配置…")}</p>;
  const set=(patch:Partial<DownloadConfig>)=>{setSaved('');setCfg(v=>v?{...v,...patch}:v);};
- async function save(){if(editingMirrors)return;setBusy(true);setError('');setSaved('');try{await persist();}catch(e){setError(message(e));}finally{setBusy(false);}}
- async function saveMirrors(){setBusy(true);setError('');setSaved('');try{await persistMirrors();}catch(e){setError(message(e));}finally{setBusy(false);}}
- return <div className="download-settings">{draftDialog}{mirrorGuard.dialog}<h2>{tr("PDF 下载")}</h2><p className="quiet">{tr("管理全文来源和下载速度。")}</p>
+ async function save(){if(editingMirrors||zoteroDraft!==null||requestDraft)return;await runSave(persist);}
+ async function saveMirrors(){await runSave(persistMirrors);}
+ return <div className="download-settings">{draftDialog}{mirrorGuard.dialog}{zoteroGuard.dialog}{requestGuard.dialog}<h2>{tr("PDF 下载")}</h2><p className="quiet">{tr("管理全文来源和下载速度。")}</p>
 <div className="settings-feedback"> {error&&<div className="wb-alert" role="alert">{tr(error)}</div>}{saved&&<div className="wb-success" role="status"><Check size={15}/>{tr(saved)}</div>}</div>
  <form onSubmit={e=>{e.preventDefault();void save();}}><fieldset disabled={busy} className="pdf-settings-fields">
   <div className="pdf-source-grid">
    <section className="pdf-source-card pdf-connection-card wb-form"><h3>{tr("开放获取")}</h3><label className="wb-check"><input type="checkbox" checked={cfg.fastOa} onChange={e=>set({fastOa:e.target.checked})}/>{tr("从开放获取来源下载")}</label><Field className="pdf-connection-field">{tr("Unpaywall 联系邮箱")}<input aria-label={tr("Unpaywall 联系邮箱")} type="email" value={cfg.email} placeholder="research@example.com" onChange={e=>set({email:e.target.value})}/></Field><p className="quiet small">{tr("无需注册；留空时跳过 Unpaywall。")}</p></section>
-   <section className="pdf-source-card pdf-connection-card wb-form"><h3>Zotero</h3><Field className="pdf-connection-field">{tr("本地地址")}<input aria-label={tr("Zotero 本地地址")} value={cfg.zoteroAddress??'localhost:23119'} placeholder="localhost:23119" onChange={e=>set({zoteroAddress:e.target.value})}/></Field><p className="quiet small">{tr("补充 Zotero 中已有的 PDF。需打开 Zotero 并启用本地 API；留空则跳过。")}</p></section>
+   <section className="pdf-source-card pdf-connection-card pdf-zotero wb-form"><h3>Zotero</h3><DownloadEditActions editing={zoteroDraft!==null} onEdit={()=>{setZoteroDraft(cfg.zoteroAddress??DEFAULT_ZOTERO_ADDRESS);clearFeedback();}} onCancel={()=>{setZoteroDraft(null);clearFeedback();}} onSave={()=>void runSave(()=>persistZotero())} onReset={()=>void runSave(()=>persistZotero(DEFAULT_ZOTERO_ADDRESS))}/><Field className="pdf-connection-field">{tr("本地地址")}<input aria-label={tr("Zotero 本地地址")} value={zoteroDraft??cfg.zoteroAddress??DEFAULT_ZOTERO_ADDRESS} readOnly={zoteroDraft===null} placeholder={DEFAULT_ZOTERO_ADDRESS} onChange={e=>{setZoteroDraft(e.target.value);clearFeedback();}}/></Field><p className="quiet small">{tr("补充 Zotero 中已有的 PDF。需打开 Zotero 并启用本地 API；留空则跳过。")}</p></section>
    <details className="pdf-source-card pdf-mirrors"><summary><ChevronRight size={15}/><span>{tr("Sci-Hub 镜像")}</span></summary><div className="pdf-mirrors-body wb-form"><div className="pdf-mirror-actions"><button type="button" className="button secondary compact" onClick={()=>{setMirrors(DEFAULT_MIRRORS.join('\n'));setEditingMirrors(true);setSaved('');}}><RotateCcw size={14}/>{tr("恢复默认")}</button>{editingMirrors?<><button type="button" className="button secondary compact" onClick={()=>mirrorGuard.leave(()=>{setEditingMirrors(false);setError('');})}>{tr("取消")}</button><button type="button" className="button primary compact" onClick={()=>void saveMirrors()}><Save size={14}/>{tr("保存")}</button></>:<button type="button" className="button secondary compact" onClick={()=>{setEditingMirrors(true);setSaved('');}}><Pencil size={14}/>{tr("编辑")}</button>}</div><Field>{tr("镜像地址 · 每行一个")}<textarea aria-label={tr("Sci-Hub 镜像地址")} rows={5} value={mirrors} readOnly={!editingMirrors} onChange={e=>{setMirrors(e.target.value);setSaved('');}} spellCheck={false}/></Field><p className="quiet small">{editingMirrors?tr("点击保存后生效；清空后停用。"):tr("无法连接的镜像会自动跳过。")}</p></div></details>
   </div>
-  <details className="model-advanced pdf-request-settings"><summary><ChevronRight size={14}/>{tr("下载速度与超时")}</summary><div className="pdf-request-grid">
-   {([['unpaywallConcurrency','Unpaywall 并发',1,30],['pmcConcurrency','PMC 并发',1,10],['europePmcConcurrency','Europe PMC 并发',1,4],['timeout','请求超时 · 秒',5,180],['europePmcTimeout','Europe PMC 超时 · 秒',5,300],['europePmcAttempts','Europe PMC 尝试次数',1,3],['attempts','PMC 尝试次数',1,5],['oaFileTimeout','单文件下载超时 · 秒',5,300],['oaArticleTimeout','单篇查找超时 · 秒',5,600],['s3ArticleTimeout','PMC 单篇超时 · 秒',5,300]] as const).map(([key,label,min,max])=><label key={key}>{tr(label)}<NumberInput aria-label={tr(label)} type="number" min={min} max={max} value={cfg[key]} onChange={e=>set({[key]:Number(e.target.value)})}/></label>)}
-  </div></details>
- </fieldset><div className="model-save-bar"><span>{tr("用于之后的下载和重试")}</span><button className="button primary" disabled={busy||editingMirrors}><Save size={15}/>{busy?tr("正在保存…"):tr("保存下载设置")}</button></div></form></div>;
+  <details className="pdf-source-card pdf-request-settings"><summary><ChevronRight size={15}/><span>{tr("下载速度与超时")}</span></summary>
+   <DownloadEditActions editing={requestDraft!==null} onEdit={()=>{setRequestDraft(requestSettings(cfg));clearFeedback();}} onCancel={()=>{setRequestDraft(null);clearFeedback();}} onSave={()=>void runSave(()=>persistRequests())} onReset={()=>void runSave(()=>persistRequests(DEFAULT_REQUEST_SETTINGS))}/>
+   <div className="pdf-request-grid">
+    {REQUEST_FIELDS.map(([key,label,min,max])=><label key={key}>{tr(label)}<NumberInput aria-label={tr(label)} type="number" min={min} max={max} value={(requestDraft??cfg)[key]} readOnly={!requestDraft} onChange={e=>{setRequestDraft(v=>v?{...v,[key]:Number(e.target.value)}:v);clearFeedback();}}/></label>)}
+   </div>
+  </details>
+ </fieldset><div className="model-save-bar"><span>{tr("用于之后的下载和重试")}</span><button className="button primary" disabled={busy||editingMirrors||zoteroDraft!==null||!!requestDraft}><Save size={15}/>{busy?tr("正在保存…"):tr("保存下载设置")}</button></div></form></div>;
 }
