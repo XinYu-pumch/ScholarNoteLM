@@ -1,6 +1,11 @@
 {
   "providers": [
     "deepseek",
-    "opencode_go"
+    "opencode_go",
+    "z_ai",
+    "moonshot",
+    "mimo",
+    "qwen",
+    "grok"
   ]
 }

@@ -11,6 +11,20 @@ class ReviewTests(unittest.TestCase):
  def tearDown(self):e.ROOT,e.PROJECT=self.old;self.tmp.cleanup()
  def call(self,op,**a):return r.rpc(e,op,{'name':'Review1',**a})
  def create(self):return self.call('create',description='目标',topic='免疫')
+ def test_outline_publishes_reasoning_progress_before_answer_callback(self):
+  import review_llm
+  self.create();path=r.work(e,'Review1');token='thinking-progress'
+  state=r.read(path/'outline-state.json');state.update(state='queued',token=token,profileId='p',model='m')
+  e.write_json(path/'outline-state.json',state);e.write_json(path/'prompt.json',{'system':'fixture','user':'fixture'})
+  observed=[]
+  async def chat(profile,messages,cancelled,progress,on_text):
+   progress(received=0,reasoningCharacters=12)
+   observed.append(r.read(path/'outline-state.json'))
+   on_text('Serial,Title\n1,结果\n')
+  with patch.object(r,'profile',return_value={'model':'m'}),patch.object(r.llm_provider,'adapter',return_value=object()),patch.object(review_llm,'chat',side_effect=chat):
+   r.worker(e,'Review1','current',token)
+  self.assertEqual(observed[0]['reasoningCharacters'],12);self.assertEqual(observed[0]['received'],0)
+  self.assertEqual(r.read(path/'outline-state.json')['state'],'done')
  def test_generation_pins_explicit_model_from_pool(self):
   self.create()
   with patch.object(r,'profile',return_value={'id':'provider-b','model':'chosen-model','name':'B'}) as resolve, patch.object(r.subprocess,'Popen') as child:

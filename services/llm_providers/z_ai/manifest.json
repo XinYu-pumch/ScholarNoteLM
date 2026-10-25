@@ -1,0 +1,11 @@
+{
+  "id": "z_ai",
+  "name": "z.ai",
+  "singleProfile": true,
+  "baseUrl": "https://open.bigmodel.cn/api/paas/v4",
+  "baseUrls": [
+    "https://open.bigmodel.cn/api/paas/v4",
+    "https://api.z.ai/api/paas/v4"
+  ],
+  "defaultThinkingPreset": "glm_openai"
+}

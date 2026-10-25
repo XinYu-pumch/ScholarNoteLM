@@ -14,7 +14,9 @@ PRESETS = {p['id']: p for p in json.loads(Path(__file__).with_name('thinking_pre
 
 def selection(profile):
     if (profile.get('provider') or 'openai') != 'openai':
-        return None
+        from llm_provider import manifest
+        if not manifest(profile).get('defaultThinkingPreset'):
+            return None
     settings = profile.get('thinkingByModel', {})
     if not isinstance(settings, dict):
         raise ValueError('模型思考预设格式无效')

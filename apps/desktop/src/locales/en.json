@@ -1698,5 +1698,6 @@
   "思考模式通常自动通过 reasoning_content 返回推理文本；不额外发送摘要参数。": "Thinking mode usually returns reasoning_content automatically; no extra summary parameter is sent.",
   "MiMo、Kimi K2.6、GLM 的思考文本通常随思考模式自动返回；此通用预设没有独立摘要开关。": "MiMo, Kimi K2.6 and GLM usually return thinking text automatically in thinking mode. This generic preset has no separate summary switch.",
   "同一强度字段不代表同一输出能力：Kimi 通常返回推理文本；OpenAI 和 Meta 外部 Chat Completions 不公开内部推理；Grok 按模型和接口而定。不能把 Responses 的摘要参数用于此通用预设。": "A shared effort field does not imply shared output capabilities: Kimi usually returns reasoning text; OpenAI and external Meta Chat Completions do not expose private reasoning; Grok depends on the model and endpoint. Responses summary parameters do not apply to this generic preset.",
-  "请填写此预设支持的整数思考 token 预算": "Enter an integer thinking token budget within this preset’s range."
+  "请填写此预设支持的整数思考 token 预算": "Enter an integer thinking token budget within this preset’s range.",
+  "已接收正文 {p0} 字符 · 思考 {p1} 字符": "Received {p0} answer characters · {p1} thinking characters"
 }

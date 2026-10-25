@@ -18,43 +18,43 @@ def profile(preset, level, **extra):
 
 
 class VendorThinkingTests(unittest.IsolatedAsyncioTestCase):
-    def test_responses_vendor_protocols(self):
-        cases = [
-            ('gpt6_astra_responses', 'xhigh', 'xhigh'),
-            ('deepseek_v4_responses', 'none', 'none'),
-            ('qwen38_responses', 'medium', 'medium'),
-            ('glm53_responses', 'high', 'high'),
-            ('kimi_k3_responses', 'low', 'low'),
-            ('mimo_v26_responses', 'enabled', 'high'),
-            ('mimo_v26_responses', 'disabled', 'none'),
-            ('minimax_m31_responses', 'max', 'max'),
-            ('meta_muse_responses', 'minimal', 'minimal'),
-        ]
-        for preset, level, effort in cases:
-            with self.subTest(preset=preset, level=level):
-                url, body, headers, _ = thinking.prepare(profile(preset, level), [{'role':'user','content':'hello'}])
+    def test_only_grok_offers_responses_and_removed_selections_fail(self):
+        self.assertEqual([p['id'] for p in thinking.PRESETS.values() if p['protocol']=='responses'],
+                         ['grok47_responses'])
+        for preset in ['gpt6_astra_responses', 'deepseek_v4_responses', 'qwen38_responses',
+                       'glm53_responses', 'kimi_k3_responses', 'mimo_v26_responses',
+                       'minimax_m31_responses', 'meta_muse_responses',
+                       'gemini4_openai', 'claude55_chat', 'grok47_chat', 'generic_effort']:
+            with self.subTest(preset=preset), self.assertRaisesRegex(ValueError, '预设无效'):
+                thinking.prepare(profile(preset, 'high'), [])
+        for level in ['low', 'medium', 'high', 'xhigh']:
+            with self.subTest(level=level):
+                url, body, headers, _ = thinking.prepare(profile('grok47_responses', level), [{'role':'user','content':'hello'}])
                 self.assertEqual(url, 'https://relay.invalid/prefix/v1/responses')
                 self.assertEqual(body, {'model':'fixture', 'stream':True, 'store':False,
                                        'input':[{'role':'user','content':[{'type':'input_text','text':'hello'}]}],
-                                       'reasoning':{'effort':effort}})
+                                       'reasoning':{'effort':level}})
                 self.assertEqual(headers, {'Authorization':'Bearer fixture-key'})
-        for preset, bad in [('gpt6_astra_responses','none'), ('kimi_k3_responses','medium'),
-                            ('glm53_responses','low'), ('minimax_m31_responses','none'),
-                            ('qwen38_responses','budget'), ('mimo_v26_responses','high')]:
-            with self.assertRaises(ValueError): thinking.prepare(profile(preset,bad), [])
+        with self.assertRaises(ValueError): thinking.prepare(profile('grok47_responses','none'), [])
+
+    def test_chat_presets_preserve_configured_endpoint(self):
+        for preset in thinking.PRESETS.values():
+            if preset['protocol'] != 'chat':
+                continue
+            for base in ['https://relay.invalid/prefix/v1', 'https://relay.invalid/prefix/v1/chat/completions']:
+                with self.subTest(preset=preset['id'], base=base):
+                    p = profile(preset['id'], preset['defaultLevel'])
+                    p['baseUrl'] = base
+                    url, body, _, _ = thinking.prepare(p, [])
+                    self.assertEqual(url, 'https://relay.invalid/prefix/v1/chat/completions')
+                    self.assertIn('messages', body)
+                    self.assertNotIn('input', body)
 
     def test_official_output_switch_is_protocol_specific(self):
-        for preset in ['gpt6_astra_responses','meta_muse_responses']:
-            for mode in ['summary','off','default']:
-                body = thinking.prepare(profile(preset,'high',output=mode), [])[1]
-                expected = {'effort':'high', **({'summary':'auto'} if mode=='summary' else {})}
-                self.assertEqual(body['reasoning'],expected)
-        for preset in ['deepseek_v4_responses','qwen38_responses','glm53_responses',
-                       'kimi_k3_responses','mimo_v26_responses','minimax_m31_responses']:
+        for preset in ['grok47_responses','deepseek_openai','qwen_openai','glm_openai',
+                       'kimi_k3_openai','mimo_v26_openai','minimax_m31_openai']:
             with self.assertRaises(ValueError):
                 thinking.prepare(profile(preset,thinking.PRESETS[preset]['defaultLevel'],output='summary'), [])
-        body = thinking.prepare(profile('claude55_chat','adaptive'), [])[1]
-        self.assertEqual(body, {'model':'fixture','messages':[],'stream':True,'thinking':{'type':'adaptive'}})
         for preset in ['gpt6_astra_chat','meta_muse_chat']:
             self.assertEqual(thinking.prepare(profile(preset,'high'), [])[1],
                              {'model':'fixture','messages':[],'stream':True,'reasoning_effort':'high'})
@@ -63,7 +63,6 @@ class VendorThinkingTests(unittest.IsolatedAsyncioTestCase):
     def test_official_wire_parameters(self):
         for preset, level, fields in [
             ('kimi_k3_openai','low',{'reasoning_effort':'low'}),
-            ('grok47_chat','xhigh',{'reasoning_effort':'xhigh'}),
             ('mimo_v26_openai','enabled',{'thinking':{'type':'enabled'}}),
             ('mimo_v26_openai','disabled',{'thinking':{'type':'disabled'}}),
             ('minimax_m31_openai','max',{'reasoning_effort':'max','reasoning_split':True})]:
@@ -152,7 +151,7 @@ class VendorThinkingTests(unittest.IsolatedAsyncioTestCase):
             with self.assertRaises(ValueError):llm_native.Decoder('responses').decode(value)
 
     async def test_nullable_responses_content_and_reasoning_mirrors(self):
-        p=profile('mimo_v26_responses','enabled')
+        p=profile('grok47_responses','high')
         final={'type':'response.completed','response':{'status':'completed','output':[
             {'type':'reasoning','content':None,'summary':[{'type':'summary_text','text':'thought'}]},
             {'type':'message','summary':None,'content':[{'type':'output_text','text':'answer'}]}]}}

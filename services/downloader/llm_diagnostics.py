@@ -65,7 +65,7 @@ async def test_connection(profile):
     # Reject malformed preset choices before any request goes out.
     preset = llm_thinking.PRESETS[selected['preset']] if selected else None
     provider = llm_provider.manifest(p)
-    output = (preset or {}).get('output',{}) if not provider else provider.get('models',{}).get(p['model'],{}).get('reasoning',{}).get('output',{})
+    output = (preset or {}).get('output',{}) if preset or not provider else provider.get('models',{}).get(p['model'],{}).get('reasoning',{}).get('output',{})
     started = time.monotonic()
     content = 'Reply only: connection OK'
     expected = None

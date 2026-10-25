@@ -380,6 +380,7 @@ def worker(e,name,vid,token):
                 def progress(**fields):
                     nonlocal reasoning
                     reasoning=fields.get('reasoningCharacters',reasoning)
+                    update(state='running',received=len(output),reasoningCharacters=reasoning)
                 def on_text(text):
                     nonlocal output
                     output=text

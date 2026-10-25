@@ -960,6 +960,11 @@ input[type='checkbox'], input[type='radio'] { accent-color: var(--accent); }
 .main-content:has(>.research-settings) { overflow:hidden; }
 .main-content>.research-settings { height:100%; min-height:0; display:flex; flex-direction:column; margin:0 auto; width:100%; padding-bottom:0; }
 .research-settings>.page-heading { flex:none; }
+.research-settings>.page-heading>.settings-global-feedback { flex:0 1 50%; min-width:0; margin:0 0 0 auto; }
+.research-settings>.page-heading>.settings-global-feedback:empty { display:none; }
+.research-settings>.page-heading:has(>.settings-global-feedback:not(:empty))>.subtle-badge { display:none; }
+.research-settings .settings-body>div>h2,.research-settings .model-settings-heading h2 { min-height:var(--space-10); display:flex; align-items:center; margin:0; }
+
 .research-settings>.settings-layout { flex:1; min-height:0; overflow:hidden; flex-direction:row; }
 .research-settings .settings-nav { flex:none; align-self:stretch; overflow-y:auto; display:block; width:170px; padding-bottom:var(--space-5); }
 .research-settings .settings-nav button { justify-content:flex-start; }
@@ -983,7 +988,8 @@ input[type='checkbox'], input[type='radio'] { accent-color: var(--accent); }
 .model-row-heading .icon-button { flex-shrink:0; color:var(--muted); }
 .model-row-controls { display:flex; flex-wrap:wrap; align-items:center; gap:var(--space-2); }
 .model-row-options,.model-row-actions { display:flex; align-items:center; gap:var(--space-3); }
-.model-row-controls>.model-row-options,.model-row-controls>.model-row-actions { display:contents; }
+.model-row-controls>.model-row-options { flex-wrap:wrap; }
+.model-row-controls>.model-row-actions { margin-left:auto; justify-content:flex-end; flex-wrap:wrap; }
 .model-row-controls .wb-check,.model-row-controls .text-button { white-space:nowrap; }
 .model-thinking-button { font-size:var(--fs-footnote); }
 .model-row-actions { margin-left:auto; }
@@ -1032,10 +1038,12 @@ input[type='checkbox'], input[type='radio'] { accent-color: var(--accent); }
 
 .workspace-setup p { text-align: left; max-width: none; }
 
-/* Provider selection and details share the full settings width. */
-.research-settings .settings-body:has(.model-settings-compact) { max-width:none; }
-.provider-settings-layout { display:grid; grid-template-columns:minmax(140px,190px) minmax(0,1fr); gap:var(--space-6); align-items:start; }
-.provider-sidebar { position:sticky; top:0; display:grid; gap:var(--space-2); padding-right:var(--space-4); border-right:1px solid var(--line); min-width:0; }
+/* Provider list and editor own their scroll positions inside the settings frame. */
+.research-settings .settings-body:has(.model-settings-compact) { max-width:none; display:flex; flex-direction:column; overflow:hidden; padding-bottom:0; scrollbar-gutter:auto; }
+.model-settings-compact { flex:1; min-height:0; display:flex; flex-direction:column; }
+.model-settings-compact>.model-settings-heading { flex:none; }
+.provider-settings-layout { flex:1; min-height:0; display:grid; grid-template-columns:minmax(140px,190px) minmax(0,1fr); grid-template-rows:minmax(0,1fr); gap:var(--space-6); align-items:stretch; }
+.provider-sidebar { position:static; display:grid; align-content:start; gap:var(--space-2); padding:0 var(--space-4) var(--space-3) 0; border-right:1px solid var(--line); min-width:0; min-height:0; overflow-y:auto; overscroll-behavior-y:contain; scrollbar-gutter:stable; }
 .provider-sidebar-heading { display:flex; align-items:center; justify-content:space-between; gap:var(--space-2); }
 .provider-sidebar-heading h3,.model-profile-toolbar h3 { margin:0; font-size:var(--fs-subhead); }
 .provider-item { width:100%; display:grid; gap:var(--space-1); padding:var(--space-3); text-align:left; border:1px solid transparent; border-radius:var(--radius-md); }
@@ -1043,7 +1051,12 @@ input[type='checkbox'], input[type='radio'] { accent-color: var(--accent); }
 .provider-item small { font-size:var(--fs-footnote); color:var(--muted); }
 .provider-item:hover { background:var(--hover); }
 .provider-item.selected { color:var(--accent); background:var(--accent-soft); border-color:var(--line-strong); }
-.provider-detail { min-width:0; }
+.provider-detail { min-width:0; min-height:0; display:flex; flex-direction:column; overflow-y:auto; overscroll-behavior-y:contain; scrollbar-gutter:stable; padding-right:var(--space-2); }
+.provider-detail>.model-profile-toolbar,.provider-detail>label,.provider-detail>.wb-alert { flex:none; }
+.provider-detail .model-connection-form { flex:1 0 auto; display:flex; flex-direction:column; padding:0; }
+.provider-detail .model-fields { flex:none; }
+.research-settings .provider-detail .model-save-bar { order:1; flex:none; margin: auto 0 0; padding:var(--space-3) 0; bottom:0; background:var(--bg); -webkit-backdrop-filter:none; backdrop-filter:none; }
+.model-settings-compact>.model-ncbi { flex:none; max-height:40%; overflow-y:auto; overscroll-behavior-y:contain; margin:0; }
 .provider-detail .model-profile-toolbar { justify-content:space-between; min-height:var(--control-height); }
 .provider-detail .model-fields-row { grid-template-columns:minmax(0,1fr); }
 .model-reasoning-note { color:var(--muted); font-size:var(--fs-footnote); margin:0; }
@@ -1053,13 +1066,11 @@ input[type='checkbox'], input[type='radio'] { accent-color: var(--accent); }
 @media(max-width:1100px) {
  .provider-settings-layout { grid-template-columns:minmax(120px,150px) minmax(0,1fr); gap:var(--space-3); }
  .provider-sidebar { padding-right:var(--space-2); }
- .provider-detail .model-row-actions { margin-left:0; flex-wrap:wrap; }
 }
 
-.research-settings .settings-body:has(.vector-settings) > .settings-global-feedback:empty { display:none; }
 .research-settings .provider-detail .model-profile-toolbar { padding-top:0; }
 @media(max-width:760px) {
- .provider-settings-layout { grid-template-columns:minmax(0,1fr); }
+ .provider-settings-layout { grid-template-columns:minmax(0,1fr); grid-template-rows:minmax(0,1fr) minmax(0,2fr); }
  .provider-sidebar { position:static; border-right:0; padding-right:0; grid-template-columns:repeat(2,minmax(0,1fr)); }
  .provider-sidebar-heading { grid-column:1 / -1; }
 }

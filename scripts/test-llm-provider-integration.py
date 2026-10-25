@@ -15,7 +15,7 @@ class Handler(BaseHTTPRequestHandler):
  def do_POST(self):
   body=json.loads(self.rfile.read(int(self.headers['Content-Length'])));requests.append({'path':self.path,'body':body,'headers':dict(self.headers)})
   if '__invalid_probe__' in json.dumps(body):
-   self.send_response(422);self.send_header('Content-Type','application/json');self.end_headers();self.wfile.write(json.dumps({'error':{'param':'thinking_level','message':'invalid thinking_level'}}).encode());return
+   self.send_response(422);self.send_header('Content-Type','application/json');self.end_headers();self.wfile.write(json.dumps({'error':{'param':'thinkingLevel','message':'invalid thinkingLevel'}}).encode());return
   text='### 基础检索\n\n```pubmed\nPLA2R[tiab]\n```'
   self.send_response(200);self.send_header('Content-Type','text/event-stream');self.end_headers()
   if 'CANCEL_FIXTURE' in json.dumps(body):slow_started.set();time.sleep(3)
@@ -89,6 +89,18 @@ try:
   assert rpc('llm.test',profile=saved_ds)['reply'];assert requests[-1]['body']['reasoning_effort']=='low';assert 'x-opencode-session' not in headers(requests[-1])
   ds_thread=rpc('chat.new',name='DeepSeek search');ds_history=rpc('chat',stream=True,chatId=ds_thread['id'],streamId=uuid.uuid4().hex,profileId='ds',message='Design a search')
   assert not ds_history[-1]['error'] and ds_history[-1]['result']['queries'];assert 'x-opencode-session' not in headers(requests[-1])
+  # The new providers discover future model IDs and reuse ordinary presets through the private worker.
+  for ident in ['z_ai','moonshot','mimo','qwen','grok']:
+   official_manifest=app/'services/llm_providers'/ident/'manifest.json';official=json.loads(official_manifest.read_text());official.update(baseUrl=base,baseUrls=[base]);official_manifest.write_text(json.dumps(official))
+   preset=next(p for p in json.loads((app/'services/downloader/thinking_presets.json').read_text()) if p['id']==official['defaultThinkingPreset'])
+   selected={'id':'official-'+ident,'provider':ident,'name':ident,'baseUrl':base,'model':'future-unknown','models':['future-unknown'],'thinkingByModel':{'future-unknown':{'preset':preset['id'],'level':preset['defaultLevel']}},'temperature':None,'timeout':10}
+   saved_official=rpc('profile.save',profile=selected);assert saved_official['name']==official['name']
+   assert 'future-unknown' in rpc('llm.models',profile=saved_official)
+   assert rpc('llm.test',profile=saved_official)['reply']
+   thread=rpc('chat.new',name=ident);history=rpc('chat',stream=True,chatId=thread['id'],streamId=uuid.uuid4().hex,profileId=selected['id'],message='Search PLA2R')
+   assert not history[-1]['error'] and history[-1]['result']['queries']
+   assert requests[-1]['path']==('/v1/responses' if ident=='grok' else '/v1/chat/completions')
+   assert 'x-opencode-session' not in headers(requests[-1])
   shutil.rmtree(manifest.parent)  # Simulate uninstall while keeping stored Go profiles.
   assert 'opencode_go' not in [p['id'] for p in rpc('settings')['providers']]
   rpc('profile.save',profile=normal)
@@ -101,7 +113,7 @@ try:
   assert {p['id'] for p in rpc('settings')['thinkingPresets']}=={p['id'] for p in json.loads((ROOT/'services/downloader/thinking_presets.json').read_text())}
   catalog=json.loads((ROOT/'services/downloader/thinking_presets.json').read_text())
   for spec in catalog:
-   preset=spec['id'];level={'generic_effort':'xhigh','generic_thinking_toggle':'disabled','qwen_openai':'medium','glm_openai':'max'}.get(preset,spec['defaultLevel'])
+   preset=spec['id'];level={'generic_thinking_toggle':'disabled','qwen_openai':'medium','glm_openai':'max'}.get(preset,spec['defaultLevel'])
    custom={**normal,'id':'preset-'+preset,'name':preset,'thinkingByModel':{'normal':{'preset':preset,'level':level}},'temperature':0.2}
    saved_custom=rpc('profile.save',profile=custom)
    assert saved_custom['thinkingByModel']==custom['thinkingByModel']
@@ -117,8 +129,6 @@ try:
     assert observed['path']=='/v1/messages' and observed['body']['output_config']['effort']==level
    elif spec['protocol']=='responses':
     assert observed['path']=='/v1/responses' and observed['body']['reasoning']==spec['options'][level]['reasoning']
-   elif preset=='claude55_chat':
-    assert observed['body']['thinking']=={'type':'adaptive'} and 'reasoning_effort' not in observed['body']
    elif preset in ('generic_thinking_toggle','mimo_v26_openai'):
     assert observed['body']['thinking']=={'type':level} and 'reasoning_effort' not in observed['body']
    else:
@@ -128,17 +138,17 @@ try:
    invalid={**custom,'thinkingByModel':{'normal':{'preset':preset,'level':'invalid'}}}
    failed=subprocess.run([exe],input=json.dumps({'action':'profile.save','args':{'profile':invalid}}),text=True,capture_output=True,env=env,timeout=10)
    assert not json.loads(failed.stdout)['ok']
-  output_profile={**normal,'id':'summary-test','name':'Summary fixture','thinkingByModel':{'normal':{'preset':'gemini4_openai','level':'high','output':'summary'}}}
+  output_profile={**normal,'id':'summary-test','name':'Summary fixture','thinkingByModel':{'normal':{'preset':'gemini4_native','level':'high','output':'summary'}}}
   saved_output=rpc('profile.save',profile=output_profile)
   assert saved_output['thinkingByModel']==output_profile['thinkingByModel']
   count=len(requests)
   report=rpc('llm.test',profile={**saved_output,'testThinkingProbe':True})
   assert len(requests)==count+2 and report['thinking']['probe']['status']=='rejected'
-  assert requests[-2]['body']['extra_body']=={'google':{'thinking_config':{'thinking_level':'high','include_thoughts':True}}}
+  assert requests[-2]['body']['generationConfig']['thinkingConfig']=={'thinkingLevel':'high','includeThoughts':True}
   assert 'reasoning_effort' not in requests[-2]['body']
   assert rpc('profile.list')['profiles'][-1]['thinkingByModel']==output_profile['thinkingByModel']
   for mode in ['invalid',None,True]:
-   invalid={**output_profile,'thinkingByModel':{'normal':{'preset':'gemini4_openai','level':'high','output':mode}}}
+   invalid={**output_profile,'thinkingByModel':{'normal':{'preset':'gemini4_native','level':'high','output':mode}}}
    failed=subprocess.run([exe],input=json.dumps({'action':'profile.save','args':{'profile':invalid}}),text=True,capture_output=True,env=env,timeout=10)
    assert not json.loads(failed.stdout)['ok']
   print(json.dumps({'passed':True,'protocols':4,'checks':['Rust profile persistence and public redaction','known model catalog filtering','Python connection tests','Rust multi-turn search through private worker','stable sessions and independent conversations','silent stream cancellation','ordinary profile named opencode_go has no special headers','physical adapter removal leaves ordinary Python and Rust calls working']},ensure_ascii=False))

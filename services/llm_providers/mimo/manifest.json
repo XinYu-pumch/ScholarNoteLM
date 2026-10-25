@@ -1,0 +1,10 @@
+{
+  "id": "mimo",
+  "name": "mimo",
+  "singleProfile": true,
+  "baseUrl": "https://api.xiaomimimo.com/v1",
+  "baseUrls": [
+    "https://api.xiaomimimo.com/v1"
+  ],
+  "defaultThinkingPreset": "mimo_v26_openai"
+}

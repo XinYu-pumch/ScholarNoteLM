@@ -46,7 +46,7 @@ def with_session(profile,scope,*identifiers):
 def signature_fields(profile,fields):
     """Keep legacy signature dictionaries byte-for-byte compatible."""
     result={k:profile.get(k) for k in fields}
-    if provider_id(profile)=='openai':
+    if provider_id(profile)=='openai' or manifest(profile).get('defaultThinkingPreset'):
         import llm_thinking
         selected=llm_thinking.selection(profile)
         if selected:result['thinkingPreset']=selected

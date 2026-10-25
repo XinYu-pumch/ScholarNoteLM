@@ -2358,7 +2358,7 @@ pub fn dispatch(root: &Path, request: Value) -> R<Value> {
             if !s(&cfg, "apiKey").is_empty() {
                 req = req.bearer_auth(s(&cfg, "apiKey"));
             }
-            if let Some(ref meta)=provider {req=req.header("User-Agent",s(meta,"userAgent"));}
+            if let Some(ref meta)=provider {if !s(meta,"userAgent").is_empty() {req=req.header("User-Agent",s(meta,"userAgent"));}}
             let response = req.send().map_err(|_| "模型列表连接失败")?;
             if !response.status().is_success() {
                 return Err(format!(
@@ -2372,7 +2372,7 @@ pub fn dispatch(root: &Path, request: Value) -> R<Value> {
                 .ok_or("接口未返回 data 模型列表")?
                 .iter()
                 .filter_map(|m| m["id"].as_str())
-                .filter(|id|provider.as_ref().is_none_or(|meta|meta["models"].get(*id).is_some()))
+                .filter(|id|provider.as_ref().is_none_or(|meta|meta["defaultThinkingPreset"].is_string() || meta["models"].get(*id).is_some()))
                 .collect();
             Ok(json!(models))
         }

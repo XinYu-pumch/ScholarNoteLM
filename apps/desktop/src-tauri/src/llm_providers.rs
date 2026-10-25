@@ -13,7 +13,7 @@ pub fn needs_worker(profile:&Value)->bool {
     id(profile)!="openai" || profile["thinkingByModel"].get(s(profile,"model")).is_some()
 }
 fn validate_thinking(root:&Path,profile:&Value)->R<()> {
-    if id(profile)!="openai" {return Ok(());}
+    if id(profile)!="openai" && !manifest(root,profile)?.is_some_and(|m|m["defaultThinkingPreset"].is_string()) {return Ok(());}
     if let Some(settings)=profile.get("thinkingByModel") {
         let presets=thinking_catalog(root);
         for (_,selected) in settings.as_object().ok_or("模型思考预设格式无效")? {
@@ -59,7 +59,12 @@ pub fn validate(root:&Path,profile:&Value)->R<Option<Value>> {
     validate_thinking(root,profile)?;
     let meta=manifest(root,profile)?;
     if let Some(ref m)=meta {
-        if s(profile,"baseUrl").trim().trim_end_matches('/')!=s(m,"baseUrl") {return Err("此供应商使用固定的官方地址，请从供应商面板重新创建配置".into());}
+        let base=s(profile,"baseUrl").trim().trim_end_matches('/');
+        if base!=s(m,"baseUrl") && !m["baseUrls"].as_array().is_some_and(|urls|urls.iter().any(|url|url.as_str()==Some(base))) {
+            return Err("请选择此供应商支持的官方 API 地址".into());
+        }
+        // Preset-backed providers discover models from their official catalog.
+        if m["defaultThinkingPreset"].is_string() {return Ok(meta);}
         if !s(profile,"model").is_empty() && m["models"].get(s(profile,"model")).is_none() {return Err("供应商尚未收录此模型的官方端点，请更新供应商模块".into());}
         if let Some(models)=profile["models"].as_array() {
             if models.iter().any(|v|v.as_str().is_none_or(|id|m["models"].get(id).is_none())) {return Err("供应商尚未收录此模型的官方端点，请更新供应商模块".into());}
@@ -141,6 +146,22 @@ pub fn stream(root:&Path,profile:&Value,messages:Value,session:Value,emit:&mut d
 mod tests {
     use super::*;
     #[test]
+    fn official_preset_providers_validate_hosts_and_allow_dynamic_models() {
+        let root=Path::new(env!("CARGO_MANIFEST_DIR")).join("../../..");
+        for id in ["z_ai","moonshot","mimo","qwen","grok"] {
+            let meta=manifest(&root,&json!({"provider":id})).unwrap().unwrap();
+            let preset=thinking_catalog(&root).into_iter().find(|p|p["id"]==meta["defaultThinkingPreset"]).unwrap();
+            for url in meta["baseUrls"].as_array().unwrap() {
+                let mut p=json!({"id":"fixture","provider":id,"name":"custom","baseUrl":url,"model":"future-model","models":["future-model"],"thinkingByModel":{"future-model":{"preset":preset["id"],"level":preset["defaultLevel"]}}});
+                assert!(validate(&root,&p).is_ok());
+                prepare_save(&root,&mut p,&json!([])).unwrap();assert_eq!(p["name"],meta["name"]);
+                p["thinkingByModel"]["future-model"]["level"]=json!("invalid");assert!(validate(&root,&p).is_err());
+                p["thinkingByModel"]=json!({});assert!(validate(&root,&p).is_ok());
+                p["baseUrl"]=json!("https://wrong.invalid/v1");assert!(validate(&root,&p).is_err());
+            }
+        }
+    }
+    #[test]
     fn ordinary_vendor_presets_validate_budget_and_levels() {
         let root=std::env::temp_dir().join(format!("scholarnotelm-thinking-{}",super::super::uid()));
         fs::create_dir_all(root.join("services/downloader")).unwrap();
@@ -155,6 +176,15 @@ mod tests {
         assert!(validate_thinking(&root,&p).is_err());
         p["thinkingByModel"]=json!({"m":{"preset":"claude55_messages","level":"medium","output":"summary"}});
         assert!(validate_thinking(&root,&p).is_ok());
+        let responses:Vec<_>=thinking_catalog(&root).into_iter().filter(|p|p["protocol"]=="responses").map(|p|p["id"].clone()).collect();
+        assert_eq!(responses,vec![json!("grok47_responses")]);
+        p["thinkingByModel"]=json!({"m":{"preset":"grok47_responses","level":"high"}});
+        assert!(validate_thinking(&root,&p).is_ok());
+        for removed in ["gpt6_astra_responses","deepseek_v4_responses","qwen38_responses","glm53_responses",
+                        "kimi_k3_responses","mimo_v26_responses","minimax_m31_responses","meta_muse_responses","gemini4_openai","claude55_chat","grok47_chat","generic_effort"] {
+            p["thinkingByModel"]=json!({"m":{"preset":removed,"level":"high"}});
+            assert!(validate_thinking(&root,&p).is_err());
+        }
         fs::remove_dir_all(root).unwrap();
     }
     #[test]

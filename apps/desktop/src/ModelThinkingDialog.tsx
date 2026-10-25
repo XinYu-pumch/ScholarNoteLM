@@ -22,7 +22,7 @@ export default function ModelThinkingDialog({model,profile,data,onApply,onClose}
  const [draft,setDraft]=useState(profile),[busy,setBusy]=useState(false),[error,setError]=useState(''),[test,setTest]=useState<ConnectionTestResult|null>(null);
  const revision=useRef(0);
  useEffect(()=>()=>{revision.current++;},[]);
- const ordinary=!profile.provider||profile.provider==='openai';
+ const ordinary=!profile.provider||profile.provider==='openai'||!!data.providers?.find(p=>p.id===profile.provider)?.defaultThinkingPreset;
  const selected=draft.thinkingByModel?.[model];
  const preset=data.thinkingPresets?.find(p=>p.id===selected?.preset);
  const meta=data.providers?.find(p=>p.id===profile.provider)?.models?.[model]?.reasoning;
@@ -60,7 +60,6 @@ export default function ModelThinkingDialog({model,profile,data,onApply,onClose}
    <div className="thinking-test-actions"><button className="button secondary compact" disabled={busy||!draft.baseUrl.trim()} onClick={()=>void run()}>{tr('测试当前设置')}</button>{ordinary&&<button className="button secondary compact" disabled={busy||!selected||!draft.baseUrl.trim()} onClick={()=>void run(true)}>{tr('深入验证参数')}</button>}</div>
    {ordinary&&<p className="quiet small">{tr('深入验证会先发送正常请求，再用一个错误思考参数作对照；不会保存错误值。')}</p>}
    {busy&&<p role="status">{tr('正在测试…')}</p>}{error&&<p className="wb-alert" role="alert">{tr(error)}</p>}{test&&<ConnectionTestDetails result={test}/>}
-   <p className="quiet small">{tr('应用后仍需点击保存配置。')}</p>
   </div>
   <div className="modal-actions"><DraftCancel className="button secondary" disabled={busy}>{tr('取消')}</DraftCancel><button className="button primary" disabled={busy} onClick={()=>void apply().catch(()=>{})}>{tr('应用')}</button></div>
  </DraftModal>;

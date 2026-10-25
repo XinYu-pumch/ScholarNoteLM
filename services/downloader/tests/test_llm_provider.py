@@ -11,6 +11,35 @@ class Bytes(httpx.AsyncByteStream):
   for event in self.events:yield ('data: '+json.dumps(event)+'\n\n').encode()
 
 class ProviderTests(unittest.IsolatedAsyncioTestCase):
+ async def test_official_preset_providers_hosts_protocols_and_thinking(self):
+  import llm_thinking
+  for ident in ('z_ai','moonshot','mimo','qwen','grok'):
+   meta=providers.manifest({'provider':ident});preset=llm_thinking.PRESETS[meta['defaultThinkingPreset']]
+   for base in meta['baseUrls']:
+    p={'provider':ident,'baseUrl':base,'model':'future-model','apiKey':'fixture','timeout':10,
+       'thinkingByModel':{'future-model':{'preset':preset['id'],'level':preset['defaultLevel']}}}
+    module=providers.adapter(p);url,body,headers,_=module.prepare(p,[{'role':'user','content':'hello'}])
+    self.assertEqual(url,base+('/responses' if ident=='grok' else '/chat/completions'))
+    self.assertNotIn('x-opencode-session',headers)
+    self.assertEqual(providers.signature_fields(p,())['thinkingPreset']['preset'],preset['id'])
+    changed={**p,'thinkingByModel':{'future-model':{'preset':preset['id'],'level':preset['levels'][-1]}}}
+    if preset['levels'][-1]=='budget':changed['thinkingByModel']['future-model']['budget']=1024
+    if preset['defaultLevel']!=preset['levels'][-1]:self.assertNotEqual(providers.semantic_fields(p),providers.semantic_fields(changed))
+    with self.assertRaises(ValueError):module.prepare({**p,'baseUrl':'https://wrong.invalid/v1'},[])
+    with self.assertRaises(ValueError):module.prepare({**p,'thinkingByModel':{'future-model':{'preset':preset['id'],'level':'invalid'}}},[])
+    response={'object':'response','status':'completed','output':[
+     {'type':'reasoning','summary':[{'type':'summary_text','text':'思考摘要'}],'encrypted_content':'opaque'},
+     {'type':'message','content':[{'type':'output_text','text':'answer'}]}]} if ident=='grok' else {'choices':[{'message':{'content':'answer','reasoning_content':'推理文本'},'finish_reason':'stop'}]}
+    async def handler(req):return httpx.Response(200,json=response)
+    with self.client(handler),patch.object(llm,'system_proxy',return_value=None):
+     result=await llm.test_connection(p)
+    self.assertEqual(result['thinking']['reasoningCharacters'],4)
+    self.assertEqual(result['thinking']['outputKind'],'summary' if ident=='grok' else 'reasoning_text')
+    # Removing the preset explicitly means server default; it must not be silently restored.
+    default={**p,'thinkingByModel':{}}
+    self.assertIsNone(llm_thinking.selection(default))
+    self.assertEqual(set(module.prepare(default,[])[1]),{'model','messages','stream'})
+
  async def test_deepseek_official_effort_and_stream_do_not_depend_on_go(self):
   p={'provider':'deepseek','model':'deepseek-flash','baseUrl':'https://api.deepseek.com/v1','apiKey':'fixture','temperature':0.2,'timeout':10}
   module=providers.adapter(p)

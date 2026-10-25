@@ -1,0 +1,11 @@
+{
+  "id": "moonshot",
+  "name": "moonshot",
+  "singleProfile": true,
+  "baseUrl": "https://api.moonshot.cn/v1",
+  "baseUrls": [
+    "https://api.moonshot.cn/v1",
+    "https://api.moonshot.ai/v1"
+  ],
+  "defaultThinkingPreset": "kimi_k3_openai"
+}

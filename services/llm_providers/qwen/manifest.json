@@ -1,0 +1,10 @@
+{
+  "id": "qwen",
+  "name": "qwen",
+  "singleProfile": true,
+  "baseUrl": "https://dashscope.aliyuncs.com/compatible-mode/v1",
+  "baseUrls": [
+    "https://dashscope.aliyuncs.com/compatible-mode/v1"
+  ],
+  "defaultThinkingPreset": "qwen_openai"
+}

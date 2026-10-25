@@ -1,10 +1,10 @@
 # 可选 LLM 供应商
 
-默认 OpenAI 兼容调用不依赖任何可选模块。普通配置可按模型显式选择下述思考预设。`registry.json` 只登记启用的供应商目录名；每个目录包含 `manifest.json` 和 `adapter.py`。目前登记 `deepseek` 和 `opencode_go`，两者互不依赖。
+默认 OpenAI 兼容调用不依赖任何可选模块。普通配置可按模型显式选择下述思考预设。`registry.json` 只登记启用的供应商目录名；每个目录包含 `manifest.json` 和 `adapter.py`。目前登记 `deepseek`、`opencode_go`、`z_ai`（显示为 z.ai）、`moonshot`、`mimo`、`qwen` 和 `grok`，各模块独立。
 
 ## 边界
 
-- `manifest.json`：供应商标识、配置分组名称、固定 Base URL、官方模型到协议的映射、协议必需参数和核对来源。设置页从后端读取它，以中间供应商列表和右侧详情展示，不在 React 中硬编码供应商名。
+- `manifest.json`：供应商标识、配置分组名称、允许的官方 Base URL、默认思考预设，或官方模型到协议的映射、协议必需参数和核对来源。设置页从后端读取它，以中间供应商列表和右侧详情展示，不在 React 中硬编码供应商名。
 - `adapter.py`：专属请求头、消息/图片转换、流式响应转换；不改变全局 HTTP 客户端、环境变量、代理或 TLS。
 - `services/downloader/llm_provider.py`：通用注册入口、稳定会话上下文、兼容的配置签名。未设置 `provider` 或 `provider=openai` 的旧配置不读取可选模块。
 - `review_llm.py`：共用网络与取消机制。默认请求体和请求头保持原逻辑；只有明确选用可选供应商才执行适配。
@@ -108,12 +108,11 @@ TEST_LLM_PROVIDER=opencode_go runtimes/downloader/bin/python scripts/test-reader
 
 ## 自定义模型思考预设
 
-每个普通供应商的模型可单独选择 `Gemini 4 · Chat Completions`、`Gemini 4 · Native` 、`DeepSeek · Chat Completions` 或下表中的新增预设，也可保留“服务端默认”（不发送额外参数）。选中预设时初始化档位：Gemini 为 medium，DeepSeek 为 high；随后可独立修改并保存。Gemini 支持 low / medium / high，DeepSeek 可选 low / high / max，具体模型以官方支持范围为准。预设不凭模型名字自动启用，旧配置不迁移。
+每个普通供应商的模型可单独选择 `Gemini· Native`、`Grok· Native`、`Claude· Native`、`DeepSeek · Chat Completions` 或下表中的预设，也可保留“服务端默认”（不发送额外思考参数，由模型服务商决定）。选中预设时初始化档位：Gemini 为 medium，DeepSeek 为 high；随后可独立修改并保存。Gemini 支持 low / medium / high，DeepSeek 可选 low / high / max，具体模型以官方支持范围为准。预设不凭模型名字自动启用，旧配置不迁移。
 
 配置存储为 `thinkingByModel[model] = {preset, level, output?, budget?}`。目录和官方来源在 `services/downloader/thinking_presets.json`，请求与响应处理在 `llm_thinking.py` 和 `llm_native.py`，不依赖 Go 或 DeepSeek 专用模块。Rust 的检索助手与 Python 的大纲、正文、问答、阅读和连接测试共用此实现。未选择预设的普通请求保持原路径。只有当前调用模型的有效预设、档位及显式非默认输出方式进入签名，其他模型改动不影响已有材料。
 
-- Gemini OpenAI Compatible：旧配置或输出选择“预设默认”时仍发送 `reasoning_effort`。显式选择请求／不请求摘要时，发送 `extra_body.google.thinking_config`，其中含 `thinking_level` 和 `include_thoughts`；不同时发送 `reasoning_effort`，避免重叠。这里的 extra_body 是 Google REST 请求本身的字段，不是 Python SDK 的展开语法。第三方中转站须支持这一扩展。
-- Gemini Native：将配置地址的尾部 `/v1` 转为 `/v1beta`（保留主机及中转前缀），也接受 `/v1beta` 或 `/v1beta/openai`；调用 `/models/{model}:streamGenerateContent?alt=sse`。转换文本、内嵌图片和系统消息；发送 `generationConfig.thinkingConfig.thinkingLevel` 及 `includeThoughts`（默认 true，可显式关闭）。返回摘要单独解析，不混入正文。不携带 Go 请求头。模型目录仍走配置地址的 `/models`，建议 4router 保留其 `/v1` Base URL。
+- Gemini· Native：将配置地址的尾部 `/v1` 转为 `/v1beta`（保留主机及中转前缀），也接受 `/v1beta` 或 `/v1beta/openai`；调用 `/models/{model}:streamGenerateContent?alt=sse`。转换文本、内嵌图片和系统消息；发送 `generationConfig.thinkingConfig.thinkingLevel` 及 `includeThoughts`（默认 true，可显式关闭）。返回摘要单独解析，不混入正文。不携带 Go 请求头。模型目录仍走配置地址的 `/models`，建议 4router 保留其 `/v1` Base URL。
 - DeepSeek OpenAI Compatible：发送 `thinking.type=enabled` 与 `reasoning_effort`；思考模式不发送无效的 temperature。面向当前 DeepSeek V4 系列，其他模型是否接受由服务端决定。
 
 4router 的 Gemini 原生预设与 openmirothinker 的可选模块使用相同的摘要参数。当前隔离实测中 medium 未返回摘要，high 返回了 `thought=true` 文本；需要摘要时可选择 high + 请求思考摘要，但这不保证服务端每次都返回。`thoughtSignature` 不是可显示的思考文本；应用不会通过提示词让模型把思考写入正文，也不会静默升档。
@@ -122,18 +121,19 @@ Chat、Responses、Gemini 不增加输出 token 限制。Claude Messages 的必�
 
 ### 协议预设目录与去重
 
-所有下列预设保留用户填写的地址，不凭模型名称切换供应商，也不添加 Go 请求头。Gemini Native、Claude Messages 和各厂商 Responses 预设会按用户明确选择切换协议，保留主机和中转路径前缀。已有预设 ID、默认档位和请求行为保持兼容；新增专用预设按下表初始化。
+所有下列预设保留用户填写的地址，不凭模型名称切换供应商，也不添加 Go 请求头。Gemini、Claude、Grok 各只保留一项 Native 预设，会按用户明确选择切换协议，保留主机和中转路径前缀；其他预设沿用 Chat Completions。三项 Native 仅改显示名称，保留预设 ID、默认档位和请求行为。名称不含模型版本不表示扩大了参数适用范围。
 
 | 预设 | 请求字段 | 适用范围 |
 | --- | --- | --- |
-| Generic · Reasoning Effort | `reasoning_effort` | 相同字段合并一份，支持值取并集，实际可选子集见下文 |
 | Generic · Thinking Toggle | `thinking.type=enabled/disabled` | 可切换模式的 MiMo V2.6、Kimi K2.6、GLM 4.x；不是强度档位 |
-| Qwen 3.8 · Chat Completions | `enable_thinking` + `reasoning_effort` | low / medium / xhigh；或 enabled / disabled；或独立 budget（0–262144），不与 effort 同发 |
-| GLM 5.2 / 5.3 · Chat Completions | `thinking.type=enabled` + `reasoning_effort` | 5.3 / Flash 为 low / high / max；5.2 为 high / max，原厂默认 max |
+| Qwen chat completions | `enable_thinking` + `reasoning_effort` | low / medium / xhigh；或 enabled / disabled；或独立 budget（0–262144），不与 effort 同发 |
+| Glm chat completions | `thinking.type=enabled` + `reasoning_effort` | 5.3 / Flash 为 low / high / max；5.2 为 high / max，原厂默认 max |
 
-通用 effort 不是“所有模型支持所有档位”：Kimi K3 / K3.1 为 low/high/max；Grok 4.6/4.7 为 low/medium/high/xhigh；Meta **Muse** 为 minimal/low/medium/high/xhigh，max 仅用于文档指定的 Muse Wonder 1.0 / Spark 1.3，Contributor 不适用；旧 Llama 不因来自 Meta 就支持思考参数。OpenAI 按模型版本区分，GPT-6 Astra 不支持 none，GPT-6.1 Sol 不支持 none/minimal。通用选项提供并集，用户须根据中转站实际模型选择；服务端拒绝的档位不会被应用静默更改。
+`Generic · Reasoning Effort` 已删除。下拉框保留一项“服务端默认”，对应不设置当前模型的 `thinkingByModel`：沿用普通请求，不额外发送思考强度、开关、预算或摘要参数，不切换端点。选择后只清除当前模型的显式思考预设，其他模型保持原样；仍需保存配置。服务端实际返回的思考文本照常接收。
 
-通用 effort 省略 temperature，以兼容 OpenAI 推理模型；通用开关同样省略，由原厂决定各模式采样值。Qwen/GLM 保留原温度。GLM 与 DeepSeek 的思考字段形式虽然一致，温度规则和初始档位不同，所以不强行合并。Gemini 原有预设保留，以保持已保存配置和签名不变。
+Kimi、GPT 和 Meta 的专用 Chat 预设均使用 `reasoning_effort`，共同档位下的请求相同，但档位范围与初始值不同。Generic Thinking Toggle 与 MiMo 的 enabled/disabled 请求相同，通用预设额外提供 default 且初始为 default，MiMo 初始为 enabled。DeepSeek 与 GLM 的思考字段相同，但 DeepSeek 省略温度、GLM 保留温度，默认档位也不同。因此这些剩余预设未自动合并。
+
+Gemini Native 的内部 ID 保持不变，重命名不影响已保存配置和签名。删除预设不自动改写已有配置，须重新选择有效预设或“服务端默认”。
 
 官方来源（2026-10-25 核对；后续以厂商最新文档为准）：
 
@@ -154,11 +154,10 @@ Chat、Responses、Gemini 不增加输出 token 限制。Claude Messages 的必�
 
 | 预设 | 初始档位 / 可选项 | 实际参数与输出 |
 | --- | --- | --- |
-| Claude Opus 5.5 · Messages | medium；low / medium / high / xhigh / max | `/messages`；`thinking.type=adaptive`、`output_config.effort`、`thinking.display=summarized`；返回摘要，思考始终开启 |
-| Grok 4.6 / 4.7 · Chat Completions | high；low / medium / high / xhigh | `reasoning_effort`；接收网关实际返回的思考字段，不能保证有摘要 |
-| Grok 4.6 / 4.7 · Responses | high；同上 | `/responses`、`reasoning.effort`；接收 reasoning_text 和 reasoning_summary_text 事件，官方 4.7 文档无需 summary 开关 |
-| Kimi K3 · Chat Completions | max；low / high / max | `reasoning_effort`；当前 K3 系列官方 API 已提供三档，旧部署可能仅 max；不发送 K2 的 thinking 开关 |
-| MiMo V2.6 · Chat Completions | enabled；enabled / disabled | `thinking.type`；官方 Chat 只有模式开关，没有强度档位；返回 reasoning_content |
+| Claude· Native | medium；low / medium / high / xhigh / max | `/messages`；`thinking.type=adaptive`、`output_config.effort`、`thinking.display=summarized`；返回摘要，思考始终开启 |
+| Grok· Native | high；low / medium / high / xhigh | `/responses`、`reasoning.effort`；接收 reasoning_text 和 reasoning_summary_text 事件，官方 4.7 文档无需 summary 开关 |
+| Kimi chat completions | max；low / high / max | `reasoning_effort`；当前 K3 系列官方 API 已提供三档，旧部署可能仅 max；不发送 K2 的 thinking 开关 |
+| Mimo chat completions | enabled；enabled / disabled | `thinking.type`；官方 Chat 只有模式开关，没有强度档位；返回 reasoning_content |
 | MiniMax M3.1 Flash · Chat Completions | max；low / medium / high / xhigh / max | `reasoning_effort`、`reasoning_split=true`；不能关闭思考，分离 reasoning_content 与正文 |
 
 Qwen 的 `budget` 模式单独发送 `enable_thinking=true` 与 `thinking_budget`，可选 0–262144；0 不等同于关闭思考。low/medium/xhigh 与预算互斥，服务端未设置时默认预算 131072、档位 xhigh。预算只在启用 budget 时进入当前模型签名，切回档位后不发送也不计入签名。
@@ -167,27 +166,15 @@ Claude 的摘要与正文、Grok Responses 的思考与正文均独立解析；�
 
 专用预设依据：[Claude effort](https://platform.claude.com/docs/en/build-with-claude/effort)、[Claude thinking](https://platform.claude.com/docs/en/build-with-claude/thinking)、[Claude 上限](https://platform.claude.com/docs/en/models/overview)、[MiniMax OpenAI](https://platform.minimax.io/docs/api-reference/text-openai-api)、[Kimi effort](https://platform.kimi.ai/docs/guide/use-thinking-effort)，其余见前述各厂商链接。预设描述官方请求格式，不保证中转站支持或透传；须用连接测试检查。
 
-### 同一模型的 Chat / Responses / 原生协议
+### 端点选择与已删除预设
 
-普通预设名称明确写出协议；原有 ID、保存值、签名及默认请求保持兼容，仅更新显示名称。协议由用户逐模型选择，不根据域名或模型名自动切换；切换后使用同一 Base URL 和密钥。官方提供两种接口时分别登记，不能将一个接口的字段直接搬到另一个接口。
+普通思考预设以不额外切换端点为原则。GPT、DeepSeek、Qwen、GLM、Kimi、MiMo、MiniMax 和 Meta 的 Responses 版已从内置目录删除，保留对应 Chat Completions 预设；不再为了请求思考摘要而建议切换到 Responses。Gemini、Claude、Grok 的 Chat Completions 版也已删除，三家仅保留 `Gemini· Native`（Google 原生）、`Claude· Native`（Messages）和 `Grok· Native`（Responses）。
 
-| 厂商 / 模型 | Chat Completions | Responses | 原生 / 限制 |
-| --- | --- | --- | --- |
-| GPT-6 Astra | low / medium / high / xhigh / max | 同档位，`reasoning.effort`；可请求 summary=auto | Chat 不公开内部推理；两预设初始 high 是应用选择 |
-| DeepSeek V4 | low / high / max，`thinking.type` + `reasoning_effort` | none / low / high / max，`reasoning.effort`，默认 high | Responses none 关闭思考，思考文本自动返回 |
-| Qwen 3.8 | 开关、low / medium / xhigh、互斥预算 | none / low / medium / xhigh，默认 xhigh | Responses 无 thinking_budget；接收 reasoning 文本 |
-| GLM 5.3 | low / high / max | none / high / max，默认 max | 官方 Responses 将 low/medium 合并为 high、xhigh 合并为 max；不同于 Chat |
-| Kimi K3 / K3.1 | low / high / max | 同档位，默认 max | Responses 自动返回 reasoning_summary_text，无额外摘要开关 |
-| MiMo V2.6 | enabled / disabled | enabled → high；disabled → none | 官方 Responses 有效非 none 值均启用同一思考模式，不冒充强度档位 |
-| MiniMax M3.1 Flash | low / medium / high / xhigh / max，reasoning_split=true | 同档位，默认 max | Responses 不发送 reasoning_split；自动接收 reasoning 项 |
-| Grok 4.6 / 4.7 | low / medium / high / xhigh | 同档位，默认 high | 接收服务端提供的摘要，不伪造 summary 开关 |
-| Meta Muse Wonder 1.0 / Spark 1.3 | minimal / low / medium / high / xhigh / max | 同档位，可请求 summary=auto | Contributor 不支持 max；不是 Llama 预设。初始 high 是应用选择 |
-| Gemini 4 | low / medium / high + Google 摘要扩展 | 未找到官方支持，不提供 | Native 同档位 + includeThoughts |
-| Claude Opus 5.5 | 仅 adaptive；官方忽略 reasoning_effort 且不返回思考文本 | 未找到官方支持，不提供 | Messages 支持五档 effort + 摘要，优先使用 |
+GPT-6 Astra Chat 支持 low / medium / high / xhigh / max；Meta Muse Wonder 1.0 / Spark 1.3 Chat 支持 minimal / low / medium / high / xhigh / max（Contributor 不支持 max）。这两项初始 high 是应用选择；官方 Chat 不公开内部推理，中转站实际返回的独立思考字段仍会接收。Claude· Native 通过 Messages 提供档位与摘要。
 
-上表只登记官方文档支持的语义；OpenLux 等第三方服务仅作为兼容性测试目标。中转站即使返回 HTTP 200，也可能丢弃、改写或不校验参数；有思考 token 不代表一定有可读摘要。错误档位被明确拒绝只能证明字段校验，不能证明内部执行了相应计算预算。官方本身允许忽略的字段也不能据负例测试判定“模型没有思考”。
+不改写用户已保存配置。若选中了已删除的预设，界面显示“预设不可用”，保存或调用时要求重新选择；不会静默映射到 Chat、改变档位或丢弃输出设置。其余预设及缓存签名规则不变。此目录独立于 Go 专用供应商，Go 的固定模型协议与摘要策略保持原样。
 
-新增协议来源：[DeepSeek Responses](https://api-docs.deepseek.com/api/create-response/)、[Qwen Responses](https://help.aliyun.com/en/model-studio/qwen-api-via-openai-responses)、[GLM Responses](https://docs.bigmodel.cn/cn/guide/develop/responses/introduction)、[Kimi Responses](https://platform.kimi.ai/docs/api/responses)、[MiMo Responses](https://mimo.mi.com/docs/en-US/api/chat/responses)、[MiniMax Responses](https://platform.minimax.io/docs/api-reference/responses-create)、[GPT-6 Astra](https://developers.openai.com/api/docs/models/gpt-6-astra)、[Meta reasoning](https://dev.meta.ai/docs/reasoning)、[Claude Chat 兼容限制](https://platform.claude.com/docs/en/cli-sdks-libraries/libraries/openai-sdk)。
+预设描述请求格式，不保证中转站支持或透传。HTTP 200 或思考 token 用量不能证明有可读摘要，参数拒绝测试也不能证明实际计算预算。
 
 Responses 适配接受合法的空 content/summary 数组（含 null），解析流式增量及最终响应；同一输出项/分段按内容去重，终态将 reasoning_text 原样放入 summary 时也不重复显示。不同思考文本分别保留，截断、拒绝、工具调用和缺失完成状态仍明确失败。不将加密字段当思考或正文。可选 usage 明细为 null 时记为未报告，不中断正文。
 
@@ -195,9 +182,9 @@ Responses 适配接受合法的空 content/summary 数组（含 null），解析
 
 每个模型的“思考”按钮打开弹窗，集中编辑预设、强度／开关／预算、输出方式。主列表保留图片支持、默认模型与测试按钮，长说明移进弹窗。应用只更新设置草稿，仍需“保存配置”；取消和离开沿用未保存保护。
 
-- 新选择 Gemini 预设时，输出初始化为“请求思考摘要”。已有配置没有 `output` 字段时不迁移：Chat 保留原 `reasoning_effort` 请求，Native 保留原请求摘要行为。`output=default` 与缺少字段具有相同签名。
-- `output=summary/off` 在 Gemini、Claude Messages、GPT-6 Astra Responses 与 Meta Muse Responses 预设中有效。GPT/Meta Responses 请求摘要时发送 `reasoning.summary=auto`，不请求时省略该字段；保留 `reasoning.effort`。Claude 使用 `thinking.display=summarized/omitted`，初次选择默认请求摘要；Gemini：Chat 使用 Google 扩展字段，Native 使用 `generationConfig.thinkingConfig.includeThoughts`。不请求摘要不等于停止思考；若服务端仍返回思考内容，App 仍单独接收，不拼入正文。
-- DeepSeek、Qwen、GLM、MiMo、Kimi 的推理文本通常自动放在 `reasoning_content`；这些预设不伪造摘要开关。通用 effort 中，OpenAI 和外部 Meta Chat Completions 的内部推理不公开；Grok 按模型及协议区分。Responses 的 summary 不能照搬到 Chat。
+- 新选择 Gemini· Native 时，输出初始化为“请求思考摘要”。已有 Native 配置没有 `output` 字段时不迁移，保留原请求摘要行为；`output=default` 与缺少字段具有相同签名。
+- `output=summary/off` 在 Gemini· Native 与 Claude· Native 预设中有效。Claude 使用 `thinking.display=summarized/omitted`，初次选择默认请求摘要；Gemini· Native 使用 `generationConfig.thinkingConfig.includeThoughts`。不请求摘要不等于停止思考；若服务端仍返回思考内容，App 仍单独接收，不拼入正文。
+- DeepSeek、Qwen、GLM、MiMo、Kimi 的推理文本通常自动放在 `reasoning_content`；这些预设不伪造摘要开关。GPT 和 Meta Chat Completions 预设不公开内部推理；Grok 按模型及协议区分。Responses 的 summary 不能照搬到 Chat。
 - 不将 `reasoning_content` 的存在等同于完整内部思维链；原生 Gemini 的摘要和服务端推理文本采用不同提示文字。
 
 连接测试走与实际研究相同的 adapter 和 stream client，采用合成问题，不读取项目材料。正常请求仅一次（沿用原有连接失败重试）；报告发送的思考字段、实际思考字符数，以及服务端确实报告的 reasoning token。缺少用量显示“未报告”，不记为零；不为了采集用量额外向所有中转站发送 `stream_options`。用量观察发生在协议转换前，能读取末尾 `choices:[]` 的 usage 和原生 Gemini usageMetadata。测试结果中的请求参数不包含密钥、消息、完整请求头或原始上游错误正文。
@@ -211,3 +198,19 @@ Responses 适配接受合法的空 content/summary 数组（含 null），解析
 错误值从不存入配置或研究签名；不静默降档或切换协议。测试状态绑定当前草稿，修改连接、模型或思考设置后清除结果；迟到的旧响应不会覆盖新状态。详细诊断通过结果弹窗查看，列表反馈区域保留高度。
 
 官方输出依据：[Google Chat 扩展](https://ai.google.dev/gemini-api/docs/openai#thinking)、[Google 原生摘要](https://ai.google.dev/gemini-api/docs/generate-content/thinking#thought-summaries)、[OpenAI reasoning / summaries](https://developers.openai.com/api/docs/guides/reasoning)、[Meta reasoning](https://dev.meta.ai/docs/reasoning)，其余厂商来源见上表。Go Gemini 的原生摘要策略保留在 Go adapter，本次没有把其请求头、端点或其他专属逻辑带入普通预设。
+
+### 使用现有预设的官方供应商
+
+内置 `z.ai`、`moonshot`、`mimo`、`qwen`、`grok` 五个独立供应商面板，各保留一份固定名称配置。它们复用普通思考预设；手动添加模型、保存待添加模型或从模型列表中选择时，自动为新模型初始化预设和初始档位。用户可以继续修改预设或选“服务端默认”，后续保存不会重新覆盖。旧的用户自建官方配置保持不变。
+
+| 配置 | 官方地址 | 自动载入预设 |
+| --- | --- | --- |
+| z.ai | `https://open.bigmodel.cn/api/paas/v4` / `https://api.z.ai/api/paas/v4`（下拉选择） | Glm chat completions |
+| moonshot | `https://api.moonshot.cn/v1` / `https://api.moonshot.ai/v1`（下拉选择） | Kimi chat completions |
+| mimo | `https://api.xiaomimimo.com/v1` | Mimo chat completions |
+| qwen | `https://dashscope.aliyuncs.com/compatible-mode/v1` | Qwen chat completions |
+| grok | `https://api.x.ai/v1` | Grok· Native |
+
+模型列表由所选官方地址的 `/models` 接口提供，也允许手动添加，不维护静态模型白名单。适用模型与档位限制仍以预设说明和服务端能力为准。Grok· Native 将实际请求转换为 `https://api.x.ai/v1/responses`；其余四项使用 `/chat/completions`。供应商清单通过 `defaultThinkingPreset` 指定初始化预设，`baseUrls` 指定可选官方地址，Python 通过共享 `llm_official.py` 复用预设协议，不复制参数实现。
+
+综述大纲和正文片段显示“已接收正文 N 字符 · 思考 M 字符”。计数覆盖独立 reasoning_content / reasoning / reasoning_details、Gemini thought 摘要、Claude thinking 摘要以及 Responses reasoning_text / reasoning_summary_text；原生协议先解码再统一计数，终态内容去重，加密内容不计入。GPT/Meta 等不保证公开思考文本的接口只有实际返回文本才增加计数；思考 token 不折算为字符。并发片段分别显示各组计数，纯思考阶段也实时更新。

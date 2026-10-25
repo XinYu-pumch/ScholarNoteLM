@@ -18,19 +18,15 @@ class ThinkingTests(unittest.IsolatedAsyncioTestCase):
                 'thinkingByModel': {'gemini-4-argon': {'preset': preset, 'level': level}}}
 
     def test_chat_presets_and_ordinary_isolation(self):
-        for preset, levels in [('gemini4_openai', ['low', 'medium', 'high']), ('deepseek_openai', ['low', 'high', 'max'])]:
+        for preset, levels in [('deepseek_openai', ['low', 'high', 'max'])]:
             for level in levels:
                 p = self.profile(preset, level)
                 url, body, headers, _ = thinking.prepare(p, [{'role': 'user', 'content': 'hi'}])
                 self.assertEqual(url, 'https://relay.invalid/prefix/v1/chat/completions')
                 self.assertEqual(body['reasoning_effort'], level)
                 self.assertNotIn('x-opencode-session', headers)
-                if preset == 'deepseek_openai':
-                    self.assertEqual(body['thinking'], {'type': 'enabled'})
-                    self.assertNotIn('temperature', body)
-                else:
-                    self.assertNotIn('thinking', body)
-                    self.assertEqual(body['temperature'], 0.2)
+                self.assertEqual(body['thinking'], {'type': 'enabled'})
+                self.assertNotIn('temperature', body)
         p = self.profile();p.pop('thinkingByModel')
         self.assertIsNone(llm_provider.adapter(p))
         with patch.object(llm_provider, 'DIRECTORY', Path('/nonexistent/providers')):
@@ -38,8 +34,7 @@ class ThinkingTests(unittest.IsolatedAsyncioTestCase):
 
     def test_new_chat_wire_formats_and_defaults(self):
         cases = [
-            ('generic_effort', 'xhigh', {'reasoning_effort': 'xhigh'}),
-            ('generic_effort', 'none', {'reasoning_effort': 'none'}),
+            ('gpt6_astra_chat', 'xhigh', {'reasoning_effort': 'xhigh'}),
             ('generic_thinking_toggle', 'disabled', {'thinking': {'type': 'disabled'}}),
             ('generic_thinking_toggle', 'enabled', {'thinking': {'type': 'enabled'}}),
             ('qwen_openai', 'xhigh', {'enable_thinking': True, 'reasoning_effort': 'xhigh'}),
@@ -54,7 +49,7 @@ class ThinkingTests(unittest.IsolatedAsyncioTestCase):
                 if preset in ('qwen_openai', 'glm_openai'): expected['temperature'] = .2
                 self.assertEqual(body, expected)
                 self.assertNotIn('x-opencode-session', headers)
-        for preset in ('generic_effort', 'generic_thinking_toggle', 'qwen_openai', 'glm_openai'):
+        for preset in ('generic_thinking_toggle', 'qwen_openai', 'glm_openai'):
             p = self.profile(preset, 'default')
             body = thinking.prepare(p, [])[1]
             self.assertFalse({'thinking', 'enable_thinking', 'reasoning_effort'} & body.keys())

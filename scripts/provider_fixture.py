@@ -28,7 +28,7 @@ def setup(app,root,base,models):
 
 def profile(value):
     if THINKING:
-        assert THINKING in ('deepseek_openai','gemini4_openai','generic_effort','generic_thinking_toggle','qwen_openai','glm_openai')
+        assert THINKING in ('deepseek_openai','generic_thinking_toggle','qwen_openai','glm_openai')
         level='medium' if THINKING=='qwen_openai' else 'disabled' if THINKING=='generic_thinking_toggle' else 'high'
         output={'output':'summary'} if os.environ.get('TEST_THINKING_OUTPUT')=='summary' else {}
         return {**value,'thinkingByModel':{model:{'preset':THINKING,'level':level,**output} for model in value.get('models',[value['model']])}}
@@ -42,10 +42,7 @@ def sessions():return [session for body,session,_ in requests if 'messages' in b
 def verify():
     for body,session,agent in requests:
         if THINKING and 'messages' in body:
-            if THINKING=='gemini4_openai' and os.environ.get('TEST_THINKING_OUTPUT')=='summary':
-                assert body.get('extra_body')=={'google':{'thinking_config':{'thinking_level':'high','include_thoughts':True}}}
-                assert 'reasoning_effort' not in body
-            elif THINKING=='generic_thinking_toggle':
+            if THINKING=='generic_thinking_toggle':
                 assert body.get('thinking')=={'type':'disabled'} and 'reasoning_effort' not in body
             else:
                 assert body.get('reasoning_effort')==('medium' if THINKING=='qwen_openai' else 'high'),'Workflow lost its thinking preset'

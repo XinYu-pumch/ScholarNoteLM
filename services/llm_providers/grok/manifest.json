@@ -1,0 +1,10 @@
+{
+  "id": "grok",
+  "name": "grok",
+  "singleProfile": true,
+  "baseUrl": "https://api.x.ai/v1",
+  "baseUrls": [
+    "https://api.x.ai/v1"
+  ],
+  "defaultThinkingPreset": "grok47_responses"
+}
