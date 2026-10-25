@@ -168,7 +168,7 @@ try{
   if(result.ok&&action==='review.get')result.data.version={...result.data.version,state:'running',received:0,reasoningCharacters:thinkingChars};
   if(result.ok&&action==='review.writing.status'){
    result.data.job={...result.data.job,state:'running',mode:'write'};
-   result.data.units=result.data.units.map(u=>({...u,state:'writing',received:0,reasoningCharacters:thinkingChars}));
+   result.data.units=result.data.units.map((u,i)=>({...u,state:'writing',received:i*27,reasoningCharacters:thinkingChars+i*10}));
   }
   await route.fulfill({json:result});
  };
@@ -178,8 +178,12 @@ try{
  thinkingChars=654;await expect(page.locator('.review-generation[role="status"]')).toContainText('思考 654 字符');
  await page.getByRole('tab',{name:'综述撰写',exact:true}).click();
  await expect(page.locator('.writing-live')).toContainText('已接收正文 0 字符 · 思考 654 字符');
- await expect(page.locator('.writing-batch-counts').filter({hasText:'思考'}).locator('span')).toHaveCount(2);
- thinkingChars=987;await expect(page.locator('.writing-live')).toContainText('思考 987 字符');
+ await expect(page.locator('.writing-batch-counts')).toHaveCount(0);
+ await page.locator('.writing-tree .writing-node').nth(1).click();
+ await expect(page.locator('.writing-live')).toContainText('已接收正文 27 字符 · 思考 664 字符');
+ thinkingChars=987;await expect(page.locator('.writing-live')).toContainText('思考 997 字符');
+ await page.locator('.writing-tree .writing-node').first().click();
+ await expect(page.locator('.writing-live')).toContainText('已接收正文 0 字符 · 思考 987 字符');
  await page.setViewportSize({width:900,height:650});expect(await page.evaluate(()=>document.documentElement.scrollWidth>innerWidth)).toBe(false);
  await page.getByRole('complementary',{name:'综述工作区列表',exact:true}).getByRole('button',{name:'收起综述工作区',exact:true}).click();
  await page.screenshot({path:path.join(root,'docs/screenshots/review-thinking-progress.png'),fullPage:true});
