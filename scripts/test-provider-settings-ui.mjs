@@ -70,7 +70,14 @@ try{
  await page.getByRole('option',{name:'Generic · Reasoning Effort',exact:true}).click();
  await expect(ordinaryEffort).toContainText('default');
  await expect(page.getByRole('combobox',{name:'ordinary 思考输出',exact:true})).toBeDisabled();
- await presetControl.click();await page.getByRole('option',{name:'Gemini 4 · OpenAI Compatible',exact:true}).click();
+ // New protocol choices initialize only their documented levels and output switch.
+ await presetControl.click();await page.getByRole('option',{name:'GPT-6 Astra · Responses',exact:true}).click();
+ await expect(page.getByRole('combobox',{name:'ordinary 思考输出',exact:true})).toContainText('请求思考摘要');
+ await ordinaryEffort.click();await expect(page.getByRole('listbox').getByRole('option')).toHaveText(['low','medium','high','xhigh','max']);await page.getByRole('option',{name:'high',exact:true}).click();
+ await presetControl.click();await page.getByRole('option',{name:'MiMo V2.6 · Responses',exact:true}).click();
+ await ordinaryEffort.click();await expect(page.getByRole('listbox').getByRole('option')).toHaveText(['enabled','disabled']);await page.getByRole('option',{name:'enabled',exact:true}).click();
+ await expect(page.getByRole('combobox',{name:'ordinary 思考输出',exact:true})).toBeDisabled();
+ await presetControl.click();await page.getByRole('option',{name:'Gemini 4 · Chat Completions',exact:true}).click();
  await ordinaryEffort.click();await page.getByRole('option',{name:'high',exact:true}).click();
  const output=page.getByRole('combobox',{name:'ordinary 思考输出',exact:true});
  await output.click();await page.getByRole('option',{name:'请求思考摘要',exact:true}).click();
@@ -90,8 +97,8 @@ try{
  await page.getByRole('dialog',{name:'思考设置',exact:true}).getByRole('button',{name:'取消',exact:true}).click();
  await page.getByRole('button',{name:'不保存并离开',exact:true}).click();
  await expect(page.getByRole('button',{name:'ordinary 思考设置',exact:true})).toContainText('high');
- await openThinking('ordinary');await presetControl.click();await page.getByRole('option',{name:'DeepSeek · OpenAI Compatible',exact:true}).click();await ordinaryEffort.click();await expect(page.getByRole('listbox').getByRole('option')).toHaveText(['low','high','max']);await page.getByRole('option',{name:'max',exact:true}).click();
- await presetControl.click();await page.getByRole('option',{name:'Qwen 3.8 · OpenAI Compatible',exact:true}).click();
+ await openThinking('ordinary');await presetControl.click();await page.getByRole('option',{name:'DeepSeek · Chat Completions',exact:true}).click();await ordinaryEffort.click();await expect(page.getByRole('listbox').getByRole('option')).toHaveText(['low','high','max']);await page.getByRole('option',{name:'max',exact:true}).click();
+ await presetControl.click();await page.getByRole('option',{name:'Qwen 3.8 · Chat Completions',exact:true}).click();
  await ordinaryEffort.click();await page.getByRole('option',{name:'budget',exact:true}).click();
  const ordinaryBudget=page.getByRole('spinbutton',{name:'ordinary 思考 token 预算',exact:true});
  await expect(ordinaryBudget).toHaveValue('131072');await ordinaryBudget.fill('0');await applyThinking();

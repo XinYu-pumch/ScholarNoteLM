@@ -56,6 +56,11 @@ def prepare(profile, messages, selected, preset, url):
     body.update(copy.deepcopy(preset['options'][selected['level']]))
     if protocol == 'messages' and selected.get('output', 'default') != 'default':
         body['thinking']['display'] = 'summarized' if selected['output'] == 'summary' else 'omitted'
+    if protocol == 'responses' and preset.get('output', {}).get('requestSummary'):
+        # Only catalog entries whose official API documents this switch opt in.
+        # Omitting summary requests no summary; it does not disable reasoning.
+        if selected.get('output') == 'summary':
+            body.setdefault('reasoning', {})['summary'] = 'auto'
     return url, body, headers, Decoder(protocol)
 
 
@@ -117,11 +122,21 @@ class Decoder:
                     if item.get('type') not in ('message', 'reasoning'):
                         raise ValueError('模型返回了应用不支持的输出类型')
                     for family in ('content', 'summary'):
-                        for j, part in enumerate(item.get(family, [])):
+                        for j, part in enumerate(item.get(family) or []):
                             if part.get('type') == 'refusal':
                                 raise ValueError('模型拒绝了请求')
                             if part.get('type') in ('output_text', 'reasoning_text', 'summary_text', 'text'):
                                 answer = item['type'] == 'message' and part['type'] == 'output_text'
+                                if not answer:
+                                    # Some compatible servers stream reasoning_text
+                                    # but put the identical text in final summary.
+                                    # Deduplicate only exact mirrors, never distinct
+                                    # content/summary streams or partial matches.
+                                    key = (i, family, j)
+                                    other = (i, 'summary' if family == 'content' else 'content', j)
+                                    if key not in self.seen and self.seen.get(other) == part.get('text', ''):
+                                        self.seen[key] = part.get('text', '')
+                                        continue
                                 delta = self.piece({'output_index': i, 'content_index': j}, 'answer' if answer else family, part.get('text', ''), True)
                                 if answer:
                                     text += delta

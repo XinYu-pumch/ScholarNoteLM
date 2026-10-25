@@ -47,8 +47,8 @@ def probe_path(body):
 def token_count(event):
     """Usage chunks often have no choices and arrive after finish_reason."""
     usage = event.get('usage') or event.get('response', {}).get('usage') or {}
-    for value in [usage.get('completion_tokens_details', {}).get('reasoning_tokens'),
-                  usage.get('output_tokens_details', {}).get('reasoning_tokens'),
+    for value in [(usage.get('completion_tokens_details') or {}).get('reasoning_tokens'),
+                  (usage.get('output_tokens_details') or {}).get('reasoning_tokens'),
                   event.get('usageMetadata', {}).get('thoughtsTokenCount')]:
         if type(value) is int and value >= 0:
             return value

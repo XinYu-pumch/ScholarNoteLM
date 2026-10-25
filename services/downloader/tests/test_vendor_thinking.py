@@ -18,6 +18,48 @@ def profile(preset, level, **extra):
 
 
 class VendorThinkingTests(unittest.IsolatedAsyncioTestCase):
+    def test_responses_vendor_protocols(self):
+        cases = [
+            ('gpt6_astra_responses', 'xhigh', 'xhigh'),
+            ('deepseek_v4_responses', 'none', 'none'),
+            ('qwen38_responses', 'medium', 'medium'),
+            ('glm53_responses', 'high', 'high'),
+            ('kimi_k3_responses', 'low', 'low'),
+            ('mimo_v26_responses', 'enabled', 'high'),
+            ('mimo_v26_responses', 'disabled', 'none'),
+            ('minimax_m31_responses', 'max', 'max'),
+            ('meta_muse_responses', 'minimal', 'minimal'),
+        ]
+        for preset, level, effort in cases:
+            with self.subTest(preset=preset, level=level):
+                url, body, headers, _ = thinking.prepare(profile(preset, level), [{'role':'user','content':'hello'}])
+                self.assertEqual(url, 'https://relay.invalid/prefix/v1/responses')
+                self.assertEqual(body, {'model':'fixture', 'stream':True, 'store':False,
+                                       'input':[{'role':'user','content':[{'type':'input_text','text':'hello'}]}],
+                                       'reasoning':{'effort':effort}})
+                self.assertEqual(headers, {'Authorization':'Bearer fixture-key'})
+        for preset, bad in [('gpt6_astra_responses','none'), ('kimi_k3_responses','medium'),
+                            ('glm53_responses','low'), ('minimax_m31_responses','none'),
+                            ('qwen38_responses','budget'), ('mimo_v26_responses','high')]:
+            with self.assertRaises(ValueError): thinking.prepare(profile(preset,bad), [])
+
+    def test_official_output_switch_is_protocol_specific(self):
+        for preset in ['gpt6_astra_responses','meta_muse_responses']:
+            for mode in ['summary','off','default']:
+                body = thinking.prepare(profile(preset,'high',output=mode), [])[1]
+                expected = {'effort':'high', **({'summary':'auto'} if mode=='summary' else {})}
+                self.assertEqual(body['reasoning'],expected)
+        for preset in ['deepseek_v4_responses','qwen38_responses','glm53_responses',
+                       'kimi_k3_responses','mimo_v26_responses','minimax_m31_responses']:
+            with self.assertRaises(ValueError):
+                thinking.prepare(profile(preset,thinking.PRESETS[preset]['defaultLevel'],output='summary'), [])
+        body = thinking.prepare(profile('claude55_chat','adaptive'), [])[1]
+        self.assertEqual(body, {'model':'fixture','messages':[],'stream':True,'thinking':{'type':'adaptive'}})
+        for preset in ['gpt6_astra_chat','meta_muse_chat']:
+            self.assertEqual(thinking.prepare(profile(preset,'high'), [])[1],
+                             {'model':'fixture','messages':[],'stream':True,'reasoning_effort':'high'})
+            with self.assertRaises(ValueError): thinking.prepare(profile(preset,'high',output='summary'), [])
+
     def test_official_wire_parameters(self):
         for preset, level, fields in [
             ('kimi_k3_openai','low',{'reasoning_effort':'low'}),
@@ -108,6 +150,26 @@ class VendorThinkingTests(unittest.IsolatedAsyncioTestCase):
                       {'type':'response.output_item.added','item':{'type':'function_call'}},
                       {'type':'response.refusal.delta','delta':'no'}]:
             with self.assertRaises(ValueError):llm_native.Decoder('responses').decode(value)
+
+    async def test_nullable_responses_content_and_reasoning_mirrors(self):
+        p=profile('mimo_v26_responses','enabled')
+        final={'type':'response.completed','response':{'status':'completed','output':[
+            {'type':'reasoning','content':None,'summary':[{'type':'summary_text','text':'thought'}]},
+            {'type':'message','summary':None,'content':[{'type':'output_text','text':'answer'}]}]}}
+        self.assertEqual(await self.stream(p,[final]),('answer',['thought']))
+        events=[{'type':'response.reasoning_text.delta','output_index':0,'delta':'thought'},
+                {'type':'response.reasoning_text.done','output_index':0,'text':'thought'},
+                {'type':'response.output_text.delta','output_index':1,'delta':'answer'},final]
+        self.assertEqual(await self.stream(p,events),('answer',['thought']))
+        # Distinct summaries must survive even when raw reasoning was streamed.
+        final['response']['output'][0]['summary'][0]['text']='different summary'
+        answer, thoughts=await self.stream(p,events)
+        self.assertEqual(answer,'answer')
+        self.assertEqual(thoughts[-1],'thoughtdifferent summary')
+        final['response']['output'][0].update(content=None,summary=None)
+        self.assertEqual(await self.stream(p,[final]),('answer',[]))
+        # Optional null usage details must not abort an otherwise valid stream.
+        self.assertIsNone(llm_diagnostics.token_count({'usage':{'output_tokens_details':None,'completion_tokens_details':None}}))
 
     def test_native_parameter_error_evidence(self):
         for field in ['output_config.effort','reasoning.effort','thinking_budget']:
