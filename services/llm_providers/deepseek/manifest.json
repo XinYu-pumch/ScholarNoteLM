@@ -1,0 +1,72 @@
+{
+  "id": "deepseek",
+  "name": "DeepSeek",
+  "singleProfile": true,
+  "baseUrl": "https://api.deepseek.com/v1",
+  "documentation": "https://api-docs.deepseek.com/guides/thinking_mode",
+  "checkedAt": "2026-10-25",
+  "models": {
+    "deepseek-flash": {
+      "protocol": "chat",
+      "reasoning": {
+        "levels": [
+          "low",
+          "high",
+          "max"
+        ],
+        "options": {
+          "low": {
+            "thinking": {
+              "type": "enabled"
+            },
+            "reasoning_effort": "low"
+          },
+          "high": {
+            "thinking": {
+              "type": "enabled"
+            },
+            "reasoning_effort": "high"
+          },
+          "max": {
+            "thinking": {
+              "type": "enabled"
+            },
+            "reasoning_effort": "max"
+          }
+        },
+        "note": "默认开启思考，默认 high；思考模式下温度不生效。"
+      }
+    },
+    "deepseek-v4-pro": {
+      "protocol": "chat",
+      "reasoning": {
+        "levels": [
+          "low",
+          "high",
+          "max"
+        ],
+        "options": {
+          "low": {
+            "thinking": {
+              "type": "enabled"
+            },
+            "reasoning_effort": "low"
+          },
+          "high": {
+            "thinking": {
+              "type": "enabled"
+            },
+            "reasoning_effort": "high"
+          },
+          "max": {
+            "thinking": {
+              "type": "enabled"
+            },
+            "reasoning_effort": "max"
+          }
+        },
+        "note": "默认开启思考，默认 high；思考模式下温度不生效。"
+      }
+    }
+  }
+}

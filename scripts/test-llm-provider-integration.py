@@ -11,7 +11,7 @@ MODELS=['deepseek-v4.1-flash','gemini-4-argon-contributor','gpt-6-luna','claude-
 class Handler(BaseHTTPRequestHandler):
  def log_message(self,*args):pass
  def do_GET(self):
-  self.send_response(200);self.send_header('Content-Type','application/json');self.end_headers();self.wfile.write(json.dumps({'data':[{'id':m} for m in [*MODELS,'future-unknown']]}).encode())
+  self.send_response(200);self.send_header('Content-Type','application/json');self.end_headers();self.wfile.write(json.dumps({'data':[{'id':m} for m in [*MODELS,'deepseek-flash','future-unknown']]}).encode())
  def do_POST(self):
   body=json.loads(self.rfile.read(int(self.headers['Content-Length'])));requests.append({'path':self.path,'body':body,'headers':dict(self.headers)})
   text='### 基础检索\n\n```pubmed\nPLA2R[tiab]\n```'
@@ -31,13 +31,14 @@ try:
   shutil.copytree(ROOT/'services/downloader',app/'services/downloader',ignore=shutil.ignore_patterns('__pycache__','tests'))
   shutil.copytree(ROOT/'services/llm_providers',app/'services/llm_providers',ignore=shutil.ignore_patterns('__pycache__'))
   manifest=app/'services/llm_providers/opencode_go/manifest.json';meta=json.loads(manifest.read_text());base=f'http://127.0.0.1:{server.server_port}/v1';meta['baseUrl']=base;manifest.write_text(json.dumps(meta))
+  deepseek_manifest=app/'services/llm_providers/deepseek/manifest.json';deepseek_meta=json.loads(deepseek_manifest.read_text());deepseek_meta['baseUrl']=base;deepseek_manifest.write_text(json.dumps(deepseek_meta))
   env={**os.environ,'SCHOLARNOTELM_ROOT':str(app)};exe=str(ROOT/'cache/tauri-target/debug/research-cli')
   def rpc(action,stream=False,**args):
    p=subprocess.run([exe]+(['--stream'] if stream else []),input=json.dumps({'action':action,'args':{'project':'test',**args}}),text=True,capture_output=True,env=env,timeout=25)
    value=json.loads(p.stdout.splitlines()[-1]);assert value.get('ok'),value
    return value['data']
   rpc('storage.initialize');rpc('storage.register',folder='ProviderTest',data={'id':'test','name':'ProviderTest','papers':[],'messages':[],'sections':[],'notes':{},'tasks':[]})
-  assert rpc('settings')['providers'][0]['id']=='opencode_go'
+  assert 'opencode_go' in [p['id'] for p in rpc('settings')['providers']]
   reasoning=dict(zip(MODELS,['max','medium','high','xhigh']))
   for index,model in enumerate(MODELS):
    profile={'id':'go-0','provider':'opencode_go','name':f'Go {index}','baseUrl':base,'apiKey':'fixture-secret','model':model,'models':MODELS,'reasoningByModel':reasoning,'temperature':None,'timeout':10}
@@ -72,11 +73,17 @@ try:
   child.wait(timeout=3);assert time.monotonic()-start<2;history=rpc('chat.get',id=thread['id'])['messages'];assert history[-1]['cancelled']
   normal={'id':'ordinary','name':'opencode_go','baseUrl':base,'model':'normal','models':['normal'],'temperature':None,'timeout':10}
   rpc('profile.save',profile=normal,makeDefault=True);rpc('llm.test',profile=normal);assert 'x-opencode-session' not in headers(requests[-1])
+  deepseek={'id':'ds','provider':'deepseek','name':'DeepSeek','baseUrl':base,'model':'deepseek-flash','models':['deepseek-flash'],'reasoningByModel':{'deepseek-flash':'low'},'temperature':None,'timeout':10}
+  saved_ds=rpc('profile.save',profile=deepseek);assert rpc('llm.models',profile=saved_ds)==['deepseek-flash']
+  assert rpc('llm.test',profile=saved_ds)['reply'];assert requests[-1]['body']['reasoning_effort']=='low';assert 'x-opencode-session' not in headers(requests[-1])
+  ds_thread=rpc('chat.new',name='DeepSeek search');ds_history=rpc('chat',stream=True,chatId=ds_thread['id'],streamId=uuid.uuid4().hex,profileId='ds',message='Design a search')
+  assert not ds_history[-1]['error'] and ds_history[-1]['result']['queries'];assert 'x-opencode-session' not in headers(requests[-1])
   shutil.rmtree(manifest.parent)  # Simulate uninstall while keeping stored Go profiles.
-  assert rpc('settings')['providers']==[]
+  assert 'opencode_go' not in [p['id'] for p in rpc('settings')['providers']]
   rpc('profile.save',profile=normal)
   failed=subprocess.run([exe],input=json.dumps({'action':'llm.test','args':{'profileId':'go-0'}}),text=True,capture_output=True,env=env,timeout=10)
   assert not json.loads(failed.stdout)['ok']
+  assert rpc('llm.test',profile=saved_ds)['reply'];assert 'x-opencode-session' not in headers(requests[-1])
   assert rpc('llm.test',profile=normal)['reply'];assert 'x-opencode-session' not in headers(requests[-1])
   thread=rpc('chat.new',name='ordinary');h=rpc('chat',stream=True,chatId=thread['id'],streamId=uuid.uuid4().hex,profileId='ordinary',message='Still works');assert not h[-1]['error']
   print(json.dumps({'passed':True,'protocols':4,'checks':['Rust profile persistence and public redaction','known model catalog filtering','Python connection tests','Rust multi-turn search through private worker','stable sessions and independent conversations','silent stream cancellation','ordinary profile named opencode_go has no special headers','physical adapter removal leaves ordinary Python and Rust calls working']},ensure_ascii=False))

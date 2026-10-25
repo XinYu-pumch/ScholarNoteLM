@@ -1,10 +1,10 @@
 # 可选 LLM 供应商
 
-默认 OpenAI 兼容调用不依赖任何可选模块。`registry.json` 只登记启用的供应商目录名；每个目录包含 `manifest.json` 和 `adapter.py`。目前登记 `opencode_go`。
+默认 OpenAI 兼容调用不依赖任何可选模块。`registry.json` 只登记启用的供应商目录名；每个目录包含 `manifest.json` 和 `adapter.py`。目前登记 `deepseek` 和 `opencode_go`，两者互不依赖。
 
 ## 边界
 
-- `manifest.json`：供应商标识、配置分组名称、固定 Base URL、官方模型到协议的映射、协议必需参数和核对来源。设置页从后端读取它，默认折叠，不在 React 中硬编码供应商名。
+- `manifest.json`：供应商标识、配置分组名称、固定 Base URL、官方模型到协议的映射、协议必需参数和核对来源。设置页从后端读取它，以中间供应商列表和右侧详情展示，不在 React 中硬编码供应商名。
 - `adapter.py`：专属请求头、消息/图片转换、流式响应转换；不改变全局 HTTP 客户端、环境变量、代理或 TLS。
 - `services/downloader/llm_provider.py`：通用注册入口、稳定会话上下文、兼容的配置签名。未设置 `provider` 或 `provider=openai` 的旧配置不读取可选模块。
 - `review_llm.py`：共用网络与取消机制。默认请求体和请求头保持原逻辑；只有明确选用可选供应商才执行适配。
@@ -12,9 +12,17 @@
 
 普通模型不按配置名称、模型名称或域名猜测供应商。一个叫 `opencode_go` 的旧普通配置仍是普通配置；请在独立分组中填写专用配置。Go 只允许保存一份配置，名称固定为 `opencode_go`，后端在写事务中拒绝第二份。普通配置可与独立供应商同名，原有 ID、密钥和工作流绑定不变。旧版本如已保存多份 Go 配置，界面仅保留选择和删除入口用于清理，不再允许新增；不会自动删除旧配置。
 
+## DeepSeek 官方
+
+`deepseek/` 模块独立提供 `https://api.deepseek.com/v1`，目前登记 `deepseek-flash` 与 `deepseek-v4-pro`，各支持 low / high / max。默认开启思考；选择“服务端默认”时不发送 `reasoning_effort`，官方当前默认 high。显式选择时发送 `thinking.type=enabled` 和 `reasoning_effort`；思考模式忽略温度，模块不发送该参数。具体规则见 [官方思考模式文档](https://api-docs.deepseek.com/guides/thinking_mode)。
+
+不发送 Go 的会话请求头，也不依赖 Go 适配器；移除任一模块不会改变另一模块及普通 OpenAI 调用。DeepSeek 入口保留一份配置，名称固定；普通 OpenAI 格式的已有 DeepSeek 配置不自动迁移。
+
 ## OpenCode Go
 
 地址与各模型协议以 [Go 官方 Endpoints](https://opencode.ai/v2/docs/console/go/#endpoints) 为准，映射核对日期在 manifest 中。模型列表为在线目录与已知官方映射的交集；遇到未登记的新模型明确拒绝，不猜协议、不尝试切到其他计费端点。
+
+新增 `gemini-4-argon` 使用官方 Google `/inference/go/google/v1beta/models/` 端点，原 Contributor 配置及其他既有模型端点保持原值，避免无关研究产物失效。在线目录未返回的已保存模型仍保留，并在获取列表时提示；可用性以服务端实际返回为准。
 
 当前支持 Chat Completions、Responses、Anthropic Messages、Google `streamGenerateContent`。只发送本应用的 User-Agent 和稳定的 `x-opencode-session`，不伪装其他客户端。所有外部连接仍使用系统代理解析。
 
@@ -39,13 +47,13 @@ Go 配置的 `reasoningByModel` 按模型 ID 保存选择。每行独立选择�
 
 Go 的 Gemini 请求始终发送 `generationConfig.thinkingConfig.includeThoughts: true`，包括强度为“服务端默认”时，以接收流式思考摘要。摘要通过已有推理字段传递，不混入大纲 CSV 或回答正文；所选强度和温度保持不变。此行为仅在 Go 的 `adapter.py` 中实现，不修改共用客户端、超时或缓存签名。摘要不保证固定发送间隔，服务端连续无数据仍可能触发已有超时。协议说明见 [Gemini 思考摘要](https://ai.google.dev/gemini-api/docs/generate-content/thinking#thought-summaries)。
 
-档位以 Go 官网链接的 models.dev 中 `opencode-go` 的 `reasoning_options` 为依据，参数拼写结合 OpenCode 的原生协议实现核对；来源链接固定在 manifest 的 `reasoningSources`。Go 的 `/models` 只返回模型身份，不能据此推断档位。当前登记 21 个模型的离散强度选项：
+档位以 Go 官网链接的 models.dev 中 `opencode-go` 的 `reasoning_options` 为依据，参数拼写结合 OpenCode 的原生协议实现核对；来源链接固定在 manifest 的 `reasoningSources`。Go 的 `/models` 只返回模型身份，不能据此推断档位。当前登记 22 个模型的离散强度选项：
 
 | 模型 | 档位 |
 | --- | --- |
 | DeepSeek V4.1 Flash、GLM 5.3 / 5.3 Flash | low / high / max |
 | DeepSeek V4 Pro、GLM 5.2 | high / max |
-| Gemini 4 Argon Contributor、Step 5 Preview Free | low / medium / high |
+| Gemini 4 Argon / Contributor、Step 5 Preview Free | low / medium / high |
 | Kimi K3 | max |
 | Hy4 Preview | none / high |
 | Hy3 | none / low / high |
@@ -83,6 +91,6 @@ TEST_LLM_PROVIDER=opencode_go runtimes/downloader/bin/python scripts/test-qa-min
 TEST_LLM_PROVIDER=opencode_go runtimes/downloader/bin/python scripts/test-reader-integration.py
 ```
 
-集成测试在 `tmp/` 复制代码，只将副本 manifest 的 Base URL 改成本机模拟服务；覆盖四种协议、普通模型隔离、私有进程取消和模块物理删除。UI 测试启动独立端口和隔离根目录，验证默认折叠、固定地址、保存、未保存保护、窄窗口与停用后的管理入口。真实服务探测不能替代这些回归测试。
+集成测试在 `tmp/` 复制代码，只将副本 manifest 的 Base URL 改成本机模拟服务；覆盖四种协议、普通模型隔离、私有进程取消和模块物理删除。UI 测试启动独立端口和隔离根目录，验证供应商列表、Embedding 内置预设、组合保存操作、固定地址、保存、未保存保护、窄窗口与停用后的管理入口。真实服务探测不能替代这些回归测试。
 
 四个研究工作流脚本默认仍验证普通模型；设置 `TEST_LLM_PROVIDER=opencode_go` 后改用隔离副本中的 Go 适配器和模拟模型 ID，覆盖大纲、写作、问答、阅读的真实 worker，检查专属请求头、会话范围、重试与取消，并确认 Embedding 请求不携带 Go 请求头。

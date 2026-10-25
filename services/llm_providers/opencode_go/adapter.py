@@ -17,7 +17,9 @@ def route(profile):
 def endpoint(profile):
     base=profile.get('baseUrl','').strip().rstrip('/') or BASE
     if base!=BASE:raise ValueError('opencode_go 使用官方 Go 地址，请勿填写其他供应商或单个模型端点')
-    protocol=route(profile)['protocol']
+    settings=route(profile)
+    if settings.get('endpoint'):return settings['endpoint']
+    protocol=settings['protocol']
     suffix={'chat':'/chat/completions','responses':'/responses','messages':'/messages','google':'/models/'+profile['model']+':streamGenerateContent?alt=sse'}[protocol]
     return BASE+suffix
 

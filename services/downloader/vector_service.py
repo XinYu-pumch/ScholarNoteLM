@@ -47,7 +47,7 @@ def settings(e):
     data=embedding_profiles.store(e)
     return {'profiles':[{**public({**DEFAULTS,**p}),'verified':retrieval_settings.verified(e.ROOT,{**DEFAULTS,**p})} for p in data['profiles']],
             'projectModel':public(cfg),'connection':project_embedding.connection(cfg),'storedIndex':stored_index(e,cfg),
-            'presets':providers.presets(),'activeProfile':data['activeProfile'],'apiVerified':retrieval_settings.verified(e.ROOT,cfg),'config':public(cfg),'configured':bool(cfg['baseUrl'] and cfg['model']),'runtimeReady':(e.ROOT/('runtimes/marker/Scripts/python.exe' if os.name=='nt' else 'runtimes/marker/bin/python')).is_file(),'splitter':{'version':chunks.SPLITTER,'maxChars':8192,'minChars':1,'method':'period-balanced'}}
+            'presets':embedding_profiles.builtins(),'activeProfile':data['activeProfile'],'apiVerified':retrieval_settings.verified(e.ROOT,cfg),'config':public(cfg),'configured':bool(cfg['baseUrl'] and cfg['model']),'runtimeReady':(e.ROOT/('runtimes/marker/Scripts/python.exe' if os.name=='nt' else 'runtimes/marker/bin/python')).is_file(),'splitter':{'version':chunks.SPLITTER,'maxChars':8192,'minChars':1,'method':'period-balanced'}}
 
 def stored_index(e,cfg):
     """Local inventory, distinct from current-model/material readiness."""

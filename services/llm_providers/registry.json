@@ -1,1 +1,6 @@
-{"providers": ["opencode_go"]}
+{
+  "providers": [
+    "deepseek",
+    "opencode_go"
+  ]
+}

@@ -46,5 +46,17 @@ class EmbeddingProfilesTests(unittest.TestCase):
   v.rpc(e,'profile.delete',{'id':b['id']});self.assertEqual(v.config(e)['id'],a['id'])
   with self.assertRaises(ValueError):v.rpc(e,'profile.key',{'id':'../../config'})
   v.rpc(e,'profile.delete',{'id':a['id']});self.assertFalse(v.settings(e)['configured']);self.assertEqual(v.settings(e)['profiles'],[])
+ def test_builtin_presets_persist_without_replacing_user_profiles(self):
+  user=self.create('jina')
+  presets=v.settings(e)['presets'];self.assertEqual({p['id'] for p in presets},{'builtin_jina','builtin_siliconflow'})
+  self.assertFalse(any(p.get('apiKey') for p in presets))
+  for preset in presets:
+   with self.assertRaisesRegex(ValueError,'内置预设'):p.delete(e,preset['id'])
+  saved=v.rpc(e,'settings.save',{'id':'builtin_jina','name':'cannot rename','apiKey':'builtin-secret'})
+  self.assertEqual(saved['savedProfile'],'builtin_jina');self.assertEqual(p.get(e,'builtin_jina')['name'],'jina')
+  self.assertEqual(p.get(e,user['id'])['apiKey'],'fixture-secret');self.assertEqual(p.active(e)['id'],user['id'])
+  self.assertNotIn('builtin-secret',json.dumps(v.settings(e)))
+  with self.assertRaisesRegex(ValueError,'内置预设'):p.delete(e,'builtin_jina')
+  v.rpc(e,'settings.save',{'id':'builtin_jina','clearKey':True});self.assertEqual(p.get(e,'builtin_jina')['apiKey'],'')
 
 if __name__=='__main__':unittest.main()

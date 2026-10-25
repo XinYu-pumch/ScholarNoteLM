@@ -3,7 +3,7 @@
   "name": "opencode_go",
   "baseUrl": "https://opencode.ai/inference/go/v1",
   "documentation": "https://opencode.ai/v2/docs/console/go/#endpoints",
-  "checkedAt": "2026-10-15",
+  "checkedAt": "2026-10-25",
   "outputLimitsSource": "https://models.dev/api.json (opencode-go)",
   "models": {
     "glm-5.3-flash": {
@@ -811,6 +811,43 @@
           "high"
         ]
       }
+    },
+    "gemini-4-argon": {
+      "protocol": "google",
+      "reasoning": {
+        "options": {
+          "low": {
+            "generationConfig": {
+              "thinkingConfig": {
+                "thinkingLevel": "low"
+              }
+            }
+          },
+          "medium": {
+            "generationConfig": {
+              "thinkingConfig": {
+                "thinkingLevel": "medium"
+              }
+            }
+          },
+          "high": {
+            "generationConfig": {
+              "thinkingConfig": {
+                "thinkingLevel": "high"
+              }
+            }
+          }
+        },
+        "controls": [
+          "effort"
+        ],
+        "levels": [
+          "low",
+          "medium",
+          "high"
+        ]
+      },
+      "endpoint": "https://opencode.ai/inference/go/google/v1beta/models/gemini-4-argon:streamGenerateContent?alt=sse"
     }
   },
   "userAgent": "ScholarNoteLM/0.6.0",

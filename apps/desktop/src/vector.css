@@ -3,7 +3,7 @@
   font-size: var(--fs-headline)
 }
 .vector-settings>p {
-  margin: 8px 0 20px
+  margin: var(--space-2) 0 var(--space-3)
 }
 .vector-numbers {
   display: grid;
@@ -309,3 +309,7 @@
 .embedding-project-actions .button {
   flex-shrink: 0;
 }
+
+.vector-settings .model-config-selector { margin:var(--space-3) 0 var(--space-6); }
+.vector-settings .embedding-feedback { flex-basis:100%; height:var(--space-8); margin:0; }
+.vector-settings .model-save-bar { gap:var(--space-2); }

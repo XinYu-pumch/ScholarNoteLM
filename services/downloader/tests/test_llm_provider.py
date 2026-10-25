@@ -11,6 +11,29 @@ class Bytes(httpx.AsyncByteStream):
   for event in self.events:yield ('data: '+json.dumps(event)+'\n\n').encode()
 
 class ProviderTests(unittest.IsolatedAsyncioTestCase):
+ async def test_deepseek_official_effort_and_stream_do_not_depend_on_go(self):
+  p={'provider':'deepseek','model':'deepseek-flash','baseUrl':'https://api.deepseek.com/v1','apiKey':'fixture','temperature':0.2,'timeout':10}
+  module=providers.adapter(p)
+  p['endpoint']=module.endpoint(p)
+  for model in ('deepseek-flash','deepseek-v4-pro'):
+   for effort in ('','low','high','max'):
+    selected={**p,'model':model,'reasoningByModel':{model:effort}}
+    url,body,headers,_=module.prepare(selected,[{'role':'user','content':'hello'}])
+    self.assertEqual(url,p['baseUrl']+'/chat/completions');self.assertEqual(body['thinking'],{'type':'enabled'})
+    self.assertEqual(body.get('reasoning_effort',''),effort);self.assertNotIn('temperature',body);self.assertNotIn('x-opencode-session',headers)
+  with self.assertRaises(ValueError):module.prepare({**p,'reasoningByModel':{p['model']:'medium'}},[])
+  with self.assertRaises(ValueError):module.prepare({**p,'baseUrl':'https://other.invalid'},[])
+  async def handler(req):return httpx.Response(200,headers={'content-type':'text/event-stream'},stream=Bytes([{'choices':[{'delta':{'reasoning_content':'thought'}}]},{'choices':[{'delta':{'content':'answer'},'finish_reason':'stop'}]}]))
+  thoughts=[]
+  with self.client(handler),patch.object(llm,'system_proxy',return_value=None):
+   self.assertEqual(await llm.chat(p,[],lambda:False,on_reasoning=thoughts.append),'answer')
+  self.assertEqual(thoughts[-1],'thought')
+ def test_new_go_gemini_uses_documented_google_endpoint(self):
+  p=self.profile('gemini-4-argon');p['reasoningByModel']={'gemini-4-argon':'medium'}
+  url,body,headers,_=providers.adapter(p).prepare(p,[])
+  self.assertEqual(url,'https://opencode.ai/inference/go/google/v1beta/models/gemini-4-argon:streamGenerateContent?alt=sse')
+  self.assertEqual(body['generationConfig']['thinkingConfig'],{'thinkingLevel':'medium','includeThoughts':True})
+  self.assertIn('x-opencode-session',headers)
  def profile(self,model):
   p={'id':'p','provider':'opencode_go','baseUrl':'https://opencode.ai/inference/go/v1','model':model,'apiKey':'fixture-secret','temperature':None,'timeout':10}
   p['endpoint']=providers.endpoint(p,llm.endpoint);return providers.with_session(p,'qa','project','thread')

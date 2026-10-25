@@ -2,6 +2,13 @@
 import json,os,uuid
 import storage
 
+def builtins():
+    from embedding_providers import presets
+    return [{**p,'id':'builtin_'+p['id'],'builtIn':True} for p in presets()]
+
+def builtin(pid):
+    return next((p for p in builtins() if p['id']==pid),None)
+
 def store(e):
     path=e.ROOT/'config/embedding.json'
     if not path.exists():return {'profiles':[],'activeProfile':''}
@@ -26,6 +33,8 @@ def active(e):
 def form(e,args):
     import vector_service as v
     if 'id' not in args:return active(e)
+    preset=builtin(args['id'])
+    if preset and not any(p['id']==args['id'] for p in store(e)['profiles']):return {**v.DEFAULTS,**preset}
     return get(e,args['id']) if args['id'] else {**v.DEFAULTS,'id':'','name':''}
 
 def write(e,data):
@@ -36,10 +45,11 @@ def save(e,args):
     import vector_service as v
     with storage.file_lock(e.ROOT/'config/embedding-settings.lock'):
         data=store(e);first=not data['activeProfile'];cfg=v.validated(e,args);pid=cfg.get('id') or uuid.uuid4().hex
-        name=args.get('name',cfg.get('name') or '默认配置')
+        preset=builtin(pid)
+        name=preset['name'] if preset else args.get('name',cfg.get('name') or '默认配置')
         if not isinstance(name,str) or not name.strip() or len(name)>80:raise ValueError('配置名称须为 1–80 个字符')
         name=name.strip()
-        if any(p['id']!=pid and p['name'].casefold()==name.casefold() for p in data['profiles']):raise ValueError('配置名称已存在，请使用不同名称')
+        if any(p['id']!=pid and bool(builtin(p['id']))==bool(preset) and p['name'].casefold()==name.casefold() for p in data['profiles']):raise ValueError('配置名称已存在，请使用不同名称')
         cfg.update(id=pid,name=name)
         data['profiles']=[cfg if p['id']==pid else p for p in data['profiles']]
         if not any(p['id']==pid for p in data['profiles']):data['profiles'].append(cfg)
@@ -59,6 +69,7 @@ def activate(e,pid):
         get(e,pid);data=store(e);data['activeProfile']=pid;write(e,data)
 
 def delete(e,pid):
+    if builtin(pid):raise ValueError('内置预设不能删除；可以清除密钥或编辑配置')
     with storage.file_lock(e.ROOT/'config/embedding-settings.lock'):
         import project_embedding
         project_embedding.pin_existing(e)
