@@ -118,12 +118,17 @@ def unit_signatures(path,unit,cfg,topic,source,ps,models,prompt_hash='',saved=No
         result.update(unit_signature(unit,c,topic,source,ps,model,prompt_hash,legacy=True) for c in configs)
     return result
 
-def matches_unit_signature(saved,unit,cfg,topic,source,profiles,models,prompt_hash='',path=None):
+def matches_unit_signature(saved,unit,cfg,topic,source,profiles,models,prompt_hash='',path=None,preferred_profile=None):
     if not complete_unit(unit,saved):return False
+    model_options=models if isinstance(models,set) else {models}
+    # Set iteration must not make a current-format manuscript try thousands of
+    # historical vision/profile combinations before its exact semantic identity.
+    if preferred_profile in profiles:
+        if any(saved.get('signature')==unit_signature(unit,cfg,topic,source,preferred_profile,model,prompt_hash) for model in model_options):return True
     configs=signature_configs(path,cfg,saved)
-    for model in models if isinstance(models,set) else {models}:
+    for model in model_options:
         for ps in profiles:
-            if saved.get('signature')==unit_signature(unit,cfg,topic,source,ps,model,prompt_hash):return True
+            if ps!=preferred_profile and saved.get('signature')==unit_signature(unit,cfg,topic,source,ps,model,prompt_hash):return True
             if any(saved.get('signature')==unit_signature(unit,c,topic,source,ps,model,prompt_hash,legacy=True) for c in configs):return True
     return False
 
@@ -222,8 +227,11 @@ def progress_counts(j):
 def status(e,name):
     path=outline.work(e,name);cfg=config(path);state=outline.vstate(e,name,'current');current_rows=rows_at(e,path);ctx=manuscripts.context(e,name);rows=ctx['rows'];units=tree_units(rows)
     outline_changed=manuscripts.fingerprint(current_rows)!=ctx['outlineHash']
-    try:p=outline.profile(e,cfg['profileId'],cfg['model']);profiles=compatible_profile_signatures(p);model=p['model'];model_label=(p.get('name','')+'/' if p.get('name') else '')+model
-    except ValueError:profiles=set();model='';model_label=''
+    try:p=outline.profile(e,cfg['profileId'],cfg['model']);preferred_profile=profile_signature(p);profiles=compatible_profile_signatures(p);model=p['model'];model_label=(p.get('name','')+'/' if p.get('name') else '')+model
+    except ValueError:profiles=set();preferred_profile=None;model='';model_label=''
+    # Only the historical ID varies within this status request. Keep this local:
+    # later requests must observe changed model, vision and thinking settings.
+    expanded_profile_ids={p.get('id')} if profiles else set()
     import status_cache
     live_source=status_cache.cached(e,'review.source-signature',lambda:source_signature(e));rcfg=retrieval_settings.snapshot(e.ROOT,e.PROJECT);live_models=retrieval.signature(e.ROOT,rcfg);source,models,material_cfg=round_inputs(ctx,live_source,live_models,rcfg);j=job(e,name);items=[];preparations={}
     model_options={models} if ctx.get('materialSnapshot') else retrieval.compatible_signatures(e.ROOT,rcfg)|{models}
@@ -231,10 +239,13 @@ def status(e,name):
         saved=saved_unit(path,u)
         if profiles:
             for old_cfg in signature_configs(path,cfg,saved):
-                profiles.update(compatible_profile_signatures({**p,'id':old_cfg.get('profileId') or p.get('id')}))
+                old_id=old_cfg.get('profileId') or p.get('id')
+                if old_id not in expanded_profile_ids:
+                    profiles.update(compatible_profile_signatures({**p,'id':old_id}))
+                    expanded_profile_ids.add(old_id)
         pre=current_prepared(path,u,cfg,state.get('topic',''),source,model_options)
         preparations[u['id']]=pre
-        latest=not outline_changed and matches_unit_signature(saved,u,cfg,state.get('topic',''),source,profiles,model_options,pre['hash'] if pre else '',path)
+        latest=not outline_changed and matches_unit_signature(saved,u,cfg,state.get('topic',''),source,profiles,model_options,pre['hash'] if pre else '',path,preferred_profile=preferred_profile)
         live=j.get('items',{}).get(u['id'],{})
         # Completion belongs to the saved manuscript; model freshness is separate.
         completed=complete_unit(u,saved)

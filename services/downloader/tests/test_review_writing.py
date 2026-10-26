@@ -46,6 +46,27 @@ class WritingTests(unittest.TestCase):
    plain={**p,'visionModels':[]}
    self.assertEqual(w.profile_signature(plain),w.profile_signature({**plain,'visionModels':['unrelated']}))
 
+ def test_status_expands_profile_history_once_per_request(self):
+  wide={**PROFILE,'models':['fixture','b','c','d','e','f'],'visionModels':['fixture','b','c','d','e','f']}
+  with patch.dict(PROFILE,wide):
+   self.prepare_seeded_units()
+   w.manuscripts.freeze(e,'Test')
+   with patch.object(w,'compatible_profile_signatures',wraps=w.compatible_profile_signatures) as replay:
+    state=self.status();self.assertEqual(state['latest'],4)
+    self.assertEqual(replay.call_count,1)
+   # A subsequent request must recompute after an actual model-input change.
+   with patch.object(r,'profile',return_value={**wide,'temperature':.4}),patch.object(w,'compatible_profile_signatures',wraps=w.compatible_profile_signatures) as replay:
+    self.assertEqual(self.status()['latest'],0)
+    self.assertEqual(replay.call_count,1)
+
+ def test_current_signature_is_checked_before_historical_combinations(self):
+  u=self.prepare_seeded_units()[0];cfg=w.config(self.path);source=w.source_signature(e);models=w.retrieval.signature(e.ROOT)
+  saved=w.saved_unit(self.path,u);pre=w.current_prepared(self.path,u,cfg,'Review',source,{models});current=w.profile_signature(PROFILE)
+  candidates=[f'old-{i}' for i in range(1633)]+[current]
+  with patch.object(w,'unit_signature',wraps=w.unit_signature) as digest,patch.object(w,'signature_configs',side_effect=AssertionError('current format must not replay history')):
+   self.assertTrue(w.matches_unit_signature(saved,u,cfg,'Review',source,candidates,{models},pre['hash'],self.path,preferred_profile=current))
+   self.assertEqual(digest.call_count,1)
+
  def test_legacy_single_model_vision_restores_status_without_rewriting(self):
   for provider in ('openai','opencode_go'):
    old={**PROFILE,'provider':provider,'visionModels':['fixture'],'reasoningByModel':{'fixture':'high'}}
@@ -102,7 +123,9 @@ class WritingTests(unittest.TestCase):
   before={f:f.read_bytes() for f in self.path.rglob('*.json')}
   e.write_json(self.path/'writing-settings.json',{**cfg,'profileId':'copy','contextChars':500000,'limitContext':False})
   with patch.object(r,'profile',return_value={**PROFILE,'id':'copy'}):
-   state=self.status();self.assertEqual(state['latest'],4);self.assertEqual(state['prepared'],4)
+   with patch.object(w,'compatible_profile_signatures',wraps=w.compatible_profile_signatures) as replay:
+    state=self.status();self.assertEqual(state['latest'],4);self.assertEqual(state['prepared'],4)
+    self.assertEqual([call.args[0]['id'] for call in replay.call_args_list],['copy','original'])
    with patch.object(w.subprocess,'Popen') as spawn:w.rpc(e,'Test','retry',{});spawn.assert_not_called()
   for f,content in before.items():
    if f.name!='writing-settings.json':self.assertEqual(f.read_bytes(),content)
