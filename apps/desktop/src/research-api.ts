@@ -25,7 +25,7 @@ async function transport<T>(action:string,args:Record<string,unknown>={}):Promis
   const r=await fetch('/__research',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action,args})});
   const result=await r.json();if(!r.ok||!result.ok)throw new Error(result.error||'研究服务暂时不可用');return result.data;
 }
-const cachedReads=new Set(['zotero.status','workspace','download.list','markdown.status','vector.status','vector.progress','library.status','library.overview','settings','profile.list','vector.settings','mesh.status','review.list','review.get','review.writing.activity','review.writing.status','review.writing.section','qa.list','qa.get','qa.inventory','qa.settings','chat.list','chat.get']);
+const cachedReads=new Set(['zotero.status','workspace','download.list','markdown.status','vector.status','vector.progress','library.status','library.overview','settings','profile.list','vector.settings','mesh.status','review.list','review.get','review.writing.activity','review.writing.progress','review.writing.status','review.writing.section','qa.list','qa.get','qa.inventory','qa.settings','chat.list','chat.get']);
 const materialReads=['workspace','markdown.status','vector.status','library.overview','qa.inventory','review.list','review.writing.status'];
 const materialVersions=new Map<string,string>();
 function observeMaterials(action:string,args:Record<string,unknown>,data:unknown){
@@ -48,7 +48,8 @@ export async function rpc<T>(action:string,args:Record<string,unknown>={}):Promi
  if(/^(qa|chat)\.(new|language|rename|copy|fork|start|cancel|resume|regenerate|delete|delete_many|archive|archive_many)$/.test(action))invalidate(typeof args.project==='string'?args.project:undefined,[action.startsWith('qa.')?'qa.list':'chat.list',action.startsWith('qa.')?'qa.get':'chat.get'],/\.(delete|archive)(_many)?$/.test(action));
  if(action==='download.settings.save')invalidate(undefined,['markdown.status']);
  if(action==='qa.settings.save')invalidate(undefined,['qa.settings']);
- if(action.startsWith('review.'))invalidate(typeof args.project==='string'?args.project:undefined,['review.list','review.get','review.writing.activity','review.writing.status','review.writing.section']);
+ if(action.startsWith('review.')&&args.ack){invalidate(typeof args.project==='string'?args.project:undefined,['review.list','review.writing.activity','review.writing.progress']);return result;}
+ if(action.startsWith('review.'))invalidate(typeof args.project==='string'?args.project:undefined,['review.list','review.get','review.writing.activity','review.writing.progress','review.writing.status','review.writing.section']);
  if(action==='storage.delete'){invalidate(String(args.project),undefined,true);forgetPage(String(args.project));}
  return result;
 }

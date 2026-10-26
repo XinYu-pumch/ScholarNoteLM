@@ -77,6 +77,11 @@ def job(e,name):
 def ensure_idle(e,name):
     if job(e,name).get('state') in ACTIVE:raise ValueError('请先取消或等待当前综述撰写完成')
 
+def progress(e,name):
+    # Worker-owned counters only. Never hydrate evidence or scan the corpus here.
+    j=job(e,name)
+    return {'job':{**j,**progress_counts(j)}}
+
 def rows_at(e,path):
     csvpath=path/'outline.csv'
     if not csvpath.exists():return []
@@ -268,6 +273,7 @@ def rpc(e,name,op,a):
     if op=='manuscript':return manuscripts.preview(manuscripts.get(e,name,a.get('id')))
     if op=='manuscript.export':return manuscripts.export(e,name,a.get('format','md'),a.get('id'))
     if op=='activity':return {'state':job(e,name).get('state','idle')}
+    if op=='progress':return progress(e,name)
     if op=='status':return status(e,name)
     if op=='open-tasks':
         folder=path/'logs';folder.mkdir(parents=True,exist_ok=True);return e.open_local(folder)
@@ -305,7 +311,7 @@ def rpc(e,name,op,a):
         j=job(e,name)
         if j.get('state') in ACTIVE and not outline.request_cancel(e,path,'writing',j.get('token')):
             j.update(state='stopping');e.write_json(path/'writing-job.json',j)
-        return status(e,name)
+        return progress(e,name) if a.get('ack') else status(e,name)
     ensure_idle(e,name);outline.idle(outline.vstate(e,name,'current'))
     if op=='reset':
         if a.get('confirm') is not True:raise ValueError('请确认保存草稿并重置撰写')
@@ -323,12 +329,15 @@ def rpc(e,name,op,a):
     if mode=='prepare' and (not runtime(e,rcfg).is_file() or not retrieval.ready(e.ROOT,rcfg)):raise ValueError('请先验证 Embedding 连接并检查检索运行环境')
     selected=a.get('unitIds')
     if op=='retry':
-        current=status(e,name)
         selected=None  # Recompute missing/invalid artifacts, including interrupted and pending units.
-        mode='prepare' if current['job'].get('mode')=='prepare' else 'write'
+        mode='prepare' if job(e,name).get('mode')=='prepare' else 'write'
     if op=='prepare' and selected is not None:raise ValueError('新一轮准备须覆盖完整大纲')
-    source=source_signature(e);models=retrieval.signature(e.ROOT,rcfg);ps=profile_signature(p)
     ctx=manuscripts.context(e,name)
+    frozen=ctx.get('materialSnapshot') if mode=='write' else None
+    # Writing consumes the frozen bundle, independently of the current corpus.
+    source=frozen['sourceSignature'] if frozen and 'sourceSignature' in frozen else source_signature(e)
+    models=frozen['modelsSignature'] if frozen and 'modelsSignature' in frozen else retrieval.signature(e.ROOT,rcfg)
+    ps=profile_signature(p)
     if op=='prepare':
         if any(saved_unit(path,u).get('sections') for u in tree_units(ctx['rows'])) and a.get('confirm') is not True:
             raise ValueError('当前正文将先保存，请确认开始新一轮撰写')
@@ -349,26 +358,31 @@ def rpc(e,name,op,a):
         if mode=='write':rcfg=frozen_cfg
         # A new credential is verified live, but never changes the frozen artifact identity.
     model_options={models} if ctx.get('materialSnapshot') else retrieval.compatible_signatures(e.ROOT,rcfg)|{models}
-    if mode=='write' and any(not current_prepared(path,u,cfg,state['topic'],source,model_options) for u in units):
+    deferred=bool(a.get('ack')) and mode=='write'
+    preparations={} if deferred else {u['id']:current_prepared(path,u,cfg,state['topic'],source,model_options) for u in units}
+    if mode=='write' and not deferred and not all(preparations.values()):
         raise ValueError('请先为全部章节准备完整的写作材料（提示词）')
     if selected is not None and (not isinstance(selected,list) or not selected or any(i not in {u['id'] for u in units} for i in selected)):raise ValueError('选择的写作单元无效')
     e.write_json(path/'writing-settings.json',cfg)
     tasks=[]
     for u in units:
         u['promptSignature']=unit_signature(u,cfg,state['topic'],source,'',models)
-        pre=current_prepared(path,u,cfg,state['topic'],source,model_options)
+        pre=preparations.get(u['id'])
         u['signature']=unit_signature(u,cfg,state['topic'],source,ps,models,pre['hash'] if pre else '')
+        if deferred:u.pop('signature')  # Computed by the worker after bundle validation.
         if selected is not None and u['id'] not in selected:continue
-        if mode=='write' and not pre:raise ValueError('提示词尚未准备或已过期，请先准备新一轮撰写，或继续本轮准备')
+        if mode=='write' and not deferred and not pre:raise ValueError('提示词尚未准备或已过期，请先准备新一轮撰写，或继续本轮准备')
         old=saved_unit(path,u)
         # Only an explicit unit selection authorizes replacing complete bodies.
         # Keep signature checks for diagnostics and publication, not resume scheduling.
         if selected is None and ((mode=='prepare' and pre) or (mode=='write' and complete_unit(u,old))):continue
         tasks.append(u)
-    if not tasks:return status(e,name)
-    if mode=='write':manuscripts.save(e,name)
+    if not tasks:return {'job':job(e,name),'config':cfg,'noop':True} if deferred else status(e,name)
+    # Resume never replaces a completed unit; no manuscript capture is needed.
+    if mode=='write' and selected is not None:manuscripts.save(e,name)
     token=uuid.uuid4().hex;run=path/'logs'/token;run.mkdir(parents=True)
     snapshot={'token':token,'created':time.time(),'topic':state['topic'],'config':cfg,'mode':mode,'retrieval':rcfg,'profileId':p.get('id',''),'model':p.get('model',''),'profileSignature':ps,'sourceSignature':source,'modelsSignature':models,'modelsAliases':sorted(model_options),'rows':rows,'tasks':tasks,'frozenMaterials':True,'sessionRound':ctx['id']}
+    if deferred:snapshot['validateMaterials']=True
     compact_io.write_json(e,run/'input.json',snapshot)
     j={'token':token,'state':'queued','created':time.time(),'updated':time.time(),'pid':0,'owner':a.get('owner',0),'total':len(tasks),'completed':0,'failed':0,'mode':mode,'phase':'准备提示词' if mode=='prepare' else '准备生成综述','items':{u['id']:{'state':'pending'} for u in tasks},'error':''}
     e.write_json(path/'writing-job.json',j)
@@ -381,7 +395,7 @@ def rpc(e,name,op,a):
         j.update(state='failed',error='无法启动综述撰写进程')
         for item in j['items'].values():item.update(state='failed',error=j['error'])
         j.update(progress_counts(j));e.write_json(path/'writing-job.json',j);e.write_json(run/'result.json',j);raise ValueError(j['error']) from None
-    return status(e,name)
+    return {**progress(e,name),'config':cfg} if deferred else status(e,name)
 
 def citations(text):
     ids=set()
@@ -440,6 +454,19 @@ async def run(e,name,token,retriever_factory=None):
         check();update(state='running',pid=os.getpid(),phase='准备当前文本块' if mode=='prepare' else '读取已保存的提示词')
         p=outline.profile(e,snapshot['profileId'],snapshot.get('model') or cfg.get('model')) if mode=='write' else {}
         if mode=='write' and snapshot['profileSignature'] not in compatible_profile_signatures(p):raise ValueError('模型配置已变化，请重新开始')
+        if snapshot.get('validateMaterials'):
+            update(phase='校验写作材料')
+            def validate_start():
+                prepared_units={}
+                for u in tree_units(snapshot['rows']):
+                    check()
+                    pre=current_prepared(path,u,cfg,snapshot['topic'],snapshot['sourceSignature'],set(snapshot.get('modelsAliases',[snapshot['modelsSignature']])))
+                    if not pre:raise ValueError('请先为全部章节准备完整的写作材料（提示词）')
+                    prepared_units[u['id']]=pre['hash']
+                for u in snapshot['tasks']:
+                    u['signature']=unit_signature(u,cfg,snapshot['topic'],snapshot['sourceSignature'],snapshot['profileSignature'],snapshot['modelsSignature'],prepared_units[u['id']])
+            await asyncio.to_thread(validate_start)
+            check();update(phase='读取已保存的提示词')
         records=await asyncio.to_thread(retrieval.corpus,e) if mode=='prepare' else []
         await verify_materials()
         corpus_sig=chunks.digest([snapshot['modelsSignature'],[(r['id'],chunks.embedding_text(r)) for r in records]])
@@ -447,12 +474,14 @@ async def run(e,name,token,retriever_factory=None):
         queries={ident:n['title'] for ident,n in leaves.items()}
         # Each workspace schedules its own requests independently.
         guard=None;retriever=None;evidence_all={};writing_tasks=[];sem=asyncio.Semaphore(cfg['concurrency'])
-        async def write_unit(unit,evidence):
+        async def write_unit(unit):
             async with sem:
                 try:
                     check();update(unit['id'],state='writing',error='')
-                    pre=current_prepared(path,unit,cfg,snapshot['topic'],snapshot['sourceSignature'],set(snapshot.get('modelsAliases',[snapshot['modelsSignature']])))
+                    pre=await asyncio.to_thread(current_prepared,path,unit,cfg,snapshot['topic'],snapshot['sourceSignature'],set(snapshot.get('modelsAliases',[snapshot['modelsSignature']])))
+                    check()
                     if not pre:raise ValueError('提示词缺失或发生变化，请重新准备')
+                    evidence=pre['evidence']
                     plan=pre['plans'][0];bundle=load_bundle(path,plan)
                     # Assert the canonical pool still matches the immutable retrieval snapshot.
                     expected=review_bundle.make(snapshot,unit,evidence)
@@ -483,7 +512,8 @@ async def run(e,name,token,retriever_factory=None):
                         sections,errors=review_bundle.decode(object_json(fixed),bundle,unit,p)
                         if errors:raise ValueError('引用校验仍未通过：仅允许当前共享池中的证据 ID，父标题导语不能引用')
                     await verify_materials()
-                    check();current=current_prepared(path,unit,cfg,snapshot['topic'],snapshot['sourceSignature'],set(snapshot.get('modelsAliases',[snapshot['modelsSignature']])))
+                    check();current=await asyncio.to_thread(current_prepared,path,unit,cfg,snapshot['topic'],snapshot['sourceSignature'],set(snapshot.get('modelsAliases',[snapshot['modelsSignature']])))
+                    check()
                     if not current or current['hash']!=pre['hash']:raise ValueError('生成期间材料包或资源发生变化，结果未发布，请重新准备')
                     value={'signature':unit['signature'],'unitId':unit['id'],'unit_id':unit['serial'],'sections':sections,'evidence':evidence,'created':time.time(),'run':token,'model':p['model'],'promptHash':pre['hash']}
                     e.write_json(path/'sections'/f'{unit["id"]}.json',value)
@@ -496,9 +526,7 @@ async def run(e,name,token,retriever_factory=None):
                 check();evidence={}
                 try:
                     if mode=='write':
-                        pre=current_prepared(path,unit,cfg,snapshot['topic'],snapshot['sourceSignature'],set(snapshot.get('modelsAliases',[snapshot['modelsSignature']])))
-                        if not pre:raise ValueError('提示词缺失或已过期，请重新准备')
-                        writing_tasks.append(asyncio.create_task(write_unit(unit,pre['evidence'])));await asyncio.sleep(0);continue
+                        writing_tasks.append(asyncio.create_task(write_unit(unit)));await asyncio.sleep(0);continue
                     update(unit['id'],state='retrieving',error='')
                     for node in unit['leaves']:
                         ident=node['id'];query=queries[ident];sig=chunks.digest([corpus_sig,query,candidate_k,cfg['topK']])
@@ -546,8 +574,7 @@ async def run(e,name,token,retriever_factory=None):
     finally:
         if mode=='write':
             try:
-                current=status(e,name)
-                if current['total'] and current['completed']==current['total']:manuscripts.save(e,name)
+                manuscripts.save(e,name)
             except Exception as ex:
                 current=outline.read(path/'writing-job.json',{})
                 if current.get('token')==token:

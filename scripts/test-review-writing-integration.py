@@ -84,7 +84,7 @@ try:
   query_inputs=[req['input'][0] for req in requests if len(req.get('input',[]))==1]
   assert all(q in query_inputs for q in ('短链脂肪酸','调节性T细胞','屏障功能','研究方向')),query_inputs
   prompt_files=list((base/'review/ReviewTest/review_parts').glob('prompt_section_*.json'));assert len(prompt_files)==3
-  before_embeddings=len(requests);d=rpc('writing.start');d=wait()
+  before_embeddings=len(requests);d=rpc('writing.start',ack=True);assert 'units' not in d;d=wait()
   if pf.ENABLED:assert len(set(pf.sessions()))==3,'Concurrent units share a session'
   assert all('messages' in req for req in requests[before_embeddings:]),'Writing repeated recall'
   sent=[req['messages'] for req in requests[before_embeddings:]]
@@ -135,7 +135,7 @@ try:
   rpc('writing.prepare.resume');d=wait();assert d['prepared']==3 and d['latest']==3
   before={p.name:p.read_bytes() for p in sections}
   slow=True;started.clear();rpc('writing.start',unitIds=[d['units'][0]['id']]);assert started.wait(15)
-  tick_cancel=time.monotonic();rpc('writing.cancel');cancelled=wait();assert cancelled['job']['state']=='cancelled',cancelled
+  tick_cancel=time.monotonic();rpc('writing.cancel',ack=True);cancelled=wait();assert cancelled['job']['state']=='cancelled',cancelled
   assert time.monotonic()-tick_cancel<3
   assert all((path/'sections'/name).read_bytes()==content for name,content in before.items())
   # Resume with another provider/model: keep complete units and generate only the hole.
@@ -147,7 +147,7 @@ try:
    c.execute('UPDATE settings SET value=? WHERE key=?',(json.dumps([pf.profile({'id':'next-provider','model':'fixture-next','baseUrl':next_base,'apiKey':'isolated-test-secret','timeout':10})]),'profiles'))
    c.execute('UPDATE settings SET value=? WHERE key=?',(json.dumps('next-provider'),'activeProfile'))
   d=rpc('writing.status');assert d['completed']==2 and d['latest']==0,d
-  n=len(requests);rpc('writing.start');d=wait()
+  n=len(requests);rpc('writing.start',ack=True);d=wait()
   assert d['completed']==3 and d['latest']==1 and d['job']['total']==1,d
   assert d['stages']['writing']['state']=='complete'
   assert len(requests)==n+1 and requests[-1]['model']=='fixture-next'
@@ -181,8 +181,10 @@ try:
   rpc('writing.prepare',name='CopyReview');wait('CopyReview')
   slow=True;peak=0
   with storage.file_lock(base/'metadata/reviews.lock'):
-   rpc('writing.start')
-   rpc('writing.start',name='CopyReview')
+   rpc('writing.start',ack=True)
+   rpc('writing.start',name='CopyReview',ack=True)
+   progress_a=rpc('writing.progress');progress_b=rpc('writing.progress',name='CopyReview')
+   assert progress_a['job']['token']!=progress_b['job']['token']
    parallel_a=wait();parallel_b=wait('CopyReview')
   slow=False
   assert parallel_a['stages']['writing']['state']=='complete'
@@ -192,5 +194,5 @@ try:
    if f.suffix in ('.txt','.json','.log','.csv','.md'):assert 'isolated-test-secret' not in f.read_text(errors='replace')
    if f.suffix=='.gz':assert b'isolated-test-secret' not in gzip.decompress(f.read_bytes())
   pf.verify()
-  print(json.dumps({'success':True,'auditStorage':log_storage,'seconds':round(time.monotonic()-tick,2),'requests':len(requests),'writingUnits':3,'leafQueries':4,'topK':7,'peakHttpConcurrency':peak,'checks':['real Rust RPC','real independent worker','verified API recall, default no reranking','Chinese queries unchanged','two-stage prompt files sent exactly','writing does not recall again','abstract fallback','mixed-depth complete assembly','all complete skips generation','external section and prompt deletion','JSON failure result archived','retry sends failed item only','exports md/html/docx','cancel active HTTP within 3 seconds','completed bodies retained','model switch resumes missing units only','mixed-model completion and auto archive','explicit rewrite after model switch','no API key in artifacts','fresh round archives then resets','resume preserves round','independent workspace copy','reset preserves exports','historical exports after reset']},ensure_ascii=False),flush=True)
+  print(json.dumps({'success':True,'auditStorage':log_storage,'seconds':round(time.monotonic()-tick,2),'requests':len(requests),'writingUnits':3,'leafQueries':4,'topK':7,'peakHttpConcurrency':peak,'checks':['real Rust RPC','real independent worker','fast start acknowledgement and isolated live progress','verified API recall, default no reranking','Chinese queries unchanged','two-stage prompt files sent exactly','writing does not recall again','abstract fallback','mixed-depth complete assembly','all complete skips generation','external section and prompt deletion','JSON failure result archived','retry sends failed item only','exports md/html/docx','cancel active HTTP within 3 seconds','completed bodies retained','model switch resumes missing units only','mixed-model completion and auto archive','explicit rewrite after model switch','no API key in artifacts','fresh round archives then resets','resume preserves round','independent workspace copy','reset preserves exports','historical exports after reset']},ensure_ascii=False),flush=True)
 finally:server.shutdown();server.server_close()

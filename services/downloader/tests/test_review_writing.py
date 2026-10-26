@@ -409,6 +409,54 @@ class WritingTests(unittest.TestCase):
    saved['signature']=w.unit_signature(u,cfg,'Review',source,w.profile_signature(PROFILE),models,pre['hash'])
    e.write_json(self.path/'sections'/f'{u["id"]}.json',saved)
   return units
+ def frozen_seed(self):
+  units=self.prepare_seeded_units();cfg=w.config(self.path)
+  ctx=w.manuscripts.new_round(e,'Test',self.detail['rows'],'Review',cfg)
+  ctx['materialSnapshot']={'sourceSignature':w.source_signature(e),'modelsSignature':w.retrieval.signature(e.ROOT),'retrieval':w.retrieval_settings.snapshot(e.ROOT,e.PROJECT)}
+  e.write_json(self.path/'writing-round.json',ctx)
+  return units
+ def test_fast_resume_ack_avoids_full_scan_and_capture(self):
+  units=self.frozen_seed();missing=units[-1]
+  (self.path/'review_parts'/f'section_{missing["serial"]}.json').unlink()
+  forbidden=AssertionError('heavy work must not run on acknowledgement/progress')
+  with patch.object(w,'status',side_effect=forbidden),patch.object(w,'source_signature',side_effect=forbidden),patch.object(w,'current_prepared',side_effect=forbidden),patch.object(w.manuscripts,'capture',side_effect=forbidden),patch.object(w.subprocess,'Popen'):
+   result=w.rpc(e,'Test','start',{'ack':True})
+   self.assertEqual(result['job']['state'],'queued')
+   self.assertEqual(list(result['job']['items']),[missing['id']])
+   progress=w.rpc(e,'Test','progress',{})
+   self.assertEqual(progress['job']['token'],result['job']['token'])
+   cancelled=w.rpc(e,'Test','cancel',{'ack':True})
+   self.assertEqual(cancelled['job']['state'],'stopping')
+  snapshot=r.read(self.path/'logs'/result['job']['token']/'input.json')
+  self.assertTrue(snapshot['validateMaterials'])
+ def test_deferred_validation_rejects_corruption_before_chat(self):
+  units=self.frozen_seed();missing=units[-1]
+  (self.path/'review_parts'/f'section_{missing["serial"]}.json').unlink()
+  # Even corruption in an already completed group's materials is checked.
+  (self.path/'review_parts'/f'prompt_section_{units[0]["serial"]}.json').write_text('{}')
+  with patch.object(w.subprocess,'Popen'):result=w.rpc(e,'Test','start',{'ack':True})
+  with patch.object(w,'chat') as chat:
+   asyncio.run(w.run(e,'Test',result['job']['token']))
+   chat.assert_not_called()
+  final=w.progress(e,'Test')['job'];self.assertEqual(final['state'],'failed')
+  self.assertIn('完整的写作材料',final['error'])
+  self.assertTrue(w.saved_unit(self.path,units[0]))
+ def test_deferred_validation_can_be_cancelled(self):
+  units=self.frozen_seed();missing=units[-1]
+  (self.path/'review_parts'/f'section_{missing["serial"]}.json').unlink()
+  with patch.object(w.subprocess,'Popen'):result=w.rpc(e,'Test','start',{'ack':True})
+  original=w.current_prepared
+  def cancel_during_validation(*args):
+   r.request_cancel(e,self.path,'writing',result['job']['token'])
+   return original(*args)
+  with patch.object(w,'current_prepared',side_effect=cancel_during_validation),patch.object(w,'chat') as chat:
+   asyncio.run(w.run(e,'Test',result['job']['token']));chat.assert_not_called()
+  self.assertEqual(w.progress(e,'Test')['job']['state'],'cancelled')
+ def test_partial_manuscript_does_not_render_images_for_discarded_save(self):
+  units=self.prepare_seeded_units()
+  (self.path/'review_parts'/f'section_{units[-1]["serial"]}.json').unlink()
+  with patch.object(w,'display_document',side_effect=AssertionError('must not render partial body')):
+   self.assertIsNone(w.manuscripts.save(e,'Test'))
  def test_resume_after_model_switch_only_schedules_missing_units(self):
   units=self.prepare_seeded_units();missing=units[-1]
   (self.path/'review_parts'/f'section_{missing["serial"]}.json').unlink()

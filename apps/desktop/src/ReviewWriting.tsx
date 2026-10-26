@@ -7,6 +7,8 @@ import {ReaderLink} from './Reader';
 import ReviewManuscripts from './ReviewManuscripts';
 import {Modal} from './ui';
 import {useQuery} from './useQuery';
+import {invalidate} from './query-cache';
+import {mergeWritingProgress,type WritingJob} from './review-writing-progress';
 import {usePageState,useScrollMemory} from './page-memory';
 import ModelPicker from './ModelPicker';
 import EvidenceResources,{type EvidenceResource} from './EvidenceResources';
@@ -23,14 +25,14 @@ type Row={id:string;serial:string;title:string};
 type Config={concurrency:number;topK:number;language:string;requirements:string;profileId:string;model:string};
 type Unit={id:string;serial:string;title:string;nodes:string[];leafIds:string[];state:string;latest:boolean;completed:boolean;promptReady:boolean;hasContent:boolean;error:string;received:number;reasoningCharacters:number;revision:string};
 type Stage={state:string;completed:number;total:number;shortfalls?:number};
-type Status={stages?:{preparation:Stage;writing:Stage};materialModel?:string;projectModel?:string;materialModelChanged?:boolean;draftCount?:number;outlineChanged?:boolean;hasContent?:boolean;currentOutlineCount?:number;manuscriptCount?:number;modelLabel?:string;fileRevision:string;config:Config;rows:Row[];units:Unit[];job:{mode?:string;state?:string;phase?:string;error?:string;total?:number;completed?:number;failed?:number;pending?:number;running?:number;cancelled?:number;settled?:number};latest:number;completed:number;total:number;model:string;runtimeReady:boolean;prepared:number;retrieval:{config:{method:string;};apiModel:string;apiVerified:boolean};effectiveCandidateK:number};
+type Status={stages?:{preparation:Stage;writing:Stage};materialModel?:string;projectModel?:string;materialModelChanged?:boolean;draftCount?:number;outlineChanged?:boolean;hasContent?:boolean;currentOutlineCount?:number;manuscriptCount?:number;modelLabel?:string;fileRevision:string;config:Config;rows:Row[];units:Unit[];job:WritingJob;latest:number;completed:number;total:number;model:string;runtimeReady:boolean;prepared:number;retrieval:{config:{method:string;};apiModel:string;apiVerified:boolean};effectiveCandidateK:number};
 type Chunk={evidenceId?:string;retrievedFor?:string[];resources?:EvidenceResource[];id:string;text:string;metadata:{pmid:string;title:string;sourceKind:string;sectionPath:string[]}};
 type Section={sharedEvidence?:Chunk[]|null;sections?:{node_id:string;markdown:string;displayBlocks?:BodyBlock[]}[];evidence?:Record<string,{query:string;chunks:Chunk[]}>;model?:string};
 const labels:Record<string,string>={pending:'待生成',retrieving:'检索中',retrieved:'等待撰写',writing:'撰写中',validating:'引用校验',latest:'最新',done:'已完成',outdated:'待更新',failed:'失败',cancelled:'已取消'};
 const active=(s?:string)=>['queued','running','stopping'].includes(s||'');
 export default function ReviewWriting({projectId,name,visible,outlineRevision,outlineBusy,onActive}:{projectId:string;name:string;visible:boolean;outlineRevision:number;outlineBusy:boolean;onActive:(value:boolean)=>void}){
  const {notify,openSettings}=useApp();
- const [data,setData]=useState<Status|null>(()=>peekRpc<Status>('review.writing.status',{project:projectId,name})||null),[cfg,setCfg]=useState<Config|null>(()=>peekRpc<Status>('review.writing.status',{project:projectId,name})?.config||null),[dirty,setDirty]=useState(false),[busy,setBusy]=useState(false),[error,setError]=useState('');
+ const [data,setData]=useState<Status|null>(()=>peekRpc<Status>('review.writing.status',{project:projectId,name})||null),[cfg,setCfg]=useState<Config|null>(()=>peekRpc<Status>('review.writing.status',{project:projectId,name})?.config||null),[dirty,setDirty]=useState(false),[busy,setBusy]=useState(false),[error,setError]=useState(''),[starting,setStarting]=useState(false);
  const [selected,setSelected]=usePageState(`${projectId}:writing:${name}:selected`,''),[section,setSection]=useState<Section|null>(()=>peekRpc<Section>('review.writing.section',{project:projectId,name,nodeId:selected})||null),[preview,setPreview]=useState<{markdown:string;displayBlocks?:BodyBlock[]}|null>(null),[evidenceOpen,setEvidenceOpen]=useState(false);
  useEffect(()=>{const dismiss=(event:KeyboardEvent)=>{if(event.key==='Escape'&&!event.defaultPrevented&&!document.querySelector('dialog[open], [role="listbox"]')&&evidenceOpen&&window.matchMedia('(max-width:1399px)').matches)setEvidenceOpen(false);};window.addEventListener('keydown',dismiss);return()=>window.removeEventListener('keydown',dismiss);},[evidenceOpen]);
  const [objectTarget,setObjectTarget]=useState('');
@@ -49,9 +51,18 @@ export default function ReviewWriting({projectId,name,visible,outlineRevision,ou
  const shared=Array.isArray(section?.sharedEvidence),shownChunks=shared?section!.sharedEvidence!:evidence?.chunks;
  const recalledIds=new Set(evidence?.chunks?.map(c=>c.id)||[]);
  async function request<T>(op:string,args:Record<string,unknown>={}):Promise<T>{return rpc<T>('review.writing.'+op,{project:projectId,name,...args});}
- const stateQuery=useQuery<Status>('review.writing.status',{project:projectId,name},running?1500:15000,1500,d=>active(d.job.state),visible||running);
- useEffect(()=>{const d=stateQuery.data;if(!d)return;setData(d);if(!dirtyRef.current)setCfg(d.config);onActive(active(d.job.state));setSelected(s=>d.rows.some(r=>r.id===s)?s:d.rows.find(r=>d.units.some(u=>u.hasContent&&u.nodes.includes(r.id)))?.id||d.rows.find(r=>d.units.some(u=>u.leafIds.includes(r.id)))?.id||d.rows[0]?.id||'');},[stateQuery.data]);
- useEffect(()=>{if(stateQuery.error)setError(stateQuery.error);},[stateQuery.error]);
+ const progressQuery=useQuery<{job:WritingJob}>('review.writing.progress',{project:projectId,name},running?1500:10000,1500,d=>active(d.job.state),visible||running);
+ const latestProgress=useRef<WritingJob|undefined>(undefined);
+ const stateQuery=useQuery<Status>('review.writing.status',{project:projectId,name},15000,15000,undefined,visible&&!running&&!starting);
+ useEffect(()=>{
+  const job=progressQuery.data?.job;if(!job)return;
+  const previous=latestProgress.current;latestProgress.current=job;
+  if(job.token===previous?.token&&active(previous?.state)&&!active(job.state))invalidate(projectId,['review.writing.status']);
+  setData(current=>current?mergeWritingProgress(current,job):current);
+ },[progressQuery.data]);
+ useEffect(()=>{onActive(running);},[running]);
+ useEffect(()=>{const d=stateQuery.data;if(!d)return;setData(current=>current&&active(current.job.state)&&(current.job.created||0)>(d.job.created||0)?current:mergeWritingProgress(d,latestProgress.current));if(!dirtyRef.current)setCfg(d.config);setSelected(s=>d.rows.some(r=>r.id===s)?s:d.rows.find(r=>d.units.some(u=>u.hasContent&&u.nodes.includes(r.id)))?.id||d.rows.find(r=>d.units.some(u=>u.leafIds.includes(r.id)))?.id||d.rows[0]?.id||'');},[stateQuery.data]);
+ useEffect(()=>{if(stateQuery.error||progressQuery.error)setError(stateQuery.error||progressQuery.error);},[stateQuery.error,progressQuery.error]);
 
  async function loadSection(id:string){const seq=++selectionId.current;const d=await request<Section>('section',{nodeId:id});if(live.current&&seq===selectionId.current)setSection(d);}
  useEffect(()=>{live.current=true;if(visible)void request<Status>('status').catch(e=>live.current&&setError(message(e)));return()=>{live.current=false;requestId.current++;selectionId.current++;onActive(false);};},[projectId,name,outlineRevision,visible]);
@@ -62,7 +73,20 @@ export default function ReviewWriting({projectId,name,visible,outlineRevision,ou
  async function openObject(anchor:string){await execute(async()=>{const value=await request<{markdown:string;displayBlocks?:BodyBlock[]}>('preview');if(live.current){setPreview(value);setObjectTarget(anchor);}});}
  async function execute(fn:()=>Promise<void>){setBusy(true);setError('');try{await fn();}catch(e){if(live.current)setError(message(e));}finally{if(live.current)setBusy(false);}}
  function edit<K extends keyof Config>(key:K,value:Config[K]){if(cfg){setCfg({...cfg,[key]:value});setDirty(true);}}
- async function start(ids?:string[],op:'start'|'prepare'|'prepare.resume'|'retry'='start',confirmed=false){await execute(async()=>{const d=await request<Status>(op,{config:cfg,unitIds:ids,confirm:confirmed});if(!live.current)return;setData(d);setCfg(d.config);setDirty(false);onActive(active(d.job.state));setPreview(null);setSection(null);selectionId.current++;setConfirm(null);if(!active(d.job.state))notify(op.startsWith('prepare')?'本轮写作材料已准备完成':'所有章节均已完成，无需重新撰写');});}
+ async function start(ids?:string[],op:'start'|'prepare'|'prepare.resume'|'retry'='start',confirmed=false){
+  setStarting(op==='start');
+  try{await execute(async()=>{
+   const fast=op==='start';
+   const result=await request<Status&{noop?:boolean}>(op,{config:cfg,unitIds:ids,confirm:confirmed,...(fast?{ack:true}:{})});
+   if(!live.current)return;
+   if(fast&&!result.noop){latestProgress.current=result.job;setData(current=>current?{...current,job:result.job,config:result.config}:current);}
+   else if(!fast){latestProgress.current=result.job;setData(result);}
+   else{void request<Status>('status').catch(e=>live.current&&setError(message(e)));}
+   setCfg(result.config);setDirty(false);setPreview(null);setSection(null);selectionId.current++;setConfirm(null);
+   if(result.noop||!active(result.job.state))notify(op.startsWith('prepare')?'本轮写作材料已准备完成':'所有章节均已完成，无需重新撰写');
+  });}finally{if(live.current)setStarting(false);}
+ }
+
  async function saveSettings(){
   if(!cfg)return;
   const d=await request<Status>('settings',cfg);setData(d);setCfg(d.config);setDirty(false);setSettingsOpen(false);notify('撰写参数已保存',{tone:'success'});
@@ -79,8 +103,8 @@ export default function ReviewWriting({projectId,name,visible,outlineRevision,ou
  const preparation=data?.stages?.preparation;
  const canResumePreparation=preparation?.state==='partial';
  const prepRunning=running&&data?.job.mode==='prepare',writeRunning=running&&data?.job.mode==='write';
- const cancel=()=>void execute(async()=>{setData(await request<Status>('cancel'));});
- const startReason=outlineBusy?'大纲正在更新，完成后可继续。':busy?'正在处理当前操作。':dirty?'请先保存或放弃撰写设置中的修改。':!data?'正在读取撰写状态。':!(data.currentOutlineCount??data.total)?'请先生成或导入综述大纲。':needsPreparation&&!data.runtimeReady?'请先完成文献检索模型设置。':!needsPreparation&&!data.model?'请在撰写设置中选择模型。':'';
+ const cancel=()=>void execute(async()=>{const result=await request<{job:WritingJob}>('cancel',{ack:true});if(live.current){latestProgress.current=result.job;setData(current=>current?{...current,job:result.job}:current);}});
+ const startReason=outlineBusy?'大纲正在更新，完成后可继续。':starting?'正在启动撰写任务…':busy?'正在处理当前操作。':dirty?'请先保存或放弃撰写设置中的修改。':!data?'正在读取撰写状态。':!(data.currentOutlineCount??data.total)?'请先生成或导入综述大纲。':needsPreparation&&!data.runtimeReady?'请先完成文献检索模型设置。':!needsPreparation&&!data.model?'请在撰写设置中选择模型。':'';
  function prepareNew(){if(hasContent)setConfirm('prepare');else void start(undefined,'prepare');}
  return <div className="review-writing">{draftDialog}
  {savedOpen&&<ReviewManuscripts projectId={projectId} name={name} drafts={savedOpen==='drafts'} onClose={()=>setSavedOpen(null)}/>}
@@ -96,7 +120,7 @@ export default function ReviewWriting({projectId,name,visible,outlineRevision,ou
  <div className="modal-actions"><button className="button secondary" disabled={busy} onClick={closeSettings}>{tr("取消")}</button><button className="button primary" disabled={blocked||!dirty} onClick={()=>void execute(saveSettings)}><Save size={14}/>{tr("保存设置")}</button></div></Modal>}
  <div className="writing-control-bar"><div className="action-bar">
  <WritingStageButton phase="prepare" running={prepRunning} stopping={prepRunning&&data.job.state==='stopping'} complete={!needsPreparation} disabled={busy||outlineBusy||dirty||!data.currentOutlineCount||(!prepRunning&&(running||!data.runtimeReady||!needsPreparation))} label={preparation?.state==='stale'?'更新写作材料':canResumePreparation?'重试失败项':'准备写作材料'} onClick={prepRunning?cancel:()=>canResumePreparation?void start(undefined,'prepare.resume'):prepareNew()}/>
- <WritingStageButton phase="write" running={writeRunning} stopping={writeRunning&&data.job.state==='stopping'} complete={!!data.total&&data.completed===data.total} disabled={busy||outlineBusy||dirty||(!writeRunning&&(running||needsPreparation||!data.model||data.completed===data.total))} label={data.stages?.writing.state==='partial'?'继续撰写':'撰写综述'} onClick={writeRunning?cancel:()=>void start()}/>
+ <WritingStageButton phase="write" starting={starting} checking={data.job.phase==='校验写作材料'} running={writeRunning} stopping={writeRunning&&data.job.state==='stopping'} complete={!!data.total&&data.completed===data.total} disabled={busy||outlineBusy||dirty||(!writeRunning&&(running||needsPreparation||!data.model||data.completed===data.total))} label={data.stages?.writing.state==='partial'?'继续撰写':'撰写综述'} onClick={writeRunning?cancel:()=>void start()}/>
  <button className="button secondary" onClick={()=>setSettingsOpen(true)}><SlidersHorizontal size={16}/>{tr("撰写设置")}</button>
  <ActionMenu label={tr("撰写更多操作")}><button disabled={blocked||dirty||!(data.currentOutlineCount??data.total)||!data.runtimeReady} onClick={prepareNew}><FileText size={14}/>{tr("准备新一轮材料")}</button><button disabled={blocked||dirty||!hasContent||data.outlineChanged||data.prepared!==data.total} onClick={()=>void start(data.units.map(u=>u.id))}><RefreshCw size={14}/>{tr("全部重新撰写")}</button><button onClick={()=>setSavedOpen('drafts')}>{tr("历史草稿")}{data.draftCount?` · ${data.draftCount}`:''}</button><button onClick={()=>void execute(async()=>{await request('open-tasks');})}>{tr("任务记录")}</button><button className="danger" disabled={blocked} onClick={()=>setConfirm('reset')}>{tr("重置撰写")}</button></ActionMenu></div></div>
  {!running&&startReason&&<p id="writing-start-reason" className="writing-action-reason">{startReason}{!data.runtimeReady&&<button className="text-button" onClick={()=>openSettings('vectors')}>{tr("检查模型设置")}</button>}</p>}
@@ -122,10 +146,10 @@ export default function ReviewWriting({projectId,name,visible,outlineRevision,ou
  </div>;
 }
 
-function WritingStageButton({phase,running,stopping,complete,disabled,label,onClick}:{phase:'prepare'|'write';running:boolean;stopping:boolean;complete:boolean;disabled:boolean;label:string;onClick:()=>void}){
+function WritingStageButton({phase,running,stopping,complete,disabled,label,onClick,starting=false,checking=false}:{starting?:boolean;checking?:boolean;phase:'prepare'|'write';running:boolean;stopping:boolean;complete:boolean;disabled:boolean;label:string;onClick:()=>void}){
  const stop=phase==='prepare'?'停止准备':'停止撰写';
- return <button className={`button writing-stage-button ${complete?'secondary':'primary'} ${running?'is-running':''}`} disabled={disabled||stopping||complete&&!running} aria-label={tr(stopping?'正在停止…':running?stop:complete?phase==='prepare'?'写作材料就绪':'综述撰写完毕':label)} onClick={onClick}>
- {running?<LoaderCircle size={15} className="spin"/>:complete?<Check size={15}/>:phase==='prepare'?<FileText size={15}/>:<Play size={15}/>}
- {running&&!stopping?<><span className="stage-running-label">{tr(phase==='prepare'?'正在准备材料…':'正在撰写综述…')}</span><span className="stage-stop-label">{tr(stop)}</span></>:<span>{tr(stopping?'正在停止…':complete?phase==='prepare'?'写作材料就绪':'综述撰写完毕':label)}</span>}
+ return <button className={`button writing-stage-button ${complete?'secondary':'primary'} ${running?'is-running':''}`} disabled={disabled||stopping||complete&&!running} aria-label={tr(starting?'正在启动撰写任务…':stopping?'正在停止…':running?stop:complete?phase==='prepare'?'写作材料就绪':'综述撰写完毕':label)} onClick={onClick}>
+ {running||starting?<LoaderCircle size={15} className="spin"/>:complete?<Check size={15}/>:phase==='prepare'?<FileText size={15}/>:<Play size={15}/>}
+ {running&&!stopping?<><span className="stage-running-label">{tr(phase==='prepare'?'正在准备材料…':checking?'正在校验写作材料…':'正在撰写综述…')}</span><span className="stage-stop-label">{tr(stop)}</span></>:<span>{tr(starting?'正在启动撰写任务…':stopping?'正在停止…':complete?phase==='prepare'?'写作材料就绪':'综述撰写完毕':label)}</span>}
  </button>;
 }

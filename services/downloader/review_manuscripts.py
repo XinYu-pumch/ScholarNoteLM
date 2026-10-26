@@ -84,11 +84,14 @@ def listing(e,name,drafts=False):
         result.append({k:value[k] for k in ('id','created','label','topic','partial','outlineHash')})
     return sorted(result,key=lambda v:v['created'],reverse=True)
 
-def capture(e,name):
+def capture(e,name,complete_only=False):
     import review_writing as w,review_export,review_bundle
     path=outline.work(e,name);ctx=context(e,name);rows=ctx['rows'];units=w.tree_units(rows)
     saved={u['id']:w.saved_unit(path,u) for u in units}
     if not any(s.get('sections') for s in saved.values()):return None
+    partial=any(not w.complete_unit(u,saved[u['id']]) for u in units)
+    # Avoid rendering evidence/images only to discard a partial manuscript.
+    if complete_only and partial:return None
     display=w.display_document(e,name,rows);sections={};blocks={};refs={};pmids=set()
     for row in rows:
         node=display.get(row['id'],{});sections[row['serial']]=node.get('markdown','');blocks[row['serial']]=node.get('displayBlocks',[])
@@ -102,14 +105,13 @@ def capture(e,name):
             for chunk in (records if records is not None and node in u['leaves'] else evidence.get(node['id'],{}).get('chunks',[])):
                 entries.setdefault(chunk['metadata']['pmid'],[]).append(review_export.reference_entry(chunk,w.storage.project_dir(e.ROOT,e.PROJECT),seen,image_loader=lambda obj:w.display_image(path,w.storage.project_dir(e.ROOT,e.PROJECT),obj)))
             refs[node['serial']]=entries
-    partial=any(not w.complete_unit(u,saved[u['id']]) for u in units)
     # No live asset paths, provider secrets, or model lookups are needed to read/export this.
     return {**({'contentLanguage':lang.normalize(ctx['config'].get('language'))} if ctx.get('config',{}).get('promptVersion') else {}),'topic':ctx['topic'] or name,'rows':[{'serial':r['serial'],'title':r['title']} for r in rows],
             'outlineHash':ctx['outlineHash'],'sections':sections,'blocks':blocks,'references':refs,'pmids':sorted(pmids,key=int),'partial':partial,
             'models':sorted({s.get('model','') for s in saved.values() if s.get('model')})}
 
 def save(e,name,keep_draft=False):
-    value=capture(e,name)
+    value=capture(e,name,complete_only=not keep_draft)
     if value is None or (value['partial'] and not keep_draft):return None
     ident=payload_hash(value)
     target=outline.safe(folder(e,name),ident,'document.json')

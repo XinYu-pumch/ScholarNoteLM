@@ -160,16 +160,18 @@ try{
 
  // Real isolated review state, with read responses simulating a thinking-only stream.
  rpc('review.create',{name:'ThinkingProgress',topic:'Synthetic review',outlineSource:'file',csv:'Serial,Title\n1,First\n2,Second\n'});
- let thinkingChars=321;
+ let thinkingChars=321;let writingUnits=[];const writingCreated=Date.now()/1000;
  const progressRoute=async route=>{
   const action=route.request().postDataJSON().action;
-  if(!['review.get','review.writing.status'].includes(action))return route.fallback();
+  if(!['review.get','review.writing.status','review.writing.progress'].includes(action))return route.fallback();
   const response=await route.fetch();const result=await response.json();
   if(result.ok&&action==='review.get')result.data.version={...result.data.version,state:'running',received:0,reasoningCharacters:thinkingChars};
   if(result.ok&&action==='review.writing.status'){
-   result.data.job={...result.data.job,state:'running',mode:'write'};
+   result.data.job={...result.data.job,token:'fixture',created:writingCreated,updated:Date.now()/1000,state:'running',mode:'write'};
+   writingUnits=result.data.units;
    result.data.units=result.data.units.map((u,i)=>({...u,state:'writing',received:i*27,reasoningCharacters:thinkingChars+i*10}));
   }
+  if(result.ok&&action==='review.writing.progress')result.data.job={token:'fixture',created:writingCreated,updated:Date.now()/1000,state:'running',mode:'write',items:Object.fromEntries(writingUnits.map((u,i)=>[u.id,{state:'writing',received:i*27,reasoningCharacters:thinkingChars+i*10}]))};
   await route.fulfill({json:result});
  };
  await page.route('**/__research',progressRoute);
