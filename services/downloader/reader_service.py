@@ -15,21 +15,27 @@ def ident(value):
     return value
 
 @contextmanager
-def db(e):
-    root(e).mkdir(parents=True,exist_ok=True)
-    c=managed_sqlite.connect(safe(e,'reader.sqlite3'),timeout=15)
+def db(e,write=True):
+    path=safe(e,'reader.sqlite3')
+    if not write and not path.exists():
+        yield None
+        return
+    if write:root(e).mkdir(parents=True,exist_ok=True)
+    c=managed_sqlite.connect(path if write else path.as_uri()+'?mode=ro',timeout=15,uri=not write)
     c.row_factory=sqlite3.Row
     try:
-        c.execute('CREATE TABLE IF NOT EXISTS threads(id TEXT PRIMARY KEY,pmid TEXT,updated REAL,data TEXT)')
-        c.execute('CREATE TABLE IF NOT EXISTS progress(pmid TEXT PRIMARY KEY,data TEXT,updated REAL)')
-        c.execute('BEGIN IMMEDIATE')
+        if write:
+            c.execute('CREATE TABLE IF NOT EXISTS threads(id TEXT PRIMARY KEY,pmid TEXT,updated REAL,data TEXT)')
+            c.execute('CREATE TABLE IF NOT EXISTS progress(pmid TEXT PRIMARY KEY,data TEXT,updated REAL)')
+            c.execute('BEGIN IMMEDIATE')
         yield c
         c.commit()
     except BaseException:c.rollback();raise
     finally:c.close()
 
 def get(c,tid):
-    row=c.execute('SELECT data FROM threads WHERE id=?',(ident(tid),)).fetchone()
+    tid=ident(tid)
+    row=c.execute('SELECT data FROM threads WHERE id=?',(tid,)).fetchone() if c is not None else None
     if not row:raise ValueError('阅读对话不存在或已删除')
     t=json.loads(row[0])
     # Stable IDs for older conversations, without rewriting source snapshots.
@@ -104,15 +110,43 @@ def load_source(e,version):
     if hashlib.sha256(raw).hexdigest()!=version:raise ValueError('全文快照校验失败，不能继续此对话')
     return json.loads(raw)
 
+def read_thread(e,tid,known=None):
+    tid=ident(tid)
+    with db(e,write=False) as c:
+        row=c.execute('SELECT updated FROM threads WHERE id=?',(tid,)).fetchone() if c is not None else None
+        if not row:raise ValueError('阅读对话不存在或已删除')
+        revision=row['updated']
+        if known==revision:
+            # Only stale active tasks need recovery; normal polling does not decode history.
+            stale=time.time()-revision>=30 and c.execute(
+                "SELECT json_extract(data,'$.state') FROM threads WHERE id=?",(tid,)).fetchone()[0] in ACTIVE
+            if not stale:return {'id':tid,'revision':revision,'unchanged':True}
+        t=get(c,tid)
+    if t['state'] in ACTIVE and time.time()-t['updated']>=30:
+        # Re-read under the write transaction so recovery cannot overwrite worker progress.
+        with db(e) as c:
+            t=get(c,tid);before=t['state'];recover(e,t)
+            if before!=t['state']:put(c,t)
+            revision=c.execute('SELECT updated FROM threads WHERE id=?',(tid,)).fetchone()[0]
+    return {**t,'revision':revision}
+
+def summaries(e,pmid=None):
+    with db(e,write=False) as c:
+        if c is None:return []
+        # SQLite strips the potentially large message history before crossing into Python.
+        sql="SELECT json_remove(data,'$.messages') FROM threads"
+        rows=c.execute(sql+(' WHERE pmid=?' if pmid else '')+' ORDER BY updated DESC',(pmid,) if pmid else ()).fetchall()
+    result=[]
+    for row in rows:
+        t=json.loads(row[0])
+        if t['state'] in ACTIVE and time.time()-t['updated']>=30:
+            try:t=read_thread(e,t['id'])
+            except ValueError:continue  # Concurrent deletion.
+        result.append({k:v for k,v in t.items() if k not in ('messages','revision')})
+    return result
+
 def jobs(e):
-    if not safe(e,'reader.sqlite3').exists():return []
-    with db(e) as c:
-        result=[]
-        for row in c.execute('SELECT data FROM threads').fetchall():
-            t=json.loads(row[0]);before=t['state'];recover(e,t)
-            if t['state']!=before:put(c,t)
-            if t['state'] in ACTIVE:result.append({'id':t['id'],'state':t['state'],'pmid':t['pmid']})
-        return result
+    return [{'id':t['id'],'state':t['state'],'pmid':t['pmid']} for t in summaries(e) if t['state'] in ACTIVE]
 
 def rpc(e,op,a):
     if op=='document':
@@ -128,11 +162,11 @@ def rpc(e,op,a):
             with path.open('rb') as f:f.seek(offset);data=f.read(1024*1024)
         return {'data':base64.b64encode(data).decode()}
     if op=='recent':
-        with db(e) as c:return {'items':[{'pmid':r['pmid'],**json.loads(r['data'])} for r in c.execute('SELECT * FROM progress ORDER BY updated DESC LIMIT 20')]}
+        with db(e,write=False) as c:return {'items':[{'pmid':r['pmid'],**json.loads(r['data'])} for r in c.execute('SELECT * FROM progress ORDER BY updated DESC LIMIT 20')] if c is not None else []}
     if op=='progress':
         p=e.pmid(a.get('pmid'))
-        with db(e) as c:
-            old=c.execute('SELECT data FROM progress WHERE pmid=?',(p,)).fetchone();value=json.loads(old[0]) if old else {}
+        with db(e,write='value' in a) as c:
+            old=c.execute('SELECT data FROM progress WHERE pmid=?',(p,)).fetchone() if c is not None else None;value=json.loads(old[0]) if old else {}
             if 'value' in a:
                 patch=a['value']
                 if not isinstance(patch,dict):raise ValueError('阅读位置无效')
@@ -141,15 +175,8 @@ def rpc(e,op,a):
                 if len(json.dumps(value))>1000:raise ValueError('阅读位置无效')
                 c.execute('INSERT OR REPLACE INTO progress VALUES(?,?,?)',(p,json.dumps(value),time.time()))
             return value
-    if op=='list':
-        p=e.pmid(a.get('pmid'))
-        with db(e) as c:
-            result=[]
-            for row in c.execute('SELECT data FROM threads WHERE pmid=? ORDER BY updated DESC',(p,)).fetchall():
-                t=json.loads(row[0]);before=t['state'];recover(e,t)
-                if before!=t['state']:put(c,t)
-                result.append({k:v for k,v in t.items() if k!='messages'})
-            return {'threads':result}
+    if op=='list':return {'threads':summaries(e,e.pmid(a.get('pmid')))}
+    if op=='get':return read_thread(e,a.get('id'),a.get('revision'))
     if op=='new':
         p=e.pmid(a.get('pmid'));document(e,p)
         t={'id':uuid.uuid4().hex,'pmid':p,'contentLanguage':lang.normalize(a.get('contentLanguage')),'name':'New conversation' if lang.normalize(a.get('contentLanguage'))=='en' else '新对话','state':'idle','source':'','sourceKind':'','messages':[],'profileId':'','model':'','error':'','created':time.time()}
@@ -159,7 +186,6 @@ def rpc(e,op,a):
     with db(e) as c:
         t=get(c,a.get('id'));before=t['state'];recover(e,t)
         if before!=t['state']:put(c,t)
-        if op=='get':return t
         if op=='language':
             t['contentLanguage']=lang.normalize(a.get('contentLanguage'));put(c,t);return t
         if op=='fork':
@@ -230,9 +256,9 @@ async def run(e,tid,run_id):
             cancelled_first=t['state']=='stopping';t['state']='stopping' if cancelled_first else 'running';t['messages'][-1]['state']=t['state'];put(c,t)
         text='';reasoning='';last=0
         def cancelled():
-            with db(e) as c:
-                latest=get(c,tid)
-                return latest.get('run')!=run_id or latest['state']=='stopping'
+            with db(e,write=False) as c:
+                row=c.execute("SELECT json_extract(data,'$.run'),json_extract(data,'$.state') FROM threads WHERE id=?",(tid,)).fetchone()
+                return not row or row[0]!=run_id or row[1]=='stopping'
         def flush(force=False):
             nonlocal last
             if not force and time.monotonic()-last<.25:return

@@ -201,6 +201,11 @@ def thread_running(e,t):
 def public_job(e,rid):
     path=runpath(e,rid);j=read(path/'job.json')
     if not j:raise ValueError('问答记录不存在')
+    return {**j,'evidence':evidence_entries(e,rid,j)}
+
+def evidence_entries(e,rid,j=None):
+    path=runpath(e,rid)
+    if j is None:j=read(path/'job.json')
     evidence=read(path/'evidence.json',[])
     entries=[{'eid':r['eid'],'pmid':r['metadata']['pmid'],'title':r['metadata']['title'],
               'sourceKind':r['metadata']['sourceKind'],'sectionPath':r['metadata'].get('sectionPath',[]),
@@ -210,7 +215,7 @@ def public_job(e,rid):
         if any(r['id']==obj['id'] for r in j.get('citationRefs',[])):
             source=next((r for r in entries if r['pmid']==obj['pmid']),{})
             entries.append({**source,'eid':obj['id'],'pmid':obj['pmid'],'title':source.get('title','原文图表'),'kind':obj['kind'],**obj['location']})
-    return {**j,'evidence':entries}
+    return entries
 
 def thread(e,tid):
     t=read(threadpath(e,tid))
@@ -218,14 +223,38 @@ def thread(e,tid):
     revision=thread_revision(e,tid,t)
     return {**t,'revision':revision,'runs':[public_job(e,r) for r in t['runIds']]}
 
+def run_identity(e,rid,names=('job.json','evidence.json','answer-bundle.json')):
+    from status_cache import identity
+    path=runpath(e,rid)
+    # Completed artifacts may be compressed; both representations affect the view.
+    return [identity(path/(name+suffix)) for name in names for suffix in ('','.gz')]
+
+def view(e,tid,known=None):
+    """UI history: unchanged rounds stay in the client; evidence loads separately.
+
+    Read identities before contents. A concurrent write then causes the next poll
+    to refresh again instead of stamping old contents with a newer revision.
+    """
+    t=read(threadpath(e,tid))
+    if not t or t.get('deleted'):raise ValueError('对话不存在')
+    known=known if isinstance(known,dict) else {}
+    revision=thread_revision(e,tid,t);runs=[]
+    for rid in t['runIds']:
+        path=runpath(e,rid)
+        signature=chunks.digest(run_identity(e,rid))
+        if known.get(rid)==signature:continue
+        j=read(path/'job.json')
+        if not j:raise ValueError('问答记录不存在')
+        evidence_revision=chunks.digest(run_identity(e,rid,('evidence.json','answer-bundle.json'))+[j.get('citationRefs',[])])
+        if j.get('state') not in ACTIVE:j={**j,'events':[],'eventsDeferred':True}
+        runs.append({**j,'viewRevision':signature,'evidenceRevision':evidence_revision,'evidence':[],'evidenceDeferred':True})
+    return {**t,'revision':revision,'runs':runs}
+
 def thread_revision(e,tid,t=None):
     t=t or read(threadpath(e,tid))
     if not t or t.get('deleted'):return None
     from status_cache import identity
-    paths=[threadpath(e,tid)]
-    for rid in t['runIds']:
-        paths.extend(runpath(e,rid)/name for name in ('job.json','evidence.json','answer-bundle.json'))
-    return chunks.digest([identity(p) for p in paths])
+    return chunks.digest([identity(threadpath(e,tid)),*[run_identity(e,rid) for rid in t['runIds']]])
 
 def start(e,a):
     cfg=config(e);planner,answer=models(e,cfg)
@@ -336,6 +365,9 @@ def rpc(e,op,a):
         jobs(e)
         return sorted([t for p in (root(e)/'threads').glob('*.json') if not p.is_symlink() for t in [read(p)] if not t.get('deleted')],key=lambda t:t['updated'],reverse=True)
     if op=='get':jobs(e);return thread(e,a.get('threadId'))
+    if op=='view':jobs(e);return view(e,a.get('threadId'),a.get('known'))
+    if op=='sources':return {'evidence':evidence_entries(e,a.get('runId'))}
+    if op=='trace':return {'events':read(runpath(e,a.get('runId'))/'job.json',{}).get('events',[])}
     if op=='changes':
         active_jobs=[{'id':j['id'],'threadId':j.get('threadId'),'state':j['state']} for j in jobs(e)]
         return {'jobs':active_jobs,'revision':thread_revision(e,a['threadId']) if a.get('threadId') else None}

@@ -22,6 +22,48 @@ class ReaderTests(unittest.TestCase):
  def finish(self,t):
   with r.db(e) as c:t=r.get(c,t['id']);t['state']='done';t['messages'][-1].update(text='Answer',state='done');r.put(c,t)
   return t
+ def test_empty_readers_do_not_create_database(self):
+  self.assertEqual(r.rpc(e,'list',{'pmid':'1'}),{'threads':[]})
+  self.assertEqual(r.rpc(e,'recent',{}),{'items':[]})
+  self.assertEqual(r.rpc(e,'progress',{'pmid':'1'}),{})
+  self.assertEqual(r.jobs(e),[])
+  self.assertFalse(r.safe(e,'reader.sqlite3').exists())
+ def test_unchanged_poll_skips_decoding_history_and_detects_update(self):
+  t=self.finish(self.start(self.new()));initial=r.rpc(e,'get',{'id':t['id']})
+  with patch.object(r,'get',side_effect=AssertionError('history decoded')):
+   self.assertEqual(r.rpc(e,'get',{'id':t['id'],'revision':initial['revision']}),{'id':t['id'],'revision':initial['revision'],'unchanged':True})
+  r.rpc(e,'rename',{'id':t['id'],'name':'Changed'})
+  changed=r.rpc(e,'get',{'id':t['id'],'revision':initial['revision']})
+  self.assertEqual(changed['name'],'Changed');self.assertEqual(changed['messages'],initial['messages'])
+  self.assertNotEqual(changed['revision'],initial['revision'])
+ def test_reads_do_not_wait_for_reserved_writer_lock(self):
+  t=self.finish(self.start(self.new()))
+  with r.db(e) as writer:
+   writer.execute('UPDATE threads SET updated=updated WHERE id=?',(t['id'],))
+   # A second BEGIN IMMEDIATE here would time out. All reads must remain available.
+   with patch.object(r,'recover',side_effect=AssertionError('idle recovery')):
+    self.assertEqual(r.rpc(e,'get',{'id':t['id']})['state'],'done')
+    self.assertEqual(r.rpc(e,'list',{'pmid':'1'})['threads'][0]['id'],t['id'])
+    self.assertEqual(r.rpc(e,'recent',{}),{'items':[]})
+    self.assertEqual(r.rpc(e,'progress',{'pmid':'1'}),{})
+    self.assertEqual(r.jobs(e),[])
+ def test_conditional_poll_recovers_abandoned_worker(self):
+  t=self.start(self.new());t['updated']=time.time()-60
+  with r.db(e) as c:c.execute('UPDATE threads SET updated=?,data=? WHERE id=?',(t['updated'],json.dumps(t),t['id']))
+  result=r.rpc(e,'get',{'id':t['id'],'revision':t['updated']})
+  self.assertEqual(result['state'],'failed');self.assertNotEqual(result['revision'],t['updated'])
+ def test_recovery_rechecks_after_concurrent_worker_update(self):
+  t=self.start(self.new());t['updated']=time.time()-60
+  with r.db(e) as c:c.execute('UPDATE threads SET updated=?,data=? WHERE id=?',(t['updated'],json.dumps(t),t['id']))
+  original=r.get;calls=[]
+  def read(c,tid):
+   value=original(c,tid);calls.append(tid)
+   if len(calls)==1:
+    latest={**value,'updated':time.time()}
+    with r.db(e) as writer:writer.execute('UPDATE threads SET updated=?,data=? WHERE id=?',(latest['updated'],json.dumps(latest),tid))
+   return value
+  with patch.object(r,'get',side_effect=read):result=r.rpc(e,'get',{'id':t['id']})
+  self.assertEqual(result['state'],'queued');self.assertEqual(len(calls),2)
  def test_abstract_without_pdf_and_full_raw_with_pdf(self):
   d=r.document(e,'1');self.assertEqual(d['kind'],'abstract');self.assertIn('ABSTRACT_ONLY',d['text'])
   self.raw();d=r.document(e,'1');self.assertTrue(d['ready']);self.assertIn('References retained',d['text']);self.assertNotIn('CLEANED_TEXT',d['text'])

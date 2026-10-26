@@ -47,6 +47,8 @@ notes/notes.json           # 原有手写笔记，继续独立保存
 
 `reader.*` RPC 由 Rust 转交 Python；`reader_worker.py` 独立执行流式请求，切换页面不终止生成。SQLite 事务限制同一对话只能有一个活动请求，不同对话可独立生成。取消状态与 run ID 防止晚到结果覆盖新任务；进程锁用于识别异常退出。阅读任务计入项目使用状态，项目删除/移动/清理遵守现有互斥流程。
 
+阅读对话首次读取完整历史，随后 `reader.get` 携带已知版本，未变化时仅返回版本标记，不重复传输和渲染全部消息；有变化时刷新完整记录。折叠的历史思考在展开时渲染。读取对话、列表、阅读位置和任务状态使用只读数据库连接；只有修改及异常任务恢复才进入写事务，恢复时重新读取最新状态，避免覆盖后台进度。短暂读取失败后继续重试。打开历史记录不调用模型、不重建向量；发送新问题仍使用完整原稿和此前成功问答。
+
 模型密钥只在工作进程中从配置读取，不写到对话、命令行或全文快照。不记录重复的完整请求日志。手写笔记仍在阅读页底部折叠入口，原有内容保留。
 
 ## 验证
@@ -54,6 +56,7 @@ notes/notes.json           # 原有手写笔记，继续独立保存
 ```sh
 runtimes/downloader/bin/python -m unittest discover -s services/downloader/tests -p test_reader.py
 runtimes/downloader/bin/python scripts/test-reader-integration.py
+runtimes/node/bin/node scripts/test-conversation-loading-ui.mjs
 ```
 
 集成脚本使用 `tmp/` 下的隔离根目录、本地 SSE 模型、8 页模拟 PDF/XML，经过实际 Rust RPC 和独立 Python 工作进程。覆盖超过 20 万字符原稿、连续追问、模型切换、快照共享、摘要回退、停止/重试、分支续问、历史回答重新生成和上下文错误。`--serve` 在验证完成后保留临时项目和本地服务供 UI 检查；退出后自动清理。不要将开发服务器指向真实研究项目运行 UI 测试。

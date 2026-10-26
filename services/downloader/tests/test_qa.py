@@ -8,6 +8,49 @@ class QATests(unittest.TestCase):
  def setUp(self):
   self.old=e.ROOT,e.PROJECT;self.tmp=tempfile.TemporaryDirectory(dir=e.ROOT/'tmp');e.ROOT,e.PROJECT=Path(self.tmp.name),'test';self.base=storage.project_dir(e.ROOT,e.PROJECT)
  def tearDown(self):e.ROOT,e.PROJECT=self.old;self.tmp.cleanup()
+ def history_fixture(self):
+  tid=uuid.uuid4().hex;rids=[uuid.uuid4().hex for _ in range(2)]
+  e.write_json(q.threadpath(e,tid),{'id':tid,'name':'History','runIds':rids})
+  for rid in rids:
+   path=q.runpath(e,rid)
+   e.write_json(path/'job.json',{'id':rid,'state':'done','question':'Question','answer':'Answer [E1]','events':[{'type':'model','reasoning':'Long reasoning'}],'citationRefs':[{'id':'E1','pmid':'123'},{'id':'R1','pmid':'123'}]})
+   e.write_json(path/'evidence.json',[{'eid':'E1','text':'Full source','metadata':{'pmid':'123','title':'Study','sourceKind':'fulltext','sectionPath':['Results']}}])
+   e.write_json(path/'answer-bundle.json',{'resources':[{'id':'R1','resourceId':'fig1','pmid':'123','kind':'figure','location':{},'content':'Caption'}]})
+  return tid,rids
+ def test_light_history_defers_sources_and_trace_without_losing_answers(self):
+  tid,rids=self.history_fixture();read=q.read
+  def guarded(path,*a):
+   if path.name in ('evidence.json','answer-bundle.json'):self.fail('History must not decode evidence')
+   return read(path,*a)
+  with patch.object(q,'read',side_effect=guarded):view=q.view(e,tid)
+  full=q.thread(e,tid)
+  for light,original in zip(view['runs'],full['runs']):
+   self.assertEqual(light['answer'],original['answer']);self.assertEqual(light['citationRefs'],original['citationRefs'])
+   self.assertTrue(light['eventsDeferred']);self.assertTrue(light['evidenceDeferred']);self.assertEqual(light['events'],[])
+   self.assertEqual(q.rpc(e,'sources',{'runId':light['id']})['evidence'],original['evidence'])
+   self.assertEqual(q.rpc(e,'trace',{'runId':light['id']})['events'],original['events'])
+ def test_history_delta_reads_only_changed_rounds(self):
+  tid,rids=self.history_fixture();first=q.view(e,tid);known={r['id']:r['viewRevision'] for r in first['runs']}
+  self.assertEqual(q.view(e,tid,known)['runs'],[])
+  path=q.runpath(e,rids[1])/'job.json';j=q.read(path);j.update(state='running',answer='New answer');e.write_json(path,j)
+  read=q.read
+  def guarded(path,*a):
+   if path==q.runpath(e,rids[0])/'job.json':self.fail('Unchanged round read')
+   return read(path,*a)
+  with patch.object(q,'read',side_effect=guarded):delta=q.view(e,tid,known)
+  self.assertEqual([r['id'] for r in delta['runs']],[rids[1]])
+  self.assertEqual(delta['runs'][0]['events'],j['events']);self.assertNotIn('eventsDeferred',delta['runs'][0])
+  self.assertEqual(delta['runs'][0]['evidenceRevision'],first['runs'][1]['evidenceRevision'])
+ def test_compressed_evidence_changes_invalidate_history(self):
+  import gzip
+  tid,rids=self.history_fixture();path=q.runpath(e,rids[0])/'evidence.json'
+  rows=q.read(path);path.unlink();e.atomic(path.with_suffix('.json.gz'),gzip.compress(json.dumps(rows).encode()))
+  first=q.view(e,tid);known={r['id']:r['viewRevision'] for r in first['runs']}
+  rows[0]['metadata']['title']='Updated source';e.atomic(path.with_suffix('.json.gz'),gzip.compress(json.dumps(rows).encode()))
+  delta=q.view(e,tid,known)
+  self.assertNotEqual(delta['revision'],first['revision']);self.assertEqual(len(delta['runs']),1)
+  self.assertNotEqual(delta['runs'][0]['evidenceRevision'],first['runs'][0]['evidenceRevision'])
+  self.assertEqual(q.rpc(e,'sources',{'runId':rids[0]})['evidence'][0]['title'],'Updated source')
  def test_round_settings_reject_invalid_values(self):
   for value in ({'topK':True},{'maxRounds':0},{'minRounds':4,'maxRounds':3},{'queriesPerRound':1.2},{'contextChars':100}):
    with self.subTest(value=value),self.assertRaises(ValueError):q.config(e,value)
